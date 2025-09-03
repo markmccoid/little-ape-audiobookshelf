@@ -5,7 +5,7 @@ export default {
     slug: "abs-only",
     version: "1.0.0",
     orientation: "portrait",
-    icon: "./assets/images/icon.png",
+    icon: "./assets/images/splash-icon.png",
     scheme: "absonly",
     userInterfaceStyle: "automatic",
     newArchEnabled: true,

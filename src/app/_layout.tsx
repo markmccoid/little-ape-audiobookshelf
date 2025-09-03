@@ -1,18 +1,24 @@
 import { PortalHost } from "@rn-primitives/portal";
-import { Stack } from "expo-router";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useState } from "react";
-import { Text, View } from "react-native";
+import { LogBox, Text, View } from "react-native";
 import { absInitalize } from "../ABS/absInit";
 import "../global.css";
 import "../lib/polyfills";
 import { trackPlayerInit } from "../rn-trackplayer/rn-trackplayerInit";
-
 SplashScreen.preventAutoHideAsync();
+
+LogBox.ignoreLogs([
+  "SafeAreaView has been deprecated and will be removed in a future release. Please use 'react-native-safe-area-context' instead. See https://github.com/th3rdwave/react-native-safe-area-context",
+]);
+
+const queryClient = new QueryClient();
 
 export default function RootLayout() {
   let [isReady, setIsReady] = useState(false);
-  console.log("IS READY", isReady);
+  const router = useRouter();
   useEffect(() => {
     const initialize = async () => {
       await trackPlayerInit();
@@ -40,8 +46,17 @@ export default function RootLayout() {
   }
   return (
     <View style={{ flex: 1 }}>
-      <Stack />
-      <PortalHost />
+      <QueryClientProvider client={queryClient}>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+          }}
+        >
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="settings" options={{ presentation: "fullScreenModal" }} />
+        </Stack>
+        <PortalHost />
+      </QueryClientProvider>
     </View>
   );
 }

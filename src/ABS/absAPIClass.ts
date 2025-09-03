@@ -5,6 +5,9 @@ import * as Sharing from "expo-sharing";
 import { Alert, Image } from "react-native";
 // import { btoa } from "react-native-quick-base64";
 
+import { kv } from "@store/mmkv/mmkv";
+import { Keys } from "@store/mmkv/storageKeys";
+
 import { AudiobookshelfAuth } from "./absAuthClass";
 import {
   ABSLoginResponse,
@@ -32,7 +35,7 @@ type GetLibraryItemsParams = {
 
 export type ABSGetLibraryItems = Awaited<ReturnType<AudiobookshelfAPI["getLibraryItems"]>>;
 export type ABSGetLibraryItem = ABSGetLibraryItems[number];
-
+export type ABSGetLibraries = Awaited<ReturnType<AudiobookshelfAPI["getLibraries"]>>;
 //# -----==================================================
 //! LOOK INTO using the api/me endpoints for pulling and updating
 //! user info like bookmarks, progress, listening sessions, etc
@@ -48,6 +51,16 @@ export class AudiobookshelfAPI {
   static async create() {
     const api = new AudiobookshelfAPI();
     api.auth = await AudiobookshelfAuth.create();
+    // Try to restore from storage
+    const defaultLibId = kv.getString(Keys.absDefaultLibraryId) || undefined;
+    if (defaultLibId && defaultLibId.trim() !== "") {
+      api.setActiveLibraryId(defaultLibId);
+      return api;
+    }
+
+    // Fallback: fetch libraries and set the first as active
+    const libs = await api.getLibraries(); // note: this calls setActiveLibraryId internally
+    // If no libraries, then we are not logged in and just return the api.
     return api;
   }
   // 🔹 Generic authenticated request method
@@ -117,11 +130,12 @@ export class AudiobookshelfAPI {
     }));
   }
 
-  public setActiveLibraryId(libraryId: string | undefined): void {
+  public setActiveLibraryId(libraryId: string): void {
     if (libraryId && libraryId.trim() === "") {
       throw new Error("Library ID cannot be an empty string");
     }
     this.activeLibraryId = libraryId;
+    kv.setString(Keys.absDefaultLibraryId, libraryId || "");
   }
 
   public getActiveLibraryId(): string | undefined {
@@ -186,7 +200,14 @@ export class AudiobookshelfAPI {
   async buildCoverURL(itemId: string) {
     // const auth = await AudiobookshelfAuth.create();
     const token = await this.auth.getValidAccessToken();
-    const serverUrl = await this.auth.getStoredServerUrl();
+    const serverUrl = this.auth.absURL;
+    return `${serverUrl}/api/items/${itemId}/cover?token=${token}`;
+  }
+
+  //-- Synchronous version of builCoverURL, MUST pass token
+  buildCoverURLSync(itemId: string, token: string) {
+    // const auth = await AudiobookshelfAuth.create();
+    const serverUrl = this.auth.absURL;
     return `${serverUrl}/api/items/${itemId}/cover?token=${token}`;
   }
 
@@ -209,20 +230,28 @@ export class AudiobookshelfAPI {
     interface ItemInfo {
       itemId: string;
       type: "isFavorite" | "isRead";
-      folderNameIn: string;
+      title: string;
+      author: string;
       imageURL: string;
     }
+    type ItemInfoMerged = Pick<ItemInfo, "itemId" | "title" | "author" | "imageURL"> & {
+      type: ("isFavorite" | "isRead")[];
+    };
+    const token = await this.auth.getValidAccessToken();
+    if (!token) throw new Error("No ABS Token found");
 
     const readResults: ItemInfo[] =
       (await Promise.all(
-        progressData?.results?.map(async (el: LibraryItem) => {
-          const coverURL = await this.buildCoverURL(el.id);
-          const coverURI = (await getCoverURI(coverURL)).coverURL;
+        progressData?.results?.map((el: LibraryItem) => {
+          const coverURL = this.buildCoverURLSync(el.id, token);
+          // this is the base64 Image
+          // const coverURI = (await getCoverURI(coverURL)).coverURL;
           return {
             itemId: el.id,
             type: "isRead",
-            folderNameIn: `${el.media.metadata.title}~${el.media.metadata.authorName}`,
-            imageURL: coverURI,
+            title: el.media.metadata.title,
+            author: el.media.metadata.authorName,
+            imageURL: coverURL,
           };
         }) ?? []
       )) || [];
@@ -230,16 +259,21 @@ export class AudiobookshelfAPI {
     const favResults: ItemInfo[] =
       (await Promise.all(
         favData?.results?.map(async (el: LibraryItem) => {
-          const coverURL = await this.buildCoverURL(el.id);
-          const coverURI = (await getCoverURI(coverURL)).coverURL;
+          const coverURL = this.buildCoverURLSync(el.id, token);
+          // const coverURI = (await getCoverURI(coverURL)).coverURL;
           return {
             itemId: el.id,
             type: "isFavorite",
-            folderNameIn: `${el.media.metadata.title}~${el.media.metadata.authorName}`,
-            imageURL: coverURI,
+            title: el.media.metadata.title,
+            author: el.media.metadata.authorName,
+            imageURL: coverURL,
           };
         }) ?? []
       )) || [];
+
+    // Create a function that you can pass an "ItemInfo" object into and it will
+    // add to the result map so that we get a new ItemInfo object, but with the type being an array
+    // with one or both of the "isFavorite" or "isRead"
 
     const resultMap = new Map();
     const mergeItems = (item: ItemInfo) => {
@@ -254,7 +288,7 @@ export class AudiobookshelfAPI {
     favResults.forEach(mergeItems);
     readResults.forEach(mergeItems);
 
-    return Array.from(resultMap.values()).filter((el) => el.itemId);
+    return Array.from(resultMap.values()).filter((el) => el.itemId) as ItemInfoMerged[];
   }
 
   async getItemDetails(itemId?: string) {
@@ -322,6 +356,9 @@ export class AudiobookshelfAPI {
     const { url, authHeader } = await this.absDownloadItem(itemId, fileIno);
 
     try {
+      if (!FileSystem.cacheDirectory) {
+        throw new Error("Cache directory not available on this platform");
+      }
       const tempDir = `${FileSystem.cacheDirectory}temp_downloads/`;
       await FileSystem.makeDirectoryAsync(tempDir, { intermediates: true });
       tempFileUri = `${tempDir}${filenameWExt}`;
@@ -386,7 +423,9 @@ export class AudiobookshelfAPI {
 
     return { id: libraryId, genres, tags, authors, series };
   }
-
+  //--=================================
+  //-- getLibraryItems
+  //--=================================
   async getLibraryItems({ libraryId, filterType, filterValue, sortBy }: GetLibraryItemsParams) {
     const userFavoriteInfo = await this.getUserFavoriteInfo();
     const libraryIdToUse = libraryId;
@@ -405,52 +444,58 @@ export class AudiobookshelfAPI {
 
     let responseData, progressresponseData, favresponseData;
     try {
-      responseData = await this.makeAuthenticatedRequest(url);
+      responseData = (await this.makeAuthenticatedRequest(url)) as GetLibraryItemsResponse;
     } catch (error) {
       console.log("absAPI-absGetLibraryItems-Main", error);
       throw error;
     }
 
     try {
-      progressresponseData = await this.makeAuthenticatedRequest(progressurl);
-      favresponseData = await this.makeAuthenticatedRequest(favoriteurl);
+      progressresponseData = (await this.makeAuthenticatedRequest(progressurl)) as {
+        results: LibraryItem[];
+      };
+      favresponseData = (await this.makeAuthenticatedRequest(favoriteurl)) as {
+        results: LibraryItem[];
+      };
     } catch (error) {
       console.log("absAPI-absGetLibraryItems-Progress", error);
     }
 
-    const libraryItems = responseData.results as GetLibraryItemsResponse["results"];
+    const libraryItems = responseData?.results as GetLibraryItemsResponse["results"];
     const finishedItemIds = progressresponseData?.results?.map((el) => el.id);
     const favoritedItemIds = favresponseData?.results?.map((el) => el.id);
 
     const finishedItemIdSet = new Set(finishedItemIds);
     const favoritedItemIdSet = new Set(favoritedItemIds);
 
-    const booksMin = await Promise.all(
-      libraryItems.map(async (item) => {
-        const coverURL = await this.buildCoverURL(item.id);
-        return {
-          id: item.id,
-          title: item.media.metadata.title,
-          subtitle: item.media.metadata.subtitle,
-          author: item.media.metadata.authorName,
-          series: item.media.metadata.seriesName,
-          publishedDate: item.media.metadata.publishedDate,
-          publishedYear: item.media.metadata.publishedYear,
-          narratedBy: item.media.metadata.narratorName,
-          description: item.media.metadata.description,
-          duration: item.media.duration,
-          addedAt: item.addedAt,
-          updatedAt: item.updatedAt,
-          cover: coverURL,
-          numAudioFiles: item.media.numAudioFiles,
-          genres: item.media.metadata.genres,
-          tags: item.media.tags,
-          asin: item.media.metadata.asin,
-          isFinished: finishedItemIdSet.has(item.id),
-          isFavorite: favoritedItemIdSet.has(item.id),
-        };
-      })
-    );
+    const token = await this.auth.getValidAccessToken();
+    // If not token, should probably throw error.
+    if (!token) return [];
+
+    const booksMin = libraryItems.map((item) => {
+      const coverURL = this.buildCoverURLSync(item.id, token);
+      return {
+        id: item.id,
+        title: item.media.metadata.title,
+        subtitle: item.media.metadata.subtitle,
+        author: item.media.metadata.authorName,
+        series: item.media.metadata.seriesName,
+        publishedDate: item.media.metadata.publishedDate,
+        publishedYear: item.media.metadata.publishedYear,
+        narratedBy: item.media.metadata.narratorName,
+        description: item.media.metadata.description,
+        duration: item.media.duration,
+        addedAt: item.addedAt,
+        updatedAt: item.updatedAt,
+        cover: coverURL,
+        numAudioFiles: item.media.numAudioFiles,
+        genres: item.media.metadata.genres,
+        tags: item.media.tags,
+        asin: item.media.metadata.asin,
+        isFinished: finishedItemIdSet.has(item.id),
+        isFavorite: favoritedItemIdSet.has(item.id),
+      };
+    });
 
     return booksMin;
   }
