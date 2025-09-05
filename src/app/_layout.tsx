@@ -13,8 +13,11 @@ SplashScreen.preventAutoHideAsync();
 LogBox.ignoreLogs([
   "SafeAreaView has been deprecated and will be removed in a future release. Please use 'react-native-safe-area-context' instead. See https://github.com/th3rdwave/react-native-safe-area-context",
 ]);
+export const unstable_settings = {
+  intialRouteName: "(tabs)",
+};
 
-const queryClient = new QueryClient();
+export const queryClient = new QueryClient();
 
 export default function RootLayout() {
   let [isReady, setIsReady] = useState(false);
@@ -22,7 +25,7 @@ export default function RootLayout() {
   useEffect(() => {
     const initialize = async () => {
       await trackPlayerInit();
-      await absInitalize();
+      await absInitalize(queryClient);
       // await AudiobookshelfAuth.create();
       setIsReady(true);
       // console.log("abs logged in", hasStoredCr);
@@ -34,6 +37,7 @@ export default function RootLayout() {
   useEffect(() => {
     if (isReady) {
       SplashScreen.hideAsync();
+      router.push("/(tabs)/library");
     }
   }, [isReady]);
   // Can't go to main routes until initializing is done

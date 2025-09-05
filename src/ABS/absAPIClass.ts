@@ -33,7 +33,28 @@ type GetLibraryItemsParams = {
   limit?: number;
 };
 
-export type ABSGetLibraryItems = Awaited<ReturnType<AudiobookshelfAPI["getLibraryItems"]>>;
+export type ABSGetLibraryItems = {
+  id: string;
+  title: string;
+  subtitle?: string | null;
+  author?: string | null;
+  series?: string | null;
+  publishedDate?: string | null;
+  publishedYear?: string | null;
+  narratedBy?: string | null;
+  description?: string | null;
+  duration: number;
+  addedAt: number;
+  updatedAt: number;
+  cover: string;
+  coverFull: string;
+  numAudioFiles: number;
+  genres: string[];
+  tags: string[];
+  asin?: string | null;
+  isFinished: boolean;
+  isFavorite: boolean;
+}[];
 export type ABSGetLibraryItem = ABSGetLibraryItems[number];
 export type ABSGetLibraries = Awaited<ReturnType<AudiobookshelfAPI["getLibraries"]>>;
 //# -----==================================================
@@ -197,18 +218,22 @@ export class AudiobookshelfAPI {
     return resp.user;
   }
 
-  async buildCoverURL(itemId: string) {
+  async buildCoverURL(itemId: string, format: "webp" | "jpeg" = "webp") {
     // const auth = await AudiobookshelfAuth.create();
     const token = await this.auth.getValidAccessToken();
     const serverUrl = this.auth.absURL;
-    return `${serverUrl}/api/items/${itemId}/cover?token=${token}`;
+    const coverThumb = `${serverUrl}/api/items/${itemId}/cover?format=${format}&width=240&token=${token}`;
+    const coverFull = `${serverUrl}/api/items/${itemId}/cover?format=${format}&token=${token}`;
+    return { coverThumb, coverFull };
   }
 
   //-- Synchronous version of builCoverURL, MUST pass token
-  buildCoverURLSync(itemId: string, token: string) {
+  buildCoverURLSync(itemId: string, token: string, format: "webp" | "jpeg" = "webp") {
     // const auth = await AudiobookshelfAuth.create();
     const serverUrl = this.auth.absURL;
-    return `${serverUrl}/api/items/${itemId}/cover?token=${token}`;
+    const coverThumb = `${serverUrl}/api/items/${itemId}/cover?format=${format}&width=240&token=${token}`;
+    const coverFull = `${serverUrl}/api/items/${itemId}/cover?format=${format}&token=${token}`;
+    return { coverThumb, coverFull };
   }
 
   // 🔹 Favorited + Finished Items
@@ -251,7 +276,7 @@ export class AudiobookshelfAPI {
             type: "isRead",
             title: el.media.metadata.title,
             author: el.media.metadata.authorName,
-            imageURL: coverURL,
+            imageURL: coverURL.coverThumb,
           };
         }) ?? []
       )) || [];
@@ -266,7 +291,7 @@ export class AudiobookshelfAPI {
             type: "isFavorite",
             title: el.media.metadata.title,
             author: el.media.metadata.authorName,
-            imageURL: coverURL,
+            imageURL: coverURL.coverThumb,
           };
         }) ?? []
       )) || [];
@@ -304,7 +329,10 @@ export class AudiobookshelfAPI {
     }
 
     const coverURL = await this.buildCoverURL(libraryItem.id);
-    const coverURI = (await getCoverURI(coverURL)).coverURL;
+    // The coverURI used to be used so that I could hash a cover so
+    // it always showed the same placeholder cover. Now I use expo-image and
+    // its placeholder property and it is always the same image.
+    // const coverURI = (await getCoverURI(coverURL)).coverURL;
 
     const authorId = libraryItem.media.metadata?.authors[0].id;
     let authorBookCount = 0;
@@ -333,7 +361,7 @@ export class AudiobookshelfAPI {
       media: libraryItem.media,
       bookDuration,
       userMediaProgress: libraryItem?.userMediaProgress,
-      coverURI,
+      coverURI: coverURL.coverFull,
       authorBookCount,
       libraryFiles: libraryItem.libraryFiles,
     };
@@ -426,7 +454,12 @@ export class AudiobookshelfAPI {
   //--=================================
   //-- getLibraryItems
   //--=================================
-  async getLibraryItems({ libraryId, filterType, filterValue, sortBy }: GetLibraryItemsParams) {
+  async getLibraryItems({
+    libraryId,
+    filterType,
+    filterValue,
+    sortBy,
+  }: GetLibraryItemsParams): Promise<ABSGetLibraryItems> {
     const userFavoriteInfo = await this.getUserFavoriteInfo();
     const libraryIdToUse = libraryId;
     let queryParams = "";
@@ -487,7 +520,8 @@ export class AudiobookshelfAPI {
         duration: item.media.duration,
         addedAt: item.addedAt,
         updatedAt: item.updatedAt,
-        cover: coverURL,
+        cover: coverURL.coverThumb,
+        coverFull: coverURL.coverFull,
         numAudioFiles: item.media.numAudioFiles,
         genres: item.media.metadata.genres,
         tags: item.media.tags,

@@ -30,31 +30,20 @@ export const useLibraries = () => {
 //# ----------------------------------------------
 //# useGetBooks
 //# ----------------------------------------------
-export const useGetBooks = async () => {
+export const useGetBooks = () => {
   const absAPI = useAbsAPI();
   const activeLibraryId = absAPI.getActiveLibraryId();
-  console.log("ActiveLibId", activeLibraryId);
 
-  const { data, isPending, isError, isLoading } = useQuery({
-    queryKey: ["books"],
+  const { data, isPending, isError, isLoading, ...rest } = useQuery({
+    queryKey: ["books", activeLibraryId],
     queryFn: async () => await absAPI.getLibraryItems({ libraryId: activeLibraryId }),
     staleTime: 1000 * 60 * 5, // Stale Minutes
   });
-  const favs = useQuery({
-    queryKey: ["FavsAndRead"],
-    queryFn: async () => await absAPI.getFavoritedAndFinishedItems(),
-    // staleTime: 1000 * 60 * 5, // Stale Minutes
-  });
+  // const favs = useQuery({
+  //   queryKey: ["FavsAndRead"],
+  //   queryFn: async () => await absAPI.getFavoritedAndFinishedItems(),
+  //   // staleTime: 1000 * 60 * 5, // Stale Minutes
+  // });
 
-  console.log("QUERY", isPending, isLoading, isError);
-  if (!isPending && data && !favs.isPending) {
-    console.log(
-      "Favs",
-      favs.data?.map((el) => `${el.title}--${el.itemId}`)
-    );
-    console.log("ITEMS.Length", data?.length, data[0].cover);
-  } else {
-    console.log("PENDING");
-  }
-  return;
+  return { data, isPending, isError, isLoading, ...rest };
 };

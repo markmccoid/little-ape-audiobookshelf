@@ -1,3 +1,5 @@
+import { QueryClient } from "@tanstack/react-query";
+
 import { AudiobookshelfAPI } from "./absAPIClass";
 import { AudiobookshelfAuth } from "./absAuthClass";
 let absAuth: AudiobookshelfAuth | undefined;
@@ -13,7 +15,7 @@ let absAPIProxy: AudiobookshelfAPI | undefined;
 //# getAbsAuht() will return the Auth class instance
 //# ------------------------------------------------------------------------
 
-export const absInitalize = async () => {
+export const absInitalize = async (queryClient?: QueryClient) => {
   // Create the ABS Auth instance
   // If tokens and URL stored in secure storage we are good to go
   absAuth = await AudiobookshelfAuth.create();
@@ -49,7 +51,25 @@ export const absInitalize = async () => {
       return orig;
     },
   });
+  if (AudiobookshelfAuth.isAssumedAuthedGlobal && queryClient) {
+    try {
+      prewarmBooksCache(queryClient);
+    } catch (e) {
+      console.log("PREWARM Book Cache Error", e);
+    }
+  }
 };
+
+export async function prewarmBooksCache(queryClient: QueryClient) {
+  const absAPI = useAbsAPI();
+  const activeLibraryId = absAPI.getActiveLibraryId();
+
+  await queryClient.prefetchQuery({
+    queryKey: ["books", activeLibraryId],
+    queryFn: () => absAPI.getLibraryItems({ libraryId: activeLibraryId }),
+    staleTime: 1000 * 60 * 5,
+  });
+}
 
 // This is so we don't need to await when getting the absAuth instance
 // We expect that when called the absInitialize will have already initialized the absAuth instance
