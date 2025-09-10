@@ -47,3 +47,19 @@ export const useGetBooks = () => {
 
   return { data, isPending, isError, isLoading, ...rest };
 };
+
+//# ----------------------------------------------
+//# useGetItemDetails
+//# ----------------------------------------------
+export const useGetItemDetails = (itemId?: string) => {
+  const absAPI = useAbsAPI();
+
+  const { data, isPending, isError, isLoading, error, ...rest } = useQuery({
+    queryKey: ["itemDetails", itemId],
+    queryFn: async () => await absAPI.getItemDetails(itemId),
+    enabled: !!itemId, // Only run query if itemId is provided
+    staleTime: 1000 * 60 * 5, // Stale for 5 minutes
+  });
+
+  return { data, isPending, isError, isLoading, error, ...rest };
+};

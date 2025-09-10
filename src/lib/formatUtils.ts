@@ -18,7 +18,7 @@ export const formatBytes = (bytes: number) => {
 
 export const formatSeconds = (
   secondsIn: number,
-  type?: "minimal" | "verbose" | "verbose_no_seconds",
+  type?: "minimal" | "verbose" | "verbose_no_seconds" | "compact",
   showHours?: boolean,
   showSeconds?: boolean
 ) => {
@@ -37,6 +37,25 @@ export const formatSeconds = (
     const seconds = `${s.toString().padStart(2, "0")}`;
     const minutes = `${m > 0 ? m.toString().padStart(2, "0") : "00"}`;
     return `${showHours === true ? hours : ""}${minutes}${showSeconds ? ":" + seconds : ""}`;
+  }
+
+  if (type === "compact") {
+    // Strip out unused time periods
+    if (h > 0) {
+      // If there are hours, show h:mm:ss format
+      const hours = h.toString();
+      const minutes = m.toString().padStart(2, "0");
+      const seconds = s.toString().padStart(2, "0");
+      return `${hours}:${minutes}${showSeconds ? ":" + seconds : ""}`;
+    } else if (m > 0) {
+      // If there are minutes but no hours, show mm:ss format
+      const minutes = m.toString().padStart(2, "0");
+      const seconds = s.toString().padStart(2, "0");
+      return `${minutes}${showSeconds ? ":" + seconds : ""}`;
+    } else {
+      // If only seconds, show just seconds
+      return showSeconds ? `00:${s.toString().padStart(2, "0")}` : "0";
+    }
   }
 
   let hDisplay = "";

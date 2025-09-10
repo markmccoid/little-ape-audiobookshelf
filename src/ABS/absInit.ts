@@ -39,7 +39,7 @@ export const absInitalize = async (queryClient?: QueryClient) => {
           // const isAuthed = await auth.isAuthenticated();
           const isAuthed = AudiobookshelfAuth.isAssumedAuthedGlobal;
           if (!isAuthed) {
-            throw new Error("Not authenticated. Please login first.");
+            console.log("Not authenticated. Please login first.");
           }
 
           // Call the original method

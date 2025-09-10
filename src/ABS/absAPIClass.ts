@@ -8,15 +8,18 @@ import { Alert, Image } from "react-native";
 import { kv } from "@store/mmkv/mmkv";
 import { Keys } from "@store/mmkv/storageKeys";
 
+import { PitchAlgorithm } from "react-native-track-player";
 import { AudiobookshelfAuth } from "./absAuthClass";
 import {
   ABSLoginResponse,
+  AudiobookSession,
   AuthenticationError,
   Bookmark,
   FilterData,
   GetLibraryItemsResponse,
   Library,
   LibraryItem,
+  MediaProgress,
   NetworkError,
   User,
 } from "./abstypes";
@@ -104,6 +107,7 @@ export class AudiobookshelfAPI {
       ...options.headers,
     };
 
+    // console.log("ENDPOINT", url);
     try {
       const response = await axios({ url, headers, ...options });
       return response.data;
@@ -132,6 +136,67 @@ export class AudiobookshelfAPI {
       throw new NetworkError(`Request failed: ${statusText} (${statusCode})`);
     }
   }
+  // ## ===============================================================
+  // ## Session and Streaming
+  // ## ===============================================================
+  async getPlayInfo(itemId: string) {
+    const response: AudiobookSession = await this.makeAuthenticatedRequest(
+      `/api/items/${itemId}/play`,
+      {
+        method: "POST",
+        data: {
+          deviceInfo: {
+            clientVersion: "1.0.0",
+          },
+          supportedMimeTypes: ["audio/flac", "audio/mpeg", "audio/mp4"],
+          forceDirectPlay: false,
+          forceTranscode: false,
+        },
+      }
+    );
+    return response;
+    // console.log("PLAY RESP", Object.keys(response.audioTracks[0]));
+    // console.log(
+    //   "TRACKS",
+    //   response.audioTracks.map((el) => `${el.index}-duration->${el.duration}`)
+    // );
+    // console.log("sessionID", response.id);
+    // const token = await this.auth.getValidAccessToken();
+    // const addObj = this.buildTrackPlayerTracks(response, token);
+    // // console.log("ADDOBJ", addObj);
+    // return { addObj, response };
+  }
+
+  async closeSession(
+    sessionId: string,
+    data: { timeListened: number; currentTime: number; duration?: number }
+  ) {
+    await this.makeAuthenticatedRequest(`/api/session/${sessionId}/close`, {
+      method: "POST",
+      data,
+    });
+  }
+  async syncProgressToSever(
+    sessionId: string,
+    syncData: { timeListened: number; currentTime: number }
+  ) {
+    // if (!this.session || !this.lastSyncTime) return;
+
+    try {
+      // const currentPosition = (await TrackPlayer.getProgress()).position;
+      // const now = Date.now();
+
+      await this.makeAuthenticatedRequest(`/api/session/${sessionId}/sync`, {
+        method: "POST",
+        data: syncData,
+      });
+    } catch (error) {
+      console.error("Failed to sync progress:", error);
+    }
+  }
+  // ## ===============================================================
+  // ## Session and Streaming ----- END
+  // ## ===============================================================
 
   // Get libraries for user
   async getLibraries() {
@@ -186,8 +251,14 @@ export class AudiobookshelfAPI {
   }
 
   async getBookProgress(itemId: string) {
-    const resp = await this.makeAuthenticatedRequest(`/api/me/progress/${itemId}`);
-    return resp.currentTime;
+    let resp;
+    try {
+      resp = await this.makeAuthenticatedRequest(`/api/me/progress/${itemId}`);
+    } catch (e) {
+      // console.log(e.error);
+    }
+
+    return resp as MediaProgress;
   }
 
   async setBookFinished(itemId: string, isFinished: boolean) {
@@ -541,6 +612,56 @@ export class AudiobookshelfAPI {
       favoriteSearchString,
       favoriteUserTagValue,
     };
+  }
+
+  //!!! TESTING
+  buildTrackPlayerTracks(playbackData: AudiobookSession, token) {
+    const { audioTracks, libraryItem, chapters } = playbackData;
+
+    return audioTracks.map((track, index) => {
+      // Choose streaming method based on what's available
+      let streamUrl;
+
+      if (track.contentUrl && track.mimeType === "application/vnd.apple.mpegurl") {
+        // HLS streaming (preferred for larger files)
+        streamUrl = `${this.auth.absURL}${track.contentUrl}`;
+      } else {
+        // Fallback to direct file streaming
+        const directTrack = libraryItem.media.tracks[index];
+        // streamUrl = `${this.auth.absURL}${directTrack.contentUrl}?token=${token}`;
+        streamUrl = `${this.auth.absURL}/public/session/${playbackData.id}/track/1`;
+      }
+
+      console.log(
+        "StreamURL",
+        streamUrl,
+        playbackData.timeListening,
+        playbackData.currentTime,
+        playbackData.audioTracks.map((el) => el.startOffset)
+      );
+      return {
+        id: `${libraryItem.id}-${index}`,
+        url: streamUrl,
+        title: track.title || libraryItem.media.metadata.title,
+        artist: libraryItem.media.metadata.authors?.map((a) => a.name).join(", ") || "Unknown",
+        artwork: `${this.auth.absURL}/api/items/${libraryItem.id}/cover?token=${token}`,
+        duration: track.duration,
+        // AudioBookshelf specific metadata
+        libraryItemId: libraryItem.id,
+        sessionId: playbackData.id, // Important for session tracking
+        trackIndex: index,
+        startOffset: track.startOffset,
+        chapters: chapters || [],
+        pitchAlgorithm: PitchAlgorithm.Voice,
+        // Headers for authentication (for direct streams)
+        headers:
+          track.mimeType === "application/vnd.apple.mpegurl"
+            ? {}
+            : {
+                Authorization: `Bearer ${token}`,
+              },
+      };
+    })[0];
   }
 }
 
