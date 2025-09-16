@@ -39,19 +39,20 @@ type GetLibraryItemsParams = {
 export type ABSGetLibraryItems = {
   id: string;
   title: string;
-  subtitle?: string | null;
-  author?: string | null;
-  series?: string | null;
-  publishedDate?: string | null;
-  publishedYear?: string | null;
-  narratedBy?: string | null;
-  description?: string | null;
+  subtitle?: string | undefined | null;
+  author?: string | undefined | null;
+  series?: string | undefined | null;
+  publishedDate?: string | undefined | null;
+  publishedYear?: string | undefined | null;
+  narratedBy?: string | undefined | null;
+  description?: string | undefined | null;
   duration: number;
   addedAt: number;
   updatedAt: number;
   cover: string;
   coverFull: string;
-  numAudioFiles: number;
+  numAudioFiles: number | undefined | null;
+  ebookFormat: string | undefined | null;
   genres: string[];
   tags: string[];
   asin?: string | null;
@@ -311,7 +312,9 @@ export class AudiobookshelfAPI {
   async getFavoritedAndFinishedItems() {
     const userFavoriteInfo = await this.getUserFavoriteInfo();
     const progressurl = `/api/libraries/${this.getActiveLibraryId()}/items?filter=progress.ZmluaXNoZWQ=`;
-    const favoriteurl = `/api/libraries/${this.getActiveLibraryId()}/items?filter=tags.${userFavoriteInfo.favoriteSearchString}`;
+    const favoriteurl = `/api/libraries/${this.getActiveLibraryId()}/items?filter=tags.${
+      userFavoriteInfo.favoriteSearchString
+    }`;
 
     let progressData, favData;
     try {
@@ -545,7 +548,7 @@ export class AudiobookshelfAPI {
     const url = `/api/libraries/${libraryIdToUse}/items${queryParams}`;
     const progressurl = `/api/libraries/${libraryIdToUse}/items?filter=progress.ZmluaXNoZWQ=`;
     const favoriteurl = `/api/libraries/${libraryIdToUse}/items?filter=tags.${userFavoriteInfo.favoriteSearchString}`;
-
+    console.log("URL", url);
     let responseData, progressresponseData, favresponseData;
     try {
       responseData = (await this.makeAuthenticatedRequest(url)) as GetLibraryItemsResponse;
@@ -594,6 +597,7 @@ export class AudiobookshelfAPI {
         cover: coverURL.coverThumb,
         coverFull: coverURL.coverFull,
         numAudioFiles: item.media.numAudioFiles,
+        ebookFormat: item.media?.ebookFormat,
         genres: item.media.metadata.genres,
         tags: item.media.tags,
         asin: item.media.metadata.asin,

@@ -329,7 +329,7 @@ export interface Media {
   numTracks?: number;
   numAudioFiles?: number;
   numChapters?: number;
-  ebookFileFormat?: string | null;
+  ebookFormat?: string | null;
 }
 
 export interface UserMediaProgress {

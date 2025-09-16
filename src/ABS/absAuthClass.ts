@@ -21,6 +21,7 @@ export class AudiobookshelfAuth {
   private tokens: AuthTokens | null = null;
   username: string | undefined = "";
   userEmail: string | undefined = "";
+  userId: string | undefined = "";
   defaultLibraryId: string | undefined = "";
 
   private constructor(private serverUrl: string) {}
@@ -57,6 +58,7 @@ export class AudiobookshelfAuth {
       const userInfo = JSON.parse(storedUserInfo);
       auth.username = userInfo.username;
       auth.userEmail = userInfo.userEmail;
+      auth.userId = userInfo.userId;
     }
 
     this.instance = auth;
@@ -117,11 +119,16 @@ export class AudiobookshelfAuth {
 
       await this.storeTokens(tokens);
       await this.storeServerUrl();
-      await this.storeUserInfo({ username: data.user.username, userEmail: data.user.email });
+      await this.storeUserInfo({
+        username: data.user.username,
+        userEmail: data.user.email,
+        userId: data.user.id,
+      });
 
       this.defaultLibraryId = data.userDefaultLibraryId;
       this.username = data.user.username;
       this.userEmail = data.user.email;
+      this.userId = data.user.id;
 
       return data;
     } catch (error) {
@@ -218,6 +225,7 @@ export class AudiobookshelfAuth {
           AudiobookshelfAuth.reset();
           this.username = "";
           this.userEmail = "";
+          this.userId = "";
           return data;
         }
       }
@@ -229,6 +237,7 @@ export class AudiobookshelfAuth {
     AudiobookshelfAuth.reset();
     this.username = "";
     this.userEmail = "";
+    this.userId = "";
     return null;
   }
 
@@ -265,9 +274,10 @@ export class AudiobookshelfAuth {
     }
   }
 
-  private async storeUserInfo(userInfo: { username: string; userEmail: string }) {
+  private async storeUserInfo(userInfo: { username: string; userEmail: string; userId: string }) {
     this.username = userInfo.username; // 🔹 keep in memory
     this.userEmail = userInfo.userEmail;
+    this.userId = userInfo.userId;
     await SecureStore.setItemAsync(AudiobookshelfAuth.USERINFO_KEY, JSON.stringify(userInfo));
   }
 
@@ -276,6 +286,7 @@ export class AudiobookshelfAuth {
     await SecureStore.deleteItemAsync(AudiobookshelfAuth.TOKEN_KEY);
     this.username = undefined;
     this.userEmail = undefined;
+    this.userId = undefined;
     await SecureStore.deleteItemAsync(AudiobookshelfAuth.USERINFO_KEY);
   }
 

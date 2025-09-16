@@ -1,42 +1,34 @@
-import AudiobookStreamer from "@/src/rn-trackplayer/AudiobookStreamer";
-import { useEffect, useState } from "react";
-import TrackPlayer from "react-native-track-player";
-import { getAbsAuth, useAbsAPI } from "../ABS/absInit";
+import { useEffect } from "react";
+import { usePlaybackActions, usePlaybackSession } from "@store/store-playback";
 
+// Example hook showing how to use the playback store rather than the raw AudiobookStreamer
 const useAudiobookStreaming = (itemId: string) => {
-  const absAPI = useAbsAPI();
-  const absAuth = getAbsAuth();
-  const [streamer] = useState(() => new AudiobookStreamer(absAuth.absURL, absAPI));
+  const { initFromABS, bindEvents, loadBook, closeSession, setIsOnBookScreen } = usePlaybackActions();
+  const session = usePlaybackSession();
 
-  const setupForPlayback = async () => {
-    console.log("SetupForPlayback", itemId);
-    const { tracks, sessionData } = await streamer.setupAudioPlayback(itemId);
-    await TrackPlayer.reset();
-    await TrackPlayer.add(tracks);
-    console.log("SESSIONID", sessionData.id, sessionData.startTime, sessionData.bookId);
-    if (sessionData.startTime > 0) {
-      await TrackPlayer.seekTo(sessionData.startTime);
-    }
-
-    return sessionData;
-  };
-
-  // Cleanup on unmount
   useEffect(() => {
-    setupForPlayback();
-    return () => {
-      streamer.cleanup();
-      const session = streamer.getSession();
-      if (session) {
-        streamer.closeSession();
+    let cancelled = false;
+    (async () => {
+      await initFromABS();
+      bindEvents();
+      if (!cancelled) {
+        await loadBook(itemId);
       }
+      // Mark that we're on the book screen so the mini player can hide
+      setIsOnBookScreen(true);
+    })();
+
+    return () => {
+      cancelled = true;
+      // Leaving the book screen should NOT close the session; keep playback for mini player
+      setIsOnBookScreen(false);
     };
   }, [itemId]);
 
   return {
-    setupForPlayback,
-    closeSession: () => streamer.closeSession(),
-    getSession: () => streamer.getSession(),
+    session,
+    setupForPlayback: () => loadBook(itemId),
+    closeSession,
   };
 };
 

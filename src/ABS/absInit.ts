@@ -1,7 +1,14 @@
 import { QueryClient } from "@tanstack/react-query";
 
-import { AudiobookshelfAPI } from "./absAPIClass";
+import { queryCollectionOptions } from "@tanstack/query-db-collection";
+import { Collection, createCollection } from "@tanstack/react-db";
+
+// import { v4 as uuidv4 } from "uuid";
+import { ABSGetLibraryItem, AudiobookshelfAPI } from "./absAPIClass";
 import { AudiobookshelfAuth } from "./absAuthClass";
+
+import "react-native-random-uuid";
+
 let absAuth: AudiobookshelfAuth | undefined;
 // Create a real API instance
 let apiInstance: AudiobookshelfAPI | undefined;
@@ -54,12 +61,49 @@ export const absInitalize = async (queryClient?: QueryClient) => {
   if (AudiobookshelfAuth.isAssumedAuthedGlobal && queryClient) {
     try {
       prewarmBooksCache(queryClient);
+
+      Collections.createBookCollection(queryClient);
     } catch (e) {
       console.log("PREWARM Book Cache Error", e);
     }
   }
 };
 
+//!! Tanstack DB Version
+// import { QueryClient } from "@tanstack/react-query";
+// import { createCollection, queryCollectionOptions } from "your-collection-lib";
+// import { useAbsAPI } from "@/hooks/useAbsAPI"; // adjust import
+
+export class Collections {
+  private static bookCollection: Collection<ABSGetLibraryItem> | null = null;
+
+  static createBookCollection(queryClient: QueryClient) {
+    if (this.bookCollection) return this.bookCollection;
+
+    const absAPI = getAbsAPI();
+    const activeLibraryId = absAPI.getActiveLibraryId();
+
+    this.bookCollection = createCollection<ABSGetLibraryItem>(
+      queryCollectionOptions({
+        queryKey: ["books_c", activeLibraryId],
+        queryFn: () => absAPI.getLibraryItems({ libraryId: activeLibraryId }),
+        queryClient,
+        getKey: (item) => item.id,
+      })
+    );
+
+    return this.bookCollection;
+  }
+
+  static getBookCollection() {
+    if (!this.bookCollection) {
+      throw new Error("Book collection has not been created yet.");
+    }
+    return this.bookCollection;
+  }
+}
+
+//!! Tanstack Query Version
 export async function prewarmBooksCache(queryClient: QueryClient) {
   const absAPI = useAbsAPI();
   const activeLibraryId = absAPI.getActiveLibraryId();

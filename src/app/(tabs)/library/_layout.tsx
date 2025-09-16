@@ -5,9 +5,9 @@ const LibraryLayout = () => {
   return (
     <Stack
       screenOptions={{
-        headerTransparent: true,
-        headerBlurEffect: "light",
-        headerShadowVisible: true,
+        // headerTransparent: true,
+        // headerBlurEffect: "light",
+        // headerShadowVisible: true,
       }}
     >
       <Stack.Screen name="index" options={{ title: "Library" }} />

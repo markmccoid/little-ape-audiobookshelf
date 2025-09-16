@@ -1,11 +1,11 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
-import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Tabs, useRouter } from "expo-router";
 import { House } from "lucide-react-native";
+
 export default function SettingsLayout() {
   const router = useRouter();
   return (
-    <Tabs>
+    <Tabs screenOptions={{}}>
       <Tabs.Screen
         name="(home)"
         options={{

@@ -1,7 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
-import { ABSGetLibraries } from "../ABS/absAPIClass";
+import { sortBy } from "lodash";
+import { useEffect, useMemo, useState } from "react";
+import { ABSGetLibraries, ABSGetLibraryItem, ABSGetLibraryItems } from "../ABS/absAPIClass";
 import { useAbsAPI } from "../ABS/absInit";
+import { useSortedBy } from "../store/store-filters";
 
 //# ----------------------------------------------
 //# useLibraries - return user's libraries
@@ -28,24 +30,125 @@ export const useLibraries = () => {
 };
 
 //# ----------------------------------------------
-//# useGetBooks
+//# useGetBooks Filter Helpers
 //# ----------------------------------------------
-export const useGetBooks = () => {
+//~ Create a filter configuration object for easy management
+//~ - ----------------------------------------------------
+type Filters = {
+  searchValue?: string;
+  genres?: string[];
+  tags?: string[];
+};
+const createFilterConfig = (filters: Filters) => ({
+  search: {
+    enabled: filters.searchValue && filters.searchValue.trim() !== "",
+    term: filters.searchValue?.toLowerCase().trim(),
+  },
+  hasAudio: {
+    enabled: true, // Always filter for books with audio
+    condition: (book: ABSGetLibraryItem) => (book.numAudioFiles || 0) > 0,
+  },
+  // Example additional filters you might add:
+  // genre: {
+  //   enabled: additionalFilters.genre?.length > 0,
+  //   values: additionalFilters.genre,
+  //   condition: (book) => additionalFilters.genre.includes(book.genre),
+  // },
+  // rating: {
+  //   enabled: additionalFilters.minRating != null,
+  //   minValue: additionalFilters.minRating,
+  //   condition: (book) => (book.rating || 0) >= additionalFilters.minRating,
+  // },
+});
+//~ - ----------------------------------------------------
+//~ Single pass filter function that applies all filters at once
+//~ - ----------------------------------------------------
+const applyFilters = (
+  books: ABSGetLibraryItems,
+  filterConfig: ReturnType<typeof createFilterConfig>
+) => {
+  if (!books?.length) return books;
+  return books.filter((book) => {
+    // Search filter
+    if (filterConfig.search.enabled) {
+      const searchTerm = filterConfig.search.term;
+      const matchesSearch =
+        book.title?.toLowerCase().includes(searchTerm) ||
+        book.author?.toLowerCase().includes(searchTerm);
+
+      matchesSearch &&
+        console.log(
+          "filterapply",
+          matchesSearch,
+          filterConfig.search.term,
+          filterConfig.hasAudio.condition(book)
+        );
+      if (!matchesSearch) return false;
+    }
+
+    // Audio files filter
+    if (filterConfig.hasAudio.enabled) {
+      if (!filterConfig.hasAudio.condition(book)) return false;
+    }
+
+    // Add other filters here as needed
+    // Each filter should return false if the book doesn't match
+    console.log("Returning", book.title);
+    return true; // Book passes all filters
+  });
+};
+//# ----------------------------------------------
+//# useGetBooks Filter Setup
+//# ----------------------------------------------
+export const useGetBooks = (searchValue?: string) => {
   const absAPI = useAbsAPI();
   const activeLibraryId = absAPI.getActiveLibraryId();
+  const sortedBy = useSortedBy();
 
-  const { data, isPending, isError, isLoading, ...rest } = useQuery({
+  const {
+    data: rawData,
+    isPending,
+    isError,
+    isLoading,
+    ...rest
+  } = useQuery({
     queryKey: ["books", activeLibraryId],
     queryFn: async () => await absAPI.getLibraryItems({ libraryId: activeLibraryId }),
     staleTime: 1000 * 60 * 5, // Stale Minutes
   });
-  // const favs = useQuery({
-  //   queryKey: ["FavsAndRead"],
-  //   queryFn: async () => await absAPI.getFavoritedAndFinishedItems(),
-  //   // staleTime: 1000 * 60 * 5, // Stale Minutes
-  // });
 
-  return { data, isPending, isError, isLoading, ...rest };
+  const filteredData = useMemo(() => {
+    if (!rawData?.length) return rawData;
+
+    const filterConfig = createFilterConfig({ searchValue });
+
+    // Early return if no filters are active
+    const hasActiveFilters = Object.values(filterConfig).some((filter) => filter.enabled);
+    if (!hasActiveFilters) return rawData;
+
+    return applyFilters(rawData, filterConfig);
+  }, [rawData, searchValue]);
+
+  const sortedData = useMemo(() => {
+    if (!filteredData?.length) return filteredData;
+    return sortBy(filteredData, [sortedBy]);
+  }, [filteredData, sortedBy]);
+  // Filter data based on searchValue (case insensitive)
+  // const filteredData = useMemo(() => {
+  //   if (!rawData || !searchValue || searchValue.trim() === "") {
+  //     return rawData;
+  //   }
+
+  //   const searchTerm = searchValue.toLowerCase().trim();
+  //   return rawData.filter(
+  //     (book) =>
+  //       (book.title?.toLowerCase().includes(searchTerm) ||
+  //         book.author?.toLowerCase().includes(searchTerm)) &&
+  //       (book.numAudioFiles || 0) > 0
+  //   );
+  // }, [rawData, searchValue]);
+  // const sortedData = sortBy(filteredData, [sortedBy]);
+  return { data: sortedData, isPending, isError, isLoading, ...rest };
 };
 
 //# ----------------------------------------------

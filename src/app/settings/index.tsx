@@ -1,32 +1,187 @@
 import { getAbsAuth } from "@/src/ABS/absInit";
-import { SettingItem } from "@/src/components/settings/SettingItem";
-import { SettingsGroup } from "@/src/components/settings/SettingsGroup";
-import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import React, { useState } from "react";
-import { ScrollView } from "react-native";
+import {
+  useSeekBackwardSeconds,
+  useSeekForwardSeconds,
+  useSettingsActions,
+} from "@/src/store/store-settings";
+import {
+  Button,
+  Form,
+  Host,
+  HStack,
+  Image,
+  Section,
+  Spacer,
+  Switch,
+  Text,
+  VStack,
+} from "@expo/ui/swift-ui";
+import { background, clipShape, frame } from "@expo/ui/swift-ui/modifiers";
+import { Link } from "expo-router";
+import { useState } from "react";
+import { Alert } from "react-native";
 
-const Books = () => {
-  const [selectedIndex, setSelectedIndex] = useState(0);
+export default function SettingsView() {
+  const [isAirplaneMode, setIsAirplaneMode] = useState(true);
+  const settingsActions = useSettingsActions();
+  const seekForward = useSeekForwardSeconds();
+  const seekBackward = useSeekBackwardSeconds();
+
   const absAuth = getAbsAuth();
 
-  const router = useRouter();
-  return (
-    <ScrollView className="flex-1 bg-slate-200" contentInsetAdjustmentBehavior="automatic">
-      {/* User Profile */}
-      <SettingsGroup title="AudiobookShelf User">
-        <SettingItem
-          label={`Logged in as "${absAuth.username}"`}
-          description={`-> ${absAuth.absURL}`}
-          onPress={() => {
-            router.push("/settings/abs_auth");
-          }}
-        >
-          <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
-        </SettingItem>
-      </SettingsGroup>
-    </ScrollView>
-  );
-};
+  const handleSeekForwardPress = () => {
+    Alert.prompt(
+      "Skip Forward Seconds",
+      "Enter the number of seconds to skip forward:",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "OK",
+          onPress: (value) => {
+            if (value) {
+              const numValue = parseInt(value);
+              if (!isNaN(numValue) && numValue >= 0) {
+                settingsActions.setSeekForwardSeconds(numValue);
+              } else {
+                Alert.alert("Invalid Input", "Please enter a valid number.");
+              }
+            }
+          },
+        },
+      ],
+      "plain-text",
+      seekForward.toString(),
+      "number-pad"
+    );
+  };
 
-export default Books;
+  const handleSeekBackwardPress = () => {
+    Alert.prompt(
+      "Skip Backward Seconds",
+      "Enter the number of seconds to skip backward:",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "OK",
+          onPress: (value) => {
+            if (value) {
+              const numValue = parseInt(value);
+              if (!isNaN(numValue) && numValue >= 0) {
+                settingsActions.setSeekBackwardSeconds(numValue);
+              } else {
+                Alert.alert("Invalid Input", "Please enter a valid number.");
+              }
+            }
+          },
+        },
+      ],
+      "plain-text",
+      seekBackward.toString(),
+      "number-pad"
+    );
+  };
+
+  return (
+    <Host style={{ flex: 1 }}>
+      <Form>
+        <Section title="Player">
+          <Link href="/settings/abs_auth" asChild>
+            <Button>
+              <HStack spacing={4} alignment="center">
+                <Image
+                  systemName="wifi"
+                  color="white"
+                  size={14}
+                  modifiers={[
+                    frame({ width: 28, height: 28 }),
+                    background("#007aff"),
+                    clipShape("roundedRectangle"),
+                  ]}
+                />
+                <VStack alignment="leading">
+                  <Text color="primary" size={14}>
+                    AudiobookShelf Authorization
+                  </Text>
+                  <Text color="gray" size={12}>
+                    {`${absAuth.absURL}-(${absAuth.username})`}
+                  </Text>
+                </VStack>
+                <Spacer />
+                <Image systemName="chevron.right" size={14} color="secondary" />
+              </HStack>
+            </Button>
+          </Link>
+          <Button onPress={handleSeekForwardPress}>
+            <HStack spacing={4} alignment="center">
+              <Image
+                systemName="forward.fill"
+                color="white"
+                size={14}
+                modifiers={[
+                  frame({ width: 28, height: 28 }),
+                  background("#34c759"),
+                  clipShape("roundedRectangle"),
+                ]}
+              />
+              <VStack alignment="center">
+                <Text color="primary" size={14}>
+                  Skip Forward Seconds
+                </Text>
+              </VStack>
+              <Spacer />
+              <Text color="secondary" size={16} weight="semibold">
+                {seekForward.toString()}
+              </Text>
+              <Image systemName="chevron.right" size={14} color="secondary" />
+            </HStack>
+          </Button>
+          <Button onPress={handleSeekBackwardPress}>
+            <HStack spacing={4} alignment="center">
+              <Image
+                systemName="backward.fill"
+                color="white"
+                size={14}
+                modifiers={[
+                  frame({ width: 28, height: 28 }),
+                  background("#ff9500"),
+                  clipShape("roundedRectangle"),
+                ]}
+              />
+              <VStack alignment="leading">
+                <Text color="primary" size={14}>
+                  Skip Backward Seconds
+                </Text>
+              </VStack>
+              <Spacer />
+              <Text color="secondary" size={16} weight="semibold">
+                {seekBackward.toString()}
+              </Text>
+              <Image systemName="chevron.right" size={14} color="secondary" />
+            </HStack>
+          </Button>
+          <HStack spacing={4}>
+            <Image
+              systemName="airplane"
+              color="white"
+              size={14}
+              modifiers={[
+                frame({ width: 28, height: 28 }),
+                background("#ffa500"),
+                clipShape("roundedRectangle"),
+              ]}
+            />
+            <Text size={14}>Airplane Mode</Text>
+            <Spacer />
+            <Switch value={isAirplaneMode} onValueChange={setIsAirplaneMode} />
+          </HStack>
+        </Section>
+      </Form>
+    </Host>
+  );
+}
