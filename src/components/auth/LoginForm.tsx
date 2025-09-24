@@ -1,5 +1,5 @@
 // components/LoginForm.tsx
-import { getAbsAuth } from "@/src/ABS/absInit";
+import { useAuth } from "@/src/contexts/AuthContext";
 import { Eye, EyeOff } from "lucide-react-native";
 import React, { useState } from "react";
 import { Button, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
@@ -8,7 +8,8 @@ interface LoginFormProps {
 }
 
 export const LoginForm: React.FC<LoginFormProps> = ({ onSubmit }) => {
-  const [url, setUrl] = useState(getAbsAuth().absURL);
+  const { authInfo } = useAuth();
+  const [url, setUrl] = useState(authInfo.serverUrl || "");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [hidePassword, setHidePassword] = useState(true);

@@ -41,6 +41,7 @@ export class AudiobookshelfAuth {
     if (!finalServerUrl) {
       const storedUrl = await SecureStore.getItemAsync(this.SERVER_URL_KEY);
       if (!storedUrl) {
+        finalServerUrl = "placeholder";
         throw new Error("No server URL provided and none found in storage");
       }
       finalServerUrl = storedUrl;

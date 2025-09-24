@@ -1,5 +1,6 @@
 import { AudiobookshelfAuth } from "@/src/ABS/absAuthClass";
-import { getAbsAuth, useAbsAPI } from "@/src/ABS/absInit";
+import { useAuth, useSafeAbsAPI } from "@/src/contexts/AuthContext";
+import { queryClient } from "@/src/app/_layout";
 import { LoginForm } from "@/src/components/auth/LoginForm";
 import Player from "@/src/components/Player";
 import { useState } from "react";
@@ -7,10 +8,14 @@ import { Pressable, Text, View } from "react-native";
 import ABSLibrarySelect from "./ABSLibrarySelect";
 
 export default function Index() {
-  const [isAuthed, setIsAuthed] = useState(AudiobookshelfAuth.isAssumedAuthedGlobal);
-  const absAPI = useAbsAPI();
-  const absAuth = getAbsAuth();
+  const { isAuthenticated, authInfo, logout, initializeAfterLogin } = useAuth();
+  const absAPI = useSafeAbsAPI();
   const hitABS = async () => {
+    if (!absAPI) {
+      console.log('API not available');
+      return;
+    }
+    
     const libraries = await absAPI.getLibraries();
     const me = await absAPI.getUserInfo();
     console.log("ME", me);
@@ -23,12 +28,19 @@ export default function Index() {
   };
 
   const onSubmit = async (url: string, username: string, password: string) => {
-    const auth = await AudiobookshelfAuth.create(url);
-    const info = await auth.login({ username, password });
-    console.log(info.user.librariesAccessible);
-    setIsAuthed(AudiobookshelfAuth.isAssumedAuthedGlobal);
-    const libraries = await absAPI.getLibraries();
-    console.log("Library", libraries);
+    try {
+      const auth = await AudiobookshelfAuth.create(url);
+      const info = await auth.login({ username, password });
+      console.log(info.user.librariesAccessible);
+      
+      // Initialize both auth and API after successful login
+      await initializeAfterLogin(queryClient);
+      
+      console.log('Login successful, auth and API initialized');
+    } catch (error) {
+      console.error('Login failed:', error);
+      // You might want to show an error message to the user here
+    }
   };
 
   // useEffect(() => {
@@ -36,10 +48,8 @@ export default function Index() {
   //   setIsAuthed(AudiobookshelfAuth.isAssumedAuthedGlobal);
   // }, [AudiobookshelfAuth.isAssumedAuthedGlobal]);
 
-  const logOut = async () => {
-    const auth = await AudiobookshelfAuth.create();
-    await auth.logout();
-    setIsAuthed(AudiobookshelfAuth.isAssumedAuthedGlobal);
+  const handleLogout = async () => {
+    await logout();
   };
 
   return (
@@ -50,22 +60,22 @@ export default function Index() {
         alignItems: "center",
       }}
     >
-      {isAuthed && (
+      {isAuthenticated && (
         <View className="flex-1 mt-4 w-full px-5">
           <View className="flex-row items-center mb-2">
             <Text className="font-semibold">ABS URL: </Text>
             <Text className="border-hairline bg-gray-200 text-gray-600 p-2 flex-1 rounded-md">
-              {absAuth.absURL}
+              {authInfo.serverUrl || 'Not available'}
             </Text>
           </View>
           <View className="flex-row items-center mb-2">
             <Text className="font-semibold">Username: </Text>
             <Text className="border-hairline bg-gray-200 text-gray-600 rounded-md p-2 flex-1 ">
-              {absAuth.username}
+              {authInfo.username || 'Not available'}
             </Text>
           </View>
           <ABSLibrarySelect />
-          <Pressable onPress={logOut} className="p-2 border rounded-lg bg-yellow-300 my-4">
+          <Pressable onPress={handleLogout} className="p-2 border rounded-lg bg-yellow-300 my-4">
             <Text>Log Out</Text>
           </Pressable>
           <Player />
@@ -77,7 +87,7 @@ export default function Index() {
         </View>
       )}
 
-      {!isAuthed && <LoginForm onSubmit={onSubmit} />}
+      {!isAuthenticated && <LoginForm onSubmit={onSubmit} />}
     </View>
   );
 }

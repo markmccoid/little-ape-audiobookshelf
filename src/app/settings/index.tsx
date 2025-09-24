@@ -1,4 +1,4 @@
-import { getAbsAuth } from "@/src/ABS/absInit";
+import { useAuth } from "@/src/contexts/AuthContext";
 import {
   useSeekBackwardSeconds,
   useSeekForwardSeconds,
@@ -26,8 +26,13 @@ export default function SettingsView() {
   const settingsActions = useSettingsActions();
   const seekForward = useSeekForwardSeconds();
   const seekBackward = useSeekBackwardSeconds();
+  const { isAuthenticated, hasStoredCredentials, authInfo } = useAuth();
 
-  const absAuth = getAbsAuth();
+  // Format auth info for display
+  const displayInfo = {
+    absURL: authInfo.serverUrl || (hasStoredCredentials ? 'Configured' : 'Not configured'),
+    username: authInfo.username || (hasStoredCredentials ? 'Authentication failed' : 'Not logged in')
+  };
 
   const handleSeekForwardPress = () => {
     Alert.prompt(
@@ -109,7 +114,7 @@ export default function SettingsView() {
                     AudiobookShelf Authorization
                   </Text>
                   <Text color="gray" size={12}>
-                    {`${absAuth.absURL}-(${absAuth.username})`}
+                    {`${displayInfo.absURL} - (${displayInfo.username})`}
                   </Text>
                 </VStack>
                 <Spacer />

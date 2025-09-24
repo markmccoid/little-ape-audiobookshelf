@@ -2,9 +2,10 @@ import { PortalHost } from "@rn-primitives/portal";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { LogBox, Text, View } from "react-native";
 import { absInitalize } from "../ABS/absInit";
+import { AuthProvider, useAuth } from "../contexts/AuthContext";
 import "../global.css";
 import "../lib/polyfills";
 import { trackPlayerInit } from "../rn-trackplayer/rn-trackplayerInit";
@@ -19,19 +20,29 @@ export const unstable_settings = {
 
 export const queryClient = new QueryClient();
 
-export default function RootLayout() {
+function AppContent() {
   let [isReady, setIsReady] = useState(false);
   const router = useRouter();
+  const { hasStoredCredentials, checkAuthStatus } = useAuth();
+  const initializeOnce = useRef(false);
+
   useEffect(() => {
+    // Only initialize once
+    if (initializeOnce.current) return;
+    initializeOnce.current = true;
+    
     const initialize = async () => {
       await trackPlayerInit();
-      await absInitalize(queryClient);
-      // await AudiobookshelfAuth.create();
+      
+      // Always attempt to initialize ABS - it will handle the credential check internally
+      const initSuccess = await absInitalize(queryClient);
+      
+      // Refresh auth status after initialization attempt
+      await checkAuthStatus();
       setIsReady(true);
-      // console.log("abs logged in", hasStoredCr);
     };
     initialize();
-  }, []);
+  }, [checkAuthStatus]); // Now it's safe to include checkAuthStatus since we guard with useRef
 
   // Hide Splashscreen after initialize is finished
   useEffect(() => {
@@ -40,6 +51,7 @@ export default function RootLayout() {
       router.push("/(tabs)/library");
     }
   }, [isReady]);
+  
   // Can't go to main routes until initializing is done
   if (!isReady) {
     return (
@@ -48,18 +60,27 @@ export default function RootLayout() {
       </View>
     );
   }
+  
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+      }}
+    >
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="settings" options={{ presentation: "fullScreenModal" }} />
+    </Stack>
+  );
+}
+
+export default function RootLayout() {
   return (
     <View style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
-        <Stack
-          screenOptions={{
-            headerShown: false,
-          }}
-        >
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="settings" options={{ presentation: "fullScreenModal" }} />
-        </Stack>
-        <PortalHost />
+        <AuthProvider>
+          <AppContent />
+          <PortalHost />
+        </AuthProvider>
       </QueryClientProvider>
     </View>
   );

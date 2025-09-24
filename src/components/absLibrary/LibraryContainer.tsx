@@ -1,15 +1,20 @@
 import { ABSGetLibraryItem } from "@/src/ABS/absAPIClass";
-import { useGetBooks } from "@/src/hooks/ABSHooks";
+import { useAuth } from "@/src/contexts/AuthContext";
+import { useSafeGetBooks } from "@/src/hooks/ABSHooks";
 import { useFiltersActions, useSearchValue, useSortedBy } from "@/src/store/store-filters";
 import { Host, Picker, VStack } from "@expo/ui/swift-ui";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { FlashList } from "@shopify/flash-list";
+import { useRouter } from "expo-router";
 import { debounce } from "lodash";
 import React, { useEffect, useMemo, useState } from "react";
-import { TextInput, View } from "react-native";
+import { Pressable, Text, TextInput, View } from "react-native";
 import LibraryRenderItem from "./LibraryRenderItem";
 
 const LibraryMain = () => {
+  const { isAuthenticated, hasStoredCredentials } = useAuth();
+  const router = useRouter();
+  
   // Get store values and actions
   const storeSearchValue = useSearchValue();
   const sortedBy = useSortedBy();
@@ -38,10 +43,45 @@ const LibraryMain = () => {
     debouncedSetStoreSearch(value); // Update store after 300ms
   };
 
-  // const { data, isLoading } = useGetBooks();
-  const { data, isLoading, isError } = useGetBooks(storeSearchValue);
+  // Use safe version of useGetBooks that handles unauthenticated state
+  const { data, isLoading, isError } = useSafeGetBooks(storeSearchValue);
   const headerHeight = useHeaderHeight();
-  if (data === undefined) return;
+  
+  // Show login prompt if not authenticated
+  if (!isAuthenticated && !hasStoredCredentials) {
+    return (
+      <View className="flex-1 justify-center items-center p-4">
+        <Text className="text-lg font-semibold mb-4 text-center">
+          Please log in to access your audiobook library
+        </Text>
+        <Pressable
+          className="bg-blue-500 px-6 py-3 rounded-lg"
+          onPress={() => router.push('/settings/abs_auth')}
+        >
+          <Text className="text-white font-semibold">Go to Settings</Text>
+        </Pressable>
+      </View>
+    );
+  }
+  
+  // Show authentication setup prompt if has credentials but not authenticated
+  if (hasStoredCredentials && !isAuthenticated) {
+    return (
+      <View className="flex-1 justify-center items-center p-4">
+        <Text className="text-lg font-semibold mb-4 text-center">
+          Authentication failed. Please check your settings.
+        </Text>
+        <Pressable
+          className="bg-blue-500 px-6 py-3 rounded-lg"
+          onPress={() => router.push('/settings/abs_auth')}
+        >
+          <Text className="text-white font-semibold">Go to Settings</Text>
+        </Pressable>
+      </View>
+    );
+  }
+  
+  if (data === undefined) return null;
 
   console.log("Books", data?.length);
 

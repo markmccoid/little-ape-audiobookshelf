@@ -177,16 +177,14 @@ export class AudiobookshelfAPI {
       data,
     });
   }
-  async syncProgressToSever(
+
+  // # ------------------------------
+  // # syncProgressToServer
+  async syncProgressToServer(
     sessionId: string,
     syncData: { timeListened: number; currentTime: number }
   ) {
-    // if (!this.session || !this.lastSyncTime) return;
-
     try {
-      // const currentPosition = (await TrackPlayer.getProgress()).position;
-      // const now = Date.now();
-
       await this.makeAuthenticatedRequest(`/api/session/${sessionId}/sync`, {
         method: "POST",
         data: syncData,

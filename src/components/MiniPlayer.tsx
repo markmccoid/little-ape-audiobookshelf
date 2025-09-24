@@ -1,26 +1,27 @@
-import React, { useMemo } from "react";
-import { View, Text, Pressable } from "react-native";
 import {
   usePlaybackActions,
+  usePlaybackDuration,
   usePlaybackIsPlaying,
   usePlaybackPosition,
-  usePlaybackDuration,
   usePlaybackSession,
   useShowMiniPlayer,
 } from "@store/store-playback";
-import { useSeekSettings } from "@store/store-settings";
+import React, { useCallback, useMemo } from "react";
+import { Pressable, Text, View } from "react-native";
 
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 
 export default function MiniPlayer() {
   const showMini = useShowMiniPlayer();
   const isPlaying = usePlaybackIsPlaying();
-  const position = usePlaybackPosition();
+  const position = usePlaybackPosition() || 0;
   const duration = usePlaybackDuration();
   const session = usePlaybackSession();
   const { play, pause, seekTo, closeSession } = usePlaybackActions();
-  const { seekForwardSeconds, seekBackwardSeconds } = useSeekSettings();
 
+  console.log("MiniPlayer", showMini, position);
+  const seekBackwardSeconds = 15;
+  const seekForwardSeconds = 15;
   const progressPct = useMemo(() => {
     if (!duration || duration <= 0) return 0;
     return clamp((position / duration) * 100, 0, 100);
@@ -28,23 +29,26 @@ export default function MiniPlayer() {
 
   if (!showMini) return null;
 
-  const onToggle = async () => {
+  const onToggle = useCallback(async () => {
     if (isPlaying) await pause();
     else await play();
-  };
+  }, [isPlaying, pause, play]);
 
-  const onBack = async () => {
+  const onBack = useCallback(async () => {
     const newPos = clamp(position - seekBackwardSeconds, 0, duration || 0);
     await seekTo(newPos);
-  };
+  }, [position, seekBackwardSeconds, duration, seekTo]);
 
-  const onFwd = async () => {
+  const onFwd = useCallback(async () => {
     const newPos = clamp(position + seekForwardSeconds, 0, duration || 0);
     await seekTo(newPos);
-  };
+  }, [position, seekForwardSeconds, duration, seekTo]);
 
+  const onValueChange = (val) => {
+    console.log("valChange", val);
+  };
   return (
-    <View className="px-3 py-2 bg-slate-800 border-t border-slate-700">
+    <View className="px-3 py-2 bg-slate-800 border-t border-slate-700 absolute w-full bottom-0">
       <View className="flex-row items-center justify-between">
         <View className="flex-1 pr-3">
           <Text numberOfLines={1} className="text-slate-100 font-semibold">

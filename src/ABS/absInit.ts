@@ -1,10 +1,7 @@
 import { QueryClient } from "@tanstack/react-query";
 
-import { queryCollectionOptions } from "@tanstack/query-db-collection";
-import { Collection, createCollection } from "@tanstack/react-db";
-
 // import { v4 as uuidv4 } from "uuid";
-import { ABSGetLibraryItem, AudiobookshelfAPI } from "./absAPIClass";
+import { AudiobookshelfAPI } from "./absAPIClass";
 import { AudiobookshelfAuth } from "./absAuthClass";
 
 import "react-native-random-uuid";
@@ -25,9 +22,26 @@ let absAPIProxy: AudiobookshelfAPI | undefined;
 export const absInitalize = async (queryClient?: QueryClient) => {
   // Create the ABS Auth instance
   // If tokens and URL stored in secure storage we are good to go
-  absAuth = await AudiobookshelfAuth.create();
-  // Creates the instance with absAuth
-  apiInstance = await AudiobookshelfAPI.create();
+  const hasStoredCredentials = await AudiobookshelfAuth.hasStoredCredentials();
+  if (!hasStoredCredentials) {
+    console.log('No stored credentials found, skipping ABS initialization');
+    return false;
+  }
+
+  try {
+    // Clear existing instances to avoid stale references
+    absAuth = undefined;
+    apiInstance = undefined;
+    absAPIProxy = undefined;
+    
+    // Create fresh instances
+    absAuth = await AudiobookshelfAuth.create();
+    // Creates the instance with absAuth
+    apiInstance = await AudiobookshelfAPI.create();
+  } catch (error) {
+    console.error('Failed to initialize ABS:', error);
+    return false;
+  }
 
   //~ ------------------------------------------------------------------------
   //~ Create the absAPIProxy Proxy object
@@ -61,47 +75,13 @@ export const absInitalize = async (queryClient?: QueryClient) => {
   if (AudiobookshelfAuth.isAssumedAuthedGlobal && queryClient) {
     try {
       prewarmBooksCache(queryClient);
-
-      Collections.createBookCollection(queryClient);
     } catch (e) {
       console.log("PREWARM Book Cache Error", e);
     }
   }
+  
+  return true;
 };
-
-//!! Tanstack DB Version
-// import { QueryClient } from "@tanstack/react-query";
-// import { createCollection, queryCollectionOptions } from "your-collection-lib";
-// import { useAbsAPI } from "@/hooks/useAbsAPI"; // adjust import
-
-export class Collections {
-  private static bookCollection: Collection<ABSGetLibraryItem> | null = null;
-
-  static createBookCollection(queryClient: QueryClient) {
-    if (this.bookCollection) return this.bookCollection;
-
-    const absAPI = getAbsAPI();
-    const activeLibraryId = absAPI.getActiveLibraryId();
-
-    this.bookCollection = createCollection<ABSGetLibraryItem>(
-      queryCollectionOptions({
-        queryKey: ["books_c", activeLibraryId],
-        queryFn: () => absAPI.getLibraryItems({ libraryId: activeLibraryId }),
-        queryClient,
-        getKey: (item) => item.id,
-      })
-    );
-
-    return this.bookCollection;
-  }
-
-  static getBookCollection() {
-    if (!this.bookCollection) {
-      throw new Error("Book collection has not been created yet.");
-    }
-    return this.bookCollection;
-  }
-}
 
 //!! Tanstack Query Version
 export async function prewarmBooksCache(queryClient: QueryClient) {
@@ -133,3 +113,11 @@ export function useAbsAPI(): AudiobookshelfAPI {
   // This will throw if not initialized, same as your getter
   return getAbsAPI();
 }
+
+// Cleanup function for logout
+export const cleanupAbsInstances = () => {
+  absAuth = undefined;
+  apiInstance = undefined;
+  absAPIProxy = undefined;
+  console.log('ABS instances cleaned up');
+};

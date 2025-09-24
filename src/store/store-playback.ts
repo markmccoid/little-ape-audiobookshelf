@@ -1,10 +1,9 @@
-import { create } from "zustand";
-import TrackPlayer, { Event, State, Track } from "react-native-track-player";
-import AudiobookStreamer from "@/src/rn-trackplayer/AudiobookStreamer";
-import { trackPlayerInit } from "@/src/rn-trackplayer/rn-trackplayerInit";
 import type { AudiobookshelfAPI } from "@/src/ABS/absAPIClass";
 import type { AudiobookSession } from "@/src/ABS/abstypes";
-import { getAbsAuth, useAbsAPI } from "@/src/ABS/absInit";
+import AudiobookStreamer from "@/src/rn-trackplayer/AudiobookStreamer";
+import { trackPlayerInit } from "@/src/rn-trackplayer/rn-trackplayerInit";
+import TrackPlayer, { Event, State, Track } from "react-native-track-player";
+import { create } from "zustand";
 
 // Extend Track to reflect extra fields we attach from ABS
 export type ABSQueuedTrack = Track & {
@@ -13,8 +12,7 @@ export type ABSQueuedTrack = Track & {
   chapters?: any[];
 };
 
-// Module-scoped singletons/flags to avoid duplicate bindings during Fast Refresh
-let streamer: AudiobookStreamer | null = null;
+// Module-scoped flags to avoid duplicate bindings during Fast Refresh
 let eventsBound = false;
 let playerInitialized = false;
 const listeners: { remove: () => void }[] = [];
@@ -24,6 +22,7 @@ interface PlaybackState {
   session: AudiobookSession | null;
   queue: ABSQueuedTrack[];
   isPlaying: boolean;
+  isLoaded: boolean;
   position: number;
   duration: number;
   isOnBookScreen: boolean;
@@ -41,6 +40,7 @@ interface PlaybackActions {
   pause: () => Promise<void>;
   seekTo: (pos: number) => Promise<void>;
   closeSession: () => Promise<void>;
+  destroy: () => Promise<void>;
 
   // UI helpers
   setIsOnBookScreen: (val: boolean) => void;
@@ -58,6 +58,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
   session: null,
   queue: [],
   isPlaying: false,
+  isLoaded: false,
   position: 0,
   duration: 0,
   isOnBookScreen: false,
@@ -69,9 +70,8 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
         await trackPlayerInit().catch(() => {});
         playerInitialized = true;
       }
-      if (!streamer) {
-        streamer = new AudiobookStreamer(serverUrl, api);
-      }
+      // Use singleton pattern
+      AudiobookStreamer.getInstance(serverUrl, api);
     },
 
     initFromABS: async () => {
@@ -79,10 +79,16 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
         await trackPlayerInit().catch(() => {});
         playerInitialized = true;
       }
-      if (!streamer) {
+
+      // Safe auth access for Zustand store
+      try {
+        const { getAbsAuth, getAbsAPI } = require("@/src/ABS/absInit");
         const absAuth = getAbsAuth();
-        const absAPI = useAbsAPI();
-        streamer = new AudiobookStreamer(absAuth.absURL, absAPI);
+        const absAPI = getAbsAPI();
+        AudiobookStreamer.getInstance(absAuth.absURL, absAPI);
+      } catch (error) {
+        console.error("Failed to initialize from ABS - auth not available:", error);
+        throw new Error("Authentication required for playback initialization");
       }
     },
 
@@ -90,9 +96,13 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       if (eventsBound) return;
       eventsBound = true;
 
-      // Mirror progress into store for UI
+      // Mirror progress into store for UI, this is at 5 second intervals
+      // set in setup track player.
       const l1 = TrackPlayer.addEventListener(Event.PlaybackProgressUpdated, (e) => {
-        set({ position: e.position, duration: typeof e.duration === "number" ? e.duration : get().duration });
+        set({
+          position: e.position,
+          duration: typeof e.duration === "number" ? e.duration : get().duration,
+        });
       });
 
       // Mirror playback state into store for UI
@@ -104,23 +114,49 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
     },
 
     loadBook: async (itemId: string) => {
-      if (!streamer) {
+      // Store-level guard: if the same book is already loaded, do nothing
+      const currentSession = get().session;
+      if (currentSession?.libraryItemId === itemId) {
+        // No-op: preserve current playback state (playing or paused)
+        console.log(`PlaybackStore: Book ${itemId} already loaded. Skipping reload.`);
+        return;
+      }
+      set({ isLoaded: false });
+      let streamer: AudiobookStreamer;
+      try {
+        streamer = AudiobookStreamer.getInstance();
+      } catch {
         // Best-effort initialization using ABS singletons
         await get().actions.initFromABS();
+        streamer = AudiobookStreamer.getInstance();
       }
-      if (!streamer) throw new Error("Playback not initialized. Call actions.init/initFromABS first.");
 
+      if (!streamer.isReady()) {
+        throw new Error("Playback not initialized. Call actions.init/initFromABS first.");
+      }
       const { tracks, sessionData } = await streamer.setupAudioPlayback(itemId);
-
+      // set({ position: sessionData.startTime });
+      // setTimeout(() => {}, 0);
       await TrackPlayer.reset();
-      await TrackPlayer.add(tracks as unknown as Track[]);
+      await TrackPlayer.add(tracks);
 
-      if (sessionData.startTime && sessionData.startTime > 0) {
-        await TrackPlayer.seekTo(sessionData.startTime);
-        set({ position: sessionData.startTime });
-      }
+      // If no previous start time default to zero
+      const startTime = sessionData.startTime || 0;
+      await TrackPlayer.seekTo(startTime);
+      set({ position: startTime });
 
-      set({ session: sessionData, queue: tracks as ABSQueuedTrack[], duration: sessionData.duration ?? get().duration });
+      set({
+        session: sessionData,
+        queue: tracks,
+        duration: sessionData.duration ?? get().duration,
+        isLoaded: true,
+      });
+      console.log(
+        "BOOK LOADED START TIME",
+        get().position,
+        get().session?.displayTitle,
+        get().session?.startTime
+      );
     },
 
     play: async () => {
@@ -140,8 +176,42 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
     },
 
     closeSession: async () => {
-      await streamer?.closeSession();
-      set({ session: null, queue: [], isPlaying: false, position: 0, duration: 0 });
+      try {
+        const streamer = AudiobookStreamer.getInstance();
+        await streamer.closeSession();
+      } catch {
+        // Instance doesn't exist, nothing to close
+      }
+
+      // Reset the store state
+      set({
+        session: null,
+        queue: [],
+        isPlaying: false,
+        position: 0,
+        duration: 0,
+        isLoaded: false,
+      });
+    },
+
+    /**
+     * Completely destroys the AudiobookStreamer singleton and resets all state
+     * Use this when logging out or switching servers
+     */
+    destroy: async () => {
+      await get().actions.closeSession();
+      AudiobookStreamer.destroyInstance();
+
+      // Clean up TrackPlayer
+      await TrackPlayer.reset();
+
+      // Remove our event listeners
+      listeners.forEach((listener) => listener.remove());
+      listeners.length = 0;
+      eventsBound = false;
+      playerInitialized = false;
+
+      console.log("Playback store: Complete cleanup finished");
     },
 
     setIsOnBookScreen: (val: boolean) => set({ isOnBookScreen: val }),
@@ -155,6 +225,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
         position: progress.position,
         duration: typeof progress.duration === "number" ? progress.duration : get().duration,
         isPlaying: state.state === State.Playing,
+        isLoaded: true,
       });
     },
   },
@@ -163,12 +234,18 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
 // ---- Selectors (atomic)
 export const usePlaybackSession = () => usePlaybackStore((s) => s.session);
 export const usePlaybackIsPlaying = () => usePlaybackStore((s) => s.isPlaying);
-export const usePlaybackPosition = () => usePlaybackStore((s) => s.position);
 export const usePlaybackDuration = () => usePlaybackStore((s) => s.duration);
 export const usePlaybackQueue = () => usePlaybackStore((s) => s.queue);
 export const useIsOnBookScreen = () => usePlaybackStore((s) => s.isOnBookScreen);
 export const usePlaybackActions = () => usePlaybackStore((s) => s.actions);
 
+export const usePlaybackPosition = () =>
+  usePlaybackStore((s) => {
+    if (s.isLoaded) return s.position;
+    return undefined;
+  });
+
 // Derived helpers as hooks
 export const useHasActiveSession = () => usePlaybackStore((s) => Boolean(s.session));
-export const useShowMiniPlayer = () => usePlaybackStore((s) => Boolean(s.session) && !s.isOnBookScreen);
+export const useShowMiniPlayer = () =>
+  usePlaybackStore((s) => Boolean(s.session) && !s.isOnBookScreen);

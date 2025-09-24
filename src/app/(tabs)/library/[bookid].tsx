@@ -1,73 +1,45 @@
-import { getAbsAuth, useAbsAPI } from "@/src/ABS/absInit";
-import { useGetItemDetails } from "@/src/hooks/ABSHooks";
+import { useAuth, useSafeAbsAPI } from "@/src/contexts/AuthContext";
+import BookSlider from "@/src/components/bookView/BookSlider";
+import TestPosition from "@/src/components/bookView/TestPosition";
+import { useSafeGetItemDetails } from "@/src/hooks/ABSHooks";
+import { useSmartPosition } from "@/src/hooks/trackPlayerHooks";
+import useAudiobookStreaming from "@/src/hooks/useAudiobookStreaming";
 import { formatSeconds } from "@/src/lib/formatUtils";
-import useAudiobookStreaming from "@/src/rn-trackplayer/exampleStreamUsage";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { Image } from "expo-image";
 import { Stack, useGlobalSearchParams } from "expo-router";
-import React, { useState } from "react";
+import React from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
-import TrackPlayer, { State, usePlaybackState, useProgress } from "react-native-track-player";
+import TrackPlayer, { State, usePlaybackState } from "react-native-track-player";
 
 const BookIdRoute = () => {
   const headerHeight = useHeaderHeight();
-  const progress = useProgress();
+  const progress = useSmartPosition();
+
+  // const [pos, setPos] = useState(playbackPos);
+
+  // useEffect(() => {
+  //   if (progress.position != 0 && progress.position != undefined) {
+  //     console.log("POS&*&*", pos);
+  //     setPos(progress.position);
+  //   } else {
+  //     console.log("IN ELSE", pos, playbackPos);
+  //   }
+  // }, [progress.position, playbackPos]);
 
   const { bookid, cover, title } = useGlobalSearchParams<{
     bookid: string;
     cover: string;
     title: string;
   }>();
-  const { setupForPlayback } = useAudiobookStreaming(bookid);
+  const { session, closeSession } = useAudiobookStreaming(bookid);
 
-  const { data, isPending } = useGetItemDetails(bookid);
-  const absAPI = useAbsAPI();
-  const absAuth = getAbsAuth();
+  const { data, isPending } = useSafeGetItemDetails(bookid);
+  const absAPI = useSafeAbsAPI();
+  const { authInfo } = useAuth();
   const playbackState = usePlaybackState();
-  const [sessionId, setSessionId] = useState("");
 
-  // console.log("playbackstate", playbackState.state);
-  // console.log("Item Data", data?.bookDuration, progress.duration);
-
-  // async function playDirectUrl() {
-  //   const track = {
-  //     id: "03e49975-b6dc-4af6-bfeb-d9b1fef9ad20", // unique ID
-  //     url: "http://192.168.1.141:13378/audiobookshelf/public/session/30d808fa-8084-4be5-814a-7bf230bb3eba/track/1",
-  //     // url: "https://abs.mccoidco.xyz/api/items/03e49975-b6dc-4af6-bfeb-d9b1fef9ad20/file/331154271?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI3OGQ2N2JhYy05MGVhLTRjZWUtYWQ2Ni0xYWM0ZmU3MzM3MjkiLCJ1c2VybmFtZSI6InJvb3QiLCJpYXQiOjE3MTMxMzU3NjR9.J1q6MjoblW-pcweIwAAY0Mozr6Rrdg57bbaNLdMCNy4",
-
-  //     title: "My Audiobook",
-  //     artist: "Unknown", // optional, good for UI
-  //     artwork: "https://example.com/cover.jpg", // optional
-  //   };
-
-  //   await TrackPlayer.reset(); // clear existing queue
-  //   await TrackPlayer.add([track]); // add direct URL track
-  //   await TrackPlayer.play(); // start playback
-  // }
-
-  const sync = async () => {
-    try {
-      absAPI.syncProgressToSever(sessionId);
-    } catch (e) {
-      console.log("sync error", e);
-    }
-  };
-  const loadFirstTrack = async () => {
-    const { addObj, response } = await absAPI.getPlayInfo(bookid);
-
-    const fileId = data?.media.audioFiles[0].ino;
-    // const authToken = await absAuth.getValidAccessToken();
-    // const streamUrl = `${absAuth.absURL}/audiobookshelf/api/items/${bookid}/play?token=${authToken}`;
-    // const streamUrl = `${absAuth.absURL}/api/items/03e49975-b6dc-4af6-bfeb-d9b1fef9ad20/file/331154271?token=${authToken}`;
-    // const streamUrl = `https://abs.mccoidco.xyz${playInfo.audioTracks[0].contentUrl}?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI3OGQ2N2JhYy05MGVhLTRjZWUtYWQ2Ni0xYWM0ZmU3MzM3MjkiLCJ1c2VybmFtZSI6InJvb3QiLCJpYXQiOjE3MTMxMzU3NjR9.J1q6MjoblW-pcweIwAAY0Mozr6Rrdg57bbaNLdMCNy4`;
-
-    // udiobookshelf/api/items/de6ce58f-efc8-4686-ba79-4f13d2f966da/play
-    await TrackPlayer.reset();
-    await TrackPlayer.seekTo(response.currentTime);
-    await TrackPlayer.add(addObj);
-    setSessionId(response.id);
-    console.log("Track Loaded");
-  };
+  // console.log("deferred Progress", pos, playbackPos, progress.position);
 
   const togglePlayPause = async () => {
     const state = await TrackPlayer.getPlaybackState();
@@ -93,6 +65,7 @@ const BookIdRoute = () => {
           headerTitle: title,
         }}
       />
+      <BookSlider />
       <View className="flex-row justify-center border">
         <Image
           source={cover}
@@ -100,10 +73,10 @@ const BookIdRoute = () => {
           transition={200}
         />
       </View>
-
-      <Pressable className="p-2 bg-slate-400" onPress={loadFirstTrack}>
-        <Text>Load First Track</Text>
-      </Pressable>
+      <View>
+        <Text>{formatSeconds(progress || 0)}</Text>
+        <TestPosition />
+      </View>
       <View className="flex-row items-center justify-between px-5">
         <Pressable className="p-3 bg-blue-500 rounded-lg" onPress={togglePlayPause}>
           <Text className="text-white font-semibold">{isPlaying ? "Pause" : "Play"}</Text>

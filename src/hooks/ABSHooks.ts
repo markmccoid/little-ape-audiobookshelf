@@ -3,28 +3,35 @@ import { sortBy } from "lodash";
 import { useEffect, useMemo, useState } from "react";
 import { ABSGetLibraries, ABSGetLibraryItem, ABSGetLibraryItems } from "../ABS/absAPIClass";
 import { useAbsAPI } from "../ABS/absInit";
+import { useSafeAbsAPI } from "../contexts/AuthContext";
 import { useSortedBy } from "../store/store-filters";
 
 //# ----------------------------------------------
 //# useLibraries - return user's libraries
 //# ----------------------------------------------
 export const useLibraries = () => {
-  const absAPI = useAbsAPI();
+  const absAPI = useSafeAbsAPI();
   const [libraries, setLibraries] = useState<ABSGetLibraries>([]);
   const [activeLibrary, setActiveLibrary] = useState("");
 
   const handleSetActiveLibrary = async (activeLibraryId: string) => {
-    absAPI.setActiveLibraryId(activeLibraryId);
-    setActiveLibrary(activeLibraryId);
+    if (absAPI) {
+      absAPI.setActiveLibraryId(activeLibraryId);
+      setActiveLibrary(activeLibraryId);
+    }
   };
 
   useEffect(() => {
     const getLibs = async () => {
-      const libs = await absAPI.getLibraries();
-      setLibraries(libs);
+      if (absAPI) {
+        const libs = await absAPI.getLibraries();
+        setLibraries(libs);
+      } else {
+        setLibraries([]);
+      }
     };
     getLibs();
-  }, [activeLibrary]);
+  }, [activeLibrary, absAPI]);
 
   return { libraries, activeLibrary, setActiveLibrary: handleSetActiveLibrary };
 };
@@ -76,13 +83,6 @@ const applyFilters = (
         book.title?.toLowerCase().includes(searchTerm) ||
         book.author?.toLowerCase().includes(searchTerm);
 
-      matchesSearch &&
-        console.log(
-          "filterapply",
-          matchesSearch,
-          filterConfig.search.term,
-          filterConfig.hasAudio.condition(book)
-        );
       if (!matchesSearch) return false;
     }
 
@@ -93,7 +93,7 @@ const applyFilters = (
 
     // Add other filters here as needed
     // Each filter should return false if the book doesn't match
-    console.log("Returning", book.title);
+    // console.log("Returning", book.title);
     return true; // Book passes all filters
   });
 };
@@ -152,6 +152,58 @@ export const useGetBooks = (searchValue?: string) => {
 };
 
 //# ----------------------------------------------
+//# useSafeGetBooks - Safe version that handles unauthenticated state
+//# ----------------------------------------------
+export const useSafeGetBooks = (searchValue?: string) => {
+  const absAPI = useSafeAbsAPI();
+  const sortedBy = useSortedBy();
+
+  // If not authenticated, return empty state
+  if (!absAPI) {
+    return {
+      data: undefined,
+      isPending: false,
+      isError: false,
+      isLoading: false,
+      error: null,
+    };
+  }
+
+  const activeLibraryId = absAPI.getActiveLibraryId();
+
+  const {
+    data: rawData,
+    isPending,
+    isError,
+    isLoading,
+    ...rest
+  } = useQuery({
+    queryKey: ["books", activeLibraryId],
+    queryFn: async () => await absAPI.getLibraryItems({ libraryId: activeLibraryId }),
+    staleTime: 1000 * 60 * 5, // Stale Minutes
+  });
+
+  const filteredData = useMemo(() => {
+    if (!rawData?.length) return rawData;
+
+    const filterConfig = createFilterConfig({ searchValue });
+
+    // Early return if no filters are active
+    const hasActiveFilters = Object.values(filterConfig).some((filter) => filter.enabled);
+    if (!hasActiveFilters) return rawData;
+
+    return applyFilters(rawData, filterConfig);
+  }, [rawData, searchValue]);
+
+  const sortedData = useMemo(() => {
+    if (!filteredData?.length) return filteredData;
+    return sortBy(filteredData, [sortedBy]);
+  }, [filteredData, sortedBy]);
+
+  return { data: sortedData, isPending, isError, isLoading, ...rest };
+};
+
+//# ----------------------------------------------
 //# useGetItemDetails
 //# ----------------------------------------------
 export const useGetItemDetails = (itemId?: string) => {
@@ -161,7 +213,34 @@ export const useGetItemDetails = (itemId?: string) => {
     queryKey: ["itemDetails", itemId],
     queryFn: async () => await absAPI.getItemDetails(itemId),
     enabled: !!itemId, // Only run query if itemId is provided
-    staleTime: 1000 * 60 * 5, // Stale for 5 minutes
+    staleTime: 1000,
+  });
+
+  return { data, isPending, isError, isLoading, error, ...rest };
+};
+
+//# ----------------------------------------------
+//# useSafeGetItemDetails - Safe version that handles unauthenticated state
+//# ----------------------------------------------
+export const useSafeGetItemDetails = (itemId?: string) => {
+  const absAPI = useSafeAbsAPI();
+
+  // If not authenticated, return empty state
+  if (!absAPI) {
+    return {
+      data: undefined,
+      isPending: false,
+      isError: false,
+      isLoading: false,
+      error: null,
+    };
+  }
+
+  const { data, isPending, isError, isLoading, error, ...rest } = useQuery({
+    queryKey: ["itemDetails", itemId],
+    queryFn: async () => await absAPI.getItemDetails(itemId),
+    enabled: !!itemId, // Only run query if itemId is provided
+    staleTime: 1000,
   });
 
   return { data, isPending, isError, isLoading, error, ...rest };
