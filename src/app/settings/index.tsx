@@ -17,11 +17,13 @@ import {
   VStack,
 } from "@expo/ui/swift-ui";
 import { background, clipShape, frame } from "@expo/ui/swift-ui/modifiers";
+import { useHeaderHeight } from "@react-navigation/elements";
 import { Link } from "expo-router";
 import { useState } from "react";
 import { Alert } from "react-native";
 
 export default function SettingsView() {
+  const headerHeight = useHeaderHeight();
   const [isAirplaneMode, setIsAirplaneMode] = useState(true);
   const settingsActions = useSettingsActions();
   const seekForward = useSeekForwardSeconds();
@@ -30,8 +32,9 @@ export default function SettingsView() {
 
   // Format auth info for display
   const displayInfo = {
-    absURL: authInfo.serverUrl || (hasStoredCredentials ? 'Configured' : 'Not configured'),
-    username: authInfo.username || (hasStoredCredentials ? 'Authentication failed' : 'Not logged in')
+    absURL: authInfo.serverUrl || (hasStoredCredentials ? "Configured" : "Not configured"),
+    username:
+      authInfo.username || (hasStoredCredentials ? "Authentication failed" : "Not logged in"),
   };
 
   const handleSeekForwardPress = () => {
@@ -93,7 +96,7 @@ export default function SettingsView() {
   };
 
   return (
-    <Host style={{ flex: 1 }}>
+    <Host style={{ flex: 1, paddingTop: headerHeight }}>
       <Form>
         <Section title="Player">
           <Link href="/settings/abs_auth" asChild>

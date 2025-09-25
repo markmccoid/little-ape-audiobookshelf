@@ -158,19 +158,10 @@ export const useSafeGetBooks = (searchValue?: string) => {
   const absAPI = useSafeAbsAPI();
   const sortedBy = useSortedBy();
 
-  // If not authenticated, return empty state
-  if (!absAPI) {
-    return {
-      data: undefined,
-      isPending: false,
-      isError: false,
-      isLoading: false,
-      error: null,
-    };
-  }
+  // Always get the library ID, even if null
+  const activeLibraryId = absAPI?.getActiveLibraryId() || null;
 
-  const activeLibraryId = absAPI.getActiveLibraryId();
-
+  // Always call useQuery, but disable it when not authenticated
   const {
     data: rawData,
     isPending,
@@ -179,10 +170,15 @@ export const useSafeGetBooks = (searchValue?: string) => {
     ...rest
   } = useQuery({
     queryKey: ["books", activeLibraryId],
-    queryFn: async () => await absAPI.getLibraryItems({ libraryId: activeLibraryId }),
+    queryFn: async () => {
+      if (!absAPI) throw new Error('Not authenticated');
+      return await absAPI.getLibraryItems({ libraryId: activeLibraryId });
+    },
+    enabled: !!absAPI && !!activeLibraryId, // Only run when authenticated and have library ID
     staleTime: 1000 * 60 * 5, // Stale Minutes
   });
 
+  // Always call useMemo hooks
   const filteredData = useMemo(() => {
     if (!rawData?.length) return rawData;
 
@@ -199,6 +195,17 @@ export const useSafeGetBooks = (searchValue?: string) => {
     if (!filteredData?.length) return filteredData;
     return sortBy(filteredData, [sortedBy]);
   }, [filteredData, sortedBy]);
+
+  // Return appropriate data based on authentication state
+  if (!absAPI) {
+    return {
+      data: undefined,
+      isPending: false,
+      isError: false,
+      isLoading: false,
+      error: null,
+    };
+  }
 
   return { data: sortedData, isPending, isError, isLoading, ...rest };
 };
@@ -225,7 +232,18 @@ export const useGetItemDetails = (itemId?: string) => {
 export const useSafeGetItemDetails = (itemId?: string) => {
   const absAPI = useSafeAbsAPI();
 
-  // If not authenticated, return empty state
+  // Always call useQuery, but control when it's enabled
+  const { data, isPending, isError, isLoading, error, ...rest } = useQuery({
+    queryKey: ["itemDetails", itemId],
+    queryFn: async () => {
+      if (!absAPI) throw new Error('Not authenticated');
+      return await absAPI.getItemDetails(itemId);
+    },
+    enabled: !!absAPI && !!itemId, // Only run when authenticated AND itemId is provided
+    staleTime: 1000,
+  });
+
+  // Return appropriate data based on authentication state
   if (!absAPI) {
     return {
       data: undefined,
@@ -235,13 +253,6 @@ export const useSafeGetItemDetails = (itemId?: string) => {
       error: null,
     };
   }
-
-  const { data, isPending, isError, isLoading, error, ...rest } = useQuery({
-    queryKey: ["itemDetails", itemId],
-    queryFn: async () => await absAPI.getItemDetails(itemId),
-    enabled: !!itemId, // Only run query if itemId is provided
-    staleTime: 1000,
-  });
 
   return { data, isPending, isError, isLoading, error, ...rest };
 };

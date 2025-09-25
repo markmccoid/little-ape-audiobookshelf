@@ -10,7 +10,7 @@ export default function SettingsLayout() {
         options={{
           // title: "Settings",
           headerTitle: "Settings",
-          headerLargeTitle: true,
+          // headerLargeTitle: true,
           headerTransparent: true,
           headerBlurEffect: "systemUltraThinMaterialLight",
           headerRight: () => {
@@ -22,7 +22,23 @@ export default function SettingsLayout() {
           },
         }}
       />
-      <Stack.Screen name="abs_auth" />
+      <Stack.Screen
+        name="abs_auth"
+        options={{
+          // title: "Settings",
+          headerTitle: "AudiobookShelf Login",
+          // headerLargeTitle: true,
+          headerTransparent: true,
+          headerBlurEffect: "systemUltraThinMaterialLight",
+          headerRight: () => {
+            return (
+              <Pressable onPress={() => router.replace("/(tabs)/(home)")}>
+                <Text>Home</Text>
+              </Pressable>
+            );
+          },
+        }}
+      />
     </Stack>
   );
 }

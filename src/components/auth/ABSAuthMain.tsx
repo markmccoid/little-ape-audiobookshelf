@@ -1,21 +1,21 @@
 import { AudiobookshelfAuth } from "@/src/ABS/absAuthClass";
-import { useAuth, useSafeAbsAPI } from "@/src/contexts/AuthContext";
 import { queryClient } from "@/src/app/_layout";
 import { LoginForm } from "@/src/components/auth/LoginForm";
-import Player from "@/src/components/Player";
-import { useState } from "react";
+import { useAuth, useSafeAbsAPI } from "@/src/contexts/AuthContext";
 import { Pressable, Text, View } from "react-native";
 import ABSLibrarySelect from "./ABSLibrarySelect";
 
-export default function Index() {
+export default function ABSAuthMain() {
   const { isAuthenticated, authInfo, logout, initializeAfterLogin } = useAuth();
+  // Always call hooks at the top level, regardless of conditional rendering
   const absAPI = useSafeAbsAPI();
+
   const hitABS = async () => {
     if (!absAPI) {
-      console.log('API not available');
+      console.log("API not available");
       return;
     }
-    
+
     const libraries = await absAPI.getLibraries();
     const me = await absAPI.getUserInfo();
     console.log("ME", me);
@@ -32,13 +32,13 @@ export default function Index() {
       const auth = await AudiobookshelfAuth.create(url);
       const info = await auth.login({ username, password });
       console.log(info.user.librariesAccessible);
-      
+
       // Initialize both auth and API after successful login
       await initializeAfterLogin(queryClient);
-      
-      console.log('Login successful, auth and API initialized');
+
+      console.log("Login successful, auth and API initialized");
     } catch (error) {
-      console.error('Login failed:', error);
+      console.error("Login failed:", error);
       // You might want to show an error message to the user here
     }
   };
@@ -52,6 +52,10 @@ export default function Index() {
     await logout();
   };
 
+  // Always render ABSLibrarySelect to prevent hook order changes
+  // It handles its own conditional rendering internally
+  const librarySelectComponent = <ABSLibrarySelect />;
+
   return (
     <View
       style={{
@@ -60,34 +64,29 @@ export default function Index() {
         alignItems: "center",
       }}
     >
-      {isAuthenticated && (
+      {isAuthenticated ? (
         <View className="flex-1 mt-4 w-full px-5">
           <View className="flex-row items-center mb-2">
             <Text className="font-semibold">ABS URL: </Text>
             <Text className="border-hairline bg-gray-200 text-gray-600 p-2 flex-1 rounded-md">
-              {authInfo.serverUrl || 'Not available'}
+              {authInfo.serverUrl || "Not available"}
             </Text>
           </View>
           <View className="flex-row items-center mb-2">
             <Text className="font-semibold">Username: </Text>
             <Text className="border-hairline bg-gray-200 text-gray-600 rounded-md p-2 flex-1 ">
-              {authInfo.username || 'Not available'}
+              {authInfo.username || "Not available"}
             </Text>
           </View>
-          <ABSLibrarySelect />
+          {/* Always render this component to maintain hook order */}
+          {librarySelectComponent}
           <Pressable onPress={handleLogout} className="p-2 border rounded-lg bg-yellow-300 my-4">
             <Text>Log Out</Text>
           </Pressable>
-          <Player />
-          <View>
-            <Pressable onPress={hitABS}>
-              <Text>Hit ABS</Text>
-            </Pressable>
-          </View>
         </View>
+      ) : (
+        <LoginForm onSubmit={onSubmit} />
       )}
-
-      {!isAuthenticated && <LoginForm onSubmit={onSubmit} />}
     </View>
   );
 }
