@@ -1,13 +1,16 @@
 import { Stack } from "expo-router";
 import React from "react";
-
 const LibraryLayout = () => {
   return (
     <Stack
       screenOptions={{
-        // headerTransparent: true,
-        // headerBlurEffect: "light",
-        // headerShadowVisible: true,
+        headerTransparent: true,
+        headerBlurEffect: "light",
+        headerShadowVisible: true,
+        // headerSearchBarOptions: {
+        //   placement: "integratedButton",
+        //   placeholder: "Search Title/Author",
+        // },
       }}
     >
       <Stack.Screen name="index" options={{ title: "Library" }} />

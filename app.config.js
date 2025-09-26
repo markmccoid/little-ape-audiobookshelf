@@ -1,17 +1,17 @@
 // app.config.js
 export default {
   expo: {
-    name: "abs-only",
-    slug: "abs-only",
+    name: "little-ape-audiobookshelf",
+    slug: "little-ape-audiobookshelf",
     version: "1.0.0",
     orientation: "portrait",
     icon: "./assets/images/splash-icon.png",
-    scheme: "absonly",
+    scheme: "laabs",
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
     ios: {
       supportsTablet: true,
-      bundleIdentifier: "com.markmccoid.abs-only",
+      bundleIdentifier: "com.markmccoid.little-ape-audiobookshelf",
       infoPlist: {
         RCTAsyncStorageExcludeFromBackup: false,
         NSMicrophoneUsageDescription:

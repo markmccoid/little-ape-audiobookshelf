@@ -10,10 +10,13 @@ const LibraryLayout = () => {
         name="index"
         options={{
           title: "Home",
+          headerTransparent: true,
+          headerBlurEffect: "light",
+          headerShadowVisible: true,
           headerLeft: () => {
             return (
               <Pressable onPress={() => router.push("/settings")}>
-                <Text>Settings</Text>
+                <Text className="dark:text-white">Settings</Text>
               </Pressable>
             );
           },

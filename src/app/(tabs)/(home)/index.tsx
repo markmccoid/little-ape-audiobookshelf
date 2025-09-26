@@ -1,11 +1,14 @@
 import { ColorPicker, Host } from "@expo/ui/swift-ui";
+import { useHeaderHeight } from "@react-navigation/elements";
 import React, { useState } from "react";
 import { Text, View } from "react-native";
 
 const HomeTab = () => {
   const [color, setColor] = useState("");
+  const headerHeight = useHeaderHeight();
+
   return (
-    <View style={{ backgroundColor: color, flex: 1 }}>
+    <View style={{ backgroundColor: color, flex: 1, paddingTop: headerHeight }}>
       <Text>HomeTab</Text>
       <View style={{ width: 250, backgroundColor: "white", borderWidth: 1, padding: 5 }}>
         <Host>

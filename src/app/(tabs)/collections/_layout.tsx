@@ -3,7 +3,13 @@ import React from "react";
 
 const CollectionLayout = () => {
   return (
-    <Stack>
+    <Stack
+      screenOptions={{
+        headerTransparent: true,
+        headerBlurEffect: "light",
+        headerShadowVisible: true,
+      }}
+    >
       <Stack.Screen name="index" options={{ title: "Collections" }} />
     </Stack>
   );

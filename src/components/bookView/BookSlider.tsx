@@ -51,6 +51,7 @@ const BookSlider = () => {
         maximumValue={duration}
         value={sliderDisplayValue}
         step={1}
+        tapToSeek
         minimumTrackTintColor="#FFFFFF"
         maximumTrackTintColor="#000000"
         onSlidingStart={() => setIsUserSliding(true)}

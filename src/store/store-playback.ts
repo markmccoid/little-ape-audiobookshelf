@@ -173,6 +173,14 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
     seekTo: async (pos: number) => {
       await TrackPlayer.seekTo(pos);
       set({ position: pos });
+
+      // Immediately sync the new position to the server
+      try {
+        const streamer = AudiobookStreamer.getInstance();
+        await streamer.syncPosition();
+      } catch (error) {
+        console.warn("Could not sync position after seek:", error);
+      }
     },
 
     closeSession: async () => {
@@ -182,6 +190,10 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       } catch {
         // Instance doesn't exist, nothing to close
       }
+
+      // Stop TrackPlayer and clear the queue to actually stop playback
+      await TrackPlayer.stop();
+      await TrackPlayer.reset();
 
       // Reset the store state
       set({
