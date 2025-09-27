@@ -6,7 +6,6 @@ import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useRef, useState } from "react";
 import { LogBox, Text, useColorScheme, View } from "react-native";
 import { absInitalize } from "../ABS/absInit";
-import MiniPlayer from "../components/MiniPlayer";
 import { AuthProvider, useAuth } from "../contexts/AuthContext";
 import "../global.css";
 import "../lib/polyfills";
@@ -73,7 +72,7 @@ function AppContent() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="settings" options={{ presentation: "fullScreenModal" }} />
       </Stack>
-      <MiniPlayer />
+      {/* <MiniPlayer /> */}
     </>
   );
 }

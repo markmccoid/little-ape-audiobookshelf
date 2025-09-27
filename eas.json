@@ -1,0 +1,49 @@
+{
+  "cli": {
+    "version": ">= 3.9.3",
+    "promptToConfigurePushNotifications": false
+  },
+  "build": {
+    "dev-simulator": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": {
+        "simulator": true
+      }
+    },
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": {
+        "gradleCommand": ":app:assembleDebug"
+      },
+      "ios": {
+        "buildConfiguration": "Debug",
+        "resourceClass": "m-medium",
+        "cache": {
+          "disabled": true
+        }
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "ios": {
+        "resourceClass": "m-medium",
+        "cache": {
+          "disabled": true
+        }
+      }
+    },
+    "production": {
+      "ios": {
+        "resourceClass": "m-medium",
+        "cache": {
+          "disabled": true
+        }
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

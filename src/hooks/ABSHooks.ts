@@ -1,10 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { sortBy } from "lodash";
+import { reverse, sortBy } from "lodash";
 import { useEffect, useMemo, useState } from "react";
 import { ABSGetLibraries, ABSGetLibraryItem, ABSGetLibraryItems } from "../ABS/absAPIClass";
 import { useAbsAPI } from "../ABS/absInit";
 import { useSafeAbsAPI } from "../contexts/AuthContext";
-import { useSortedBy } from "../store/store-filters";
+import { useSortDirection, useSortedBy } from "../store/store-filters";
 
 //# ----------------------------------------------
 //# useLibraries - return user's libraries
@@ -103,7 +103,8 @@ const applyFilters = (
 export const useGetBooks = (searchValue?: string) => {
   const absAPI = useAbsAPI();
   const activeLibraryId = absAPI.getActiveLibraryId();
-  const sortedBy = useSortedBy();
+
+  const sortedBy = "addedAt";
 
   const {
     data: rawData,
@@ -157,6 +158,7 @@ export const useGetBooks = (searchValue?: string) => {
 export const useSafeGetBooks = (searchValue?: string) => {
   const absAPI = useSafeAbsAPI();
   const sortedBy = useSortedBy();
+  const sortDirection = useSortDirection();
 
   // Always get the library ID, even if null
   const activeLibraryId = absAPI?.getActiveLibraryId() || null;
@@ -171,7 +173,7 @@ export const useSafeGetBooks = (searchValue?: string) => {
   } = useQuery({
     queryKey: ["books", activeLibraryId],
     queryFn: async () => {
-      if (!absAPI) throw new Error('Not authenticated');
+      if (!absAPI) throw new Error("Not authenticated");
       return await absAPI.getLibraryItems({ libraryId: activeLibraryId });
     },
     enabled: !!absAPI && !!activeLibraryId, // Only run when authenticated and have library ID
@@ -193,7 +195,11 @@ export const useSafeGetBooks = (searchValue?: string) => {
 
   const sortedData = useMemo(() => {
     if (!filteredData?.length) return filteredData;
-    return sortBy(filteredData, [sortedBy]);
+    const sorted = sortBy(filteredData, [sortedBy]);
+    // reverse if desc
+    if (sortDirection === "desc") return reverse(sorted);
+
+    return sorted;
   }, [filteredData, sortedBy]);
 
   // Return appropriate data based on authentication state
@@ -236,7 +242,7 @@ export const useSafeGetItemDetails = (itemId?: string) => {
   const { data, isPending, isError, isLoading, error, ...rest } = useQuery({
     queryKey: ["itemDetails", itemId],
     queryFn: async () => {
-      if (!absAPI) throw new Error('Not authenticated');
+      if (!absAPI) throw new Error("Not authenticated");
       return await absAPI.getItemDetails(itemId);
     },
     enabled: !!absAPI && !!itemId, // Only run when authenticated AND itemId is provided

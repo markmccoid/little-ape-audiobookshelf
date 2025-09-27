@@ -4,6 +4,7 @@ import { mmkvStorage } from "./mmkv-storage";
 
 // Define sort options type
 export type SortBy = "addedAt" | "author" | "title" | "duration" | "publishedYear";
+export type SortDirection = "asc" | "desc";
 
 // Define the state interface
 interface FiltersState {
@@ -12,6 +13,7 @@ interface FiltersState {
   tags: string[];
   author: string;
   sortedBy: SortBy;
+  sortDirection: SortDirection;
 }
 
 // Define the actions interface
@@ -27,6 +29,7 @@ interface FiltersActions {
   clearTags: () => void;
   setAuthor: (author: string) => void;
   setSortedBy: (sortBy: SortBy) => void;
+  setSortDirection: (sortDir: SortDirection) => void;
   clearAllFilters: () => void;
   clearSearchAndAuthor: () => void;
 }
@@ -53,6 +56,7 @@ const useFiltersStore = create<FiltersStore>()(
       tags: DEFAULT_TAGS,
       author: DEFAULT_AUTHOR,
       sortedBy: DEFAULT_SORTED_BY,
+      sortDirection: "desc",
 
       // Actions grouped in a separate namespace
       actions: {
@@ -88,6 +92,8 @@ const useFiltersStore = create<FiltersStore>()(
         setAuthor: (author: string) => set({ author }),
 
         setSortedBy: (sortBy: SortBy) => set({ sortedBy: sortBy }),
+
+        setSortDirection: (sortDir) => set({ sortDirection: sortDir }),
 
         clearAllFilters: () =>
           set({
@@ -146,6 +152,8 @@ export const useAuthor = () => useFiltersStore((state) => state.author);
  * Hook to get the sortedBy value
  */
 export const useSortedBy = () => useFiltersStore((state) => state.sortedBy);
+
+export const useSortDirection = () => useFiltersStore((state) => state.sortDirection);
 /**
  * Hook to get all filter actions
  * Since actions never change, it's safe to return all of them

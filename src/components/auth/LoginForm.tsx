@@ -18,7 +18,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSubmit }) => {
     <View className="flex-1 pt-4 w-full px-5">
       <Text className="text-base font-semibold ml-1">AudiobookShelf Server URL</Text>
       <TextInput
-        className="border px-3 py-2 bg-white border-gray-300 rounded-lg mb-2"
+        className="border px-3 py-2 bg-white border-gray-300 rounded-lg mb-2 items-center"
+        style={{ fontSize: 18 }}
         placeholder="https://your-server.com"
         value={url}
         onChangeText={setUrl}
@@ -29,6 +30,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSubmit }) => {
       <Text className="text-base font-semibold ml-1">Username</Text>
       <TextInput
         className="border px-3 py-2 bg-white border-gray-300 rounded-lg mb-2"
+        style={{ fontSize: 18 }}
         placeholder="Enter username"
         value={username}
         onChangeText={setUsername}
@@ -40,6 +42,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSubmit }) => {
       <View className="flex-row items-center mb-3">
         <TextInput
           onChangeText={setPassword}
+          style={{ fontSize: 18 }}
           placeholder="Password"
           spellCheck={false}
           value={password}

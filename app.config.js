@@ -1,18 +1,19 @@
 // app.config.js
 export default {
   expo: {
-    name: "little-ape-audiobookshelf",
-    slug: "little-ape-audiobookshelf",
+    name: "laabs",
+    slug: "laabs",
     version: "1.0.0",
     orientation: "portrait",
-    icon: "./assets/images/splash-icon.png",
+    icon: "./assets/LAABABS-Icon.icon",
     scheme: "laabs",
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
     ios: {
       supportsTablet: true,
-      bundleIdentifier: "com.markmccoid.little-ape-audiobookshelf",
+      bundleIdentifier: "com.markmccoid.laabs",
       infoPlist: {
+        ITSAppUsesNonExemptEncryption: false,
         RCTAsyncStorageExcludeFromBackup: false,
         NSMicrophoneUsageDescription:
           "While this app does not use the microphone, the APIs used to play audio still have access to the microphone.  The app will not however ever use the microphone on your device.",
@@ -26,6 +27,7 @@ export default {
       },
       edgeToEdgeEnabled: true,
       predictiveBackGestureEnabled: true,
+      package: "com.markmccoid.littleapeaudiobookshelf",
     },
     web: {
       output: "static",
@@ -48,6 +50,11 @@ export default {
       typedRoutes: true,
       reactCompiler: true,
       developmentClient: true, // makes `expo start` default to Dev Build
+    },
+    extra: {
+      eas: {
+        projectId: "265633ba-112d-4985-866f-9462c6dc879d",
+      },
     },
   },
 };

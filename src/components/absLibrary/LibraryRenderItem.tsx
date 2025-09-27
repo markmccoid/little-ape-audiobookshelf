@@ -13,6 +13,7 @@ const LibraryRenderItem = ({ item }: { item: ABSGetLibraryItem }) => {
   return (
     <Pressable
       // className="flex-row gap-2 py-1 border-b-hairline"
+      className="h-[110]"
       onPress={() =>
         router.push({
           pathname: `/(tabs)/library/[bookid]`,

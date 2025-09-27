@@ -1,20 +1,22 @@
 import { ABSGetLibraryItem } from "@/src/ABS/absAPIClass";
 import { useAuth } from "@/src/contexts/AuthContext";
-import { useSafeGetBooks } from "@/src/hooks/ABSHooks";
 import { useFiltersActions, useSearchValue, useSortedBy } from "@/src/store/store-filters";
 import { useHeaderHeight } from "@react-navigation/elements";
-import { FlashList } from "@shopify/flash-list";
 import { useNavigation, useRouter } from "expo-router";
 import { debounce } from "lodash";
-import React, { useEffect, useLayoutEffect, useMemo, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { NativeSyntheticEvent, Pressable, Text, View } from "react-native";
 import LibraryRenderItem from "./LibraryRenderItem";
+// import { LegendList } from "@legendapp/list";
+import { useSafeGetBooks } from "@/src/hooks/ABSHooks";
+import { FlashList, FlashListRef } from "@shopify/flash-list";
+import LoadingAnimation from "../common/LoadingAnimation";
+// import { FlashList, FlashListRef } from "@shopify/flash-list";
 
 const LibraryMain = () => {
   const { isAuthenticated, hasStoredCredentials } = useAuth();
   const router = useRouter();
   const navigation = useNavigation();
-
   // Get store values and actions
   const storeSearchValue = useSearchValue();
   const sortedBy = useSortedBy();
@@ -22,6 +24,12 @@ const LibraryMain = () => {
   const sortOptions = ["addedAt", "author", "title", "duration", "publishedYear"];
   // Local state for immediate input feedback
   const [localSearchValue, setLocalSearchValue] = useState(storeSearchValue);
+  // Use safe version of useGetBooks that handles unauthenticated state
+  const { data, isLoading, isError } = useSafeGetBooks(storeSearchValue);
+
+  const headerHeight = useHeaderHeight();
+  const flatListRef = useRef<FlashListRef<ABSGetLibraryItem>>(null);
+  // const flatListRef = useRef<FlashListRef<ABSGetLibraryItem>>(null);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -29,18 +37,49 @@ const LibraryMain = () => {
         autoCapitalize: "none",
         placement: "integratedButton",
         placeholder: "Search Title/Author",
-        onChangeText: (event) => debouncedSetStoreSearch(event.nativeEvent.text),
+        onChangeText: (event: NativeSyntheticEvent<{ text: string }>) => {
+          debouncedSetStoreSearchRef.current(event.nativeEvent.text);
+        },
+        onFocus: () => console.log("Focused"),
+        onCancelButtonPress: () => {
+          console.log("Cancel button pressed");
+          if (flatListRef.current) {
+            console.log("Scrolling");
+            scrollToRef.current();
+            // setTimeout(
+            //   () => flatListRef.current?.scrollToIndex({ index: 0, animated: true }),
+            //   1000
+            // );
+          }
+        },
       },
     });
-  }, [navigation]);
+  }, []);
+  // Create stable reference to the setStoreSearchValue function
+  const setStoreSearchValueRef = useRef(setStoreSearchValue);
+  setStoreSearchValueRef.current = setStoreSearchValue;
+
   // Create debounced function to update store
   const debouncedSetStoreSearch = useMemo(
     () =>
       debounce((value: string) => {
-        setStoreSearchValue(value);
+        setStoreSearchValueRef.current(value);
       }, 300),
-    [setStoreSearchValue]
+    []
   );
+  const scrollTo = useCallback(() => {
+    if (flatListRef.current) {
+      console.log(flatListRef.current);
+      flatListRef.current?.scrollToTop();
+    }
+    console.log("Scroll in ScrollTo");
+  }, []);
+
+  // Create stable refs for functions used in useLayoutEffect
+  const debouncedSetStoreSearchRef = useRef(debouncedSetStoreSearch);
+  const scrollToRef = useRef(scrollTo);
+  debouncedSetStoreSearchRef.current = debouncedSetStoreSearch;
+  scrollToRef.current = scrollTo;
 
   // Sync local state with store on initial load
   useEffect(() => {
@@ -52,10 +91,6 @@ const LibraryMain = () => {
     setLocalSearchValue(value); // Update input immediately
     debouncedSetStoreSearch(value); // Update store after 300ms
   };
-
-  // Use safe version of useGetBooks that handles unauthenticated state
-  const { data, isLoading, isError } = useSafeGetBooks(storeSearchValue);
-  const headerHeight = useHeaderHeight();
 
   // Show login prompt if not authenticated
   if (!isAuthenticated && !hasStoredCredentials) {
@@ -91,7 +126,7 @@ const LibraryMain = () => {
     );
   }
 
-  if (data === undefined) return null;
+  if (data === undefined) return <LoadingAnimation />;
 
   console.log("Books", data?.length);
 
@@ -101,43 +136,31 @@ const LibraryMain = () => {
 
   return (
     <View className="h-full">
-      {/* <View className="w-full p-1">
-        <TextInput
-          className="mx-2 px-4 py-2 bg-white rounded-lg border border-gray-300 h-[35] text-black"
-          placeholder="Enter Title or Author..."
-          value={localSearchValue}
-          onChangeText={handleSearchChange}
-        />
-      </View>
-*/}
-      {/* 
-      <View
-        style={{ zIndex: 10, backgroundColor: "gray" }}
-        className="absolute bottom-[100] w-full h-full justify-center "
-      >
-        <Host>
-          <VStack alignment="leading">
-            <Picker
-              options={sortOptions}
-              selectedIndex={sortOptions.findIndex((val) => val === sortedBy)}
-              onOptionSelected={({ nativeEvent: { index } }) => {
-                console.log(index);
-                setSortedBy(sortOptions[index]);
-              }}
-              variant="segmented"
-            />
-          </VStack>
-        </Host>
-      </View> */}
+      {/* <LegendList
+        className="flex-1"
+        ref={flatListRef}
+        contentContainerClassName=""
+        data={data}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
+      /> */}
       <FlashList
         className="flex-1"
+        ref={flatListRef}
         // style={{ paddingTop: 42 }}
-        contentContainerClassName=""
-        contentInset={{ top: headerHeight }}
+        scrollEnabled
+        // contentInset={{ top: headerHeight }}
         contentOffset={{ x: 0, y: -headerHeight }}
         data={data}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
+        showsVerticalScrollIndicator={true}
+        // Add onLayout to ensure list is ready
+        onLayout={() => {
+          console.log("FlashList laid out");
+
+          // setTimeout(() => flatListRef.current?.scrollToEnd(), 3000);
+        }}
       />
     </View>
   );
