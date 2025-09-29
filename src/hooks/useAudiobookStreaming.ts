@@ -1,5 +1,5 @@
 import { usePlaybackActions, usePlaybackSession } from "@/src/store/store-playback";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 /**
  * Smart audiobook streaming hook that relies on the store-level guard
@@ -7,27 +7,28 @@ import { useEffect } from "react";
  * when a user opens the currently loaded book (paused or playing).
  */
 const useAudiobookStreaming = (itemId: string) => {
-  const { initFromABS, bindEvents, loadBook, closeSession, setIsOnBookScreen } =
-    usePlaybackActions();
+  const { initFromABS, bindEvents, loadBook, closeSession } = usePlaybackActions();
   const session = usePlaybackSession();
+  const isUnmountedRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
+    isUnmountedRef.current = false;
+
     (async () => {
       // await closeSession();
       // await initFromABS();
       bindEvents();
-      if (cancelled) return;
+      if (cancelled || isUnmountedRef.current) return;
       // Always call loadBook; the store will no-op if the same book is already loaded
       await loadBook(itemId);
-      // Mark that we're on the book screen so the mini player can hide
-      setIsOnBookScreen(true);
     })();
 
     return () => {
+      console.log("useAudiobookStreaming UNLOAD", session?.id);
       cancelled = true;
-      // Leaving the book screen should NOT close the session; keep playback for mini player
-      setIsOnBookScreen(false);
+      isUnmountedRef.current = true;
+      // Note: setIsOnBookScreen is now handled by the route component using useFocusEffect
     };
   }, [itemId]);
 

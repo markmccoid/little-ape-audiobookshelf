@@ -9,6 +9,7 @@ import { kv } from "@store/mmkv/mmkv";
 import { Keys } from "@store/mmkv/storageKeys";
 
 import { PitchAlgorithm } from "react-native-track-player";
+import { queryClient } from "../lib/queryClient";
 import { AudiobookshelfAuth } from "./absAuthClass";
 import {
   ABSLoginResponse,
@@ -17,6 +18,7 @@ import {
   Bookmark,
   FilterData,
   GetLibraryItemsResponse,
+  ItemsInProgressResponse,
   Library,
   LibraryItem,
   MediaProgress,
@@ -61,6 +63,22 @@ export type ABSGetLibraryItems = {
 }[];
 export type ABSGetLibraryItem = ABSGetLibraryItems[number];
 export type ABSGetLibraries = Awaited<ReturnType<AudiobookshelfAPI["getLibraries"]>>;
+
+// Items in progress type - based on actual return structure from getItemsInProgress
+export type ABSGetItemsInProgress = {
+  id: string;
+  title: string;
+  author: string;
+  narrator: string;
+  progressPercent?: number;
+  duration?: number;
+  currentTime?: number;
+  isFinished?: boolean;
+  cover: string;
+  coverFull: string;
+}[];
+export type ABSGetItemInProgress = ABSGetItemsInProgress[number];
+
 //# -----==================================================
 //! LOOK INTO using the api/me endpoints for pulling and updating
 //! user info like bookmarks, progress, listening sessions, etc
@@ -70,9 +88,9 @@ export class AudiobookshelfAPI {
   private auth!: AudiobookshelfAuth;
   constructor() {}
 
-  // ----------------------------------
-  // Must be Called to create the API Instance
-  // ----------------------------------
+  //## -------------------------------------
+  //## create
+  //## -------------------------------------
   static async create() {
     const api = new AudiobookshelfAPI();
     api.auth = await AudiobookshelfAuth.create();
@@ -88,7 +106,9 @@ export class AudiobookshelfAPI {
     // If no libraries, then we are not logged in and just return the api.
     return api;
   }
-  // 🔹 Generic authenticated request method
+  //## -------------------------------------
+  //## makeAuthenticatedRequest
+  //## -------------------------------------
   private async makeAuthenticatedRequest<T>(
     endpoint: string,
     options: AxiosRequestConfig = {}
@@ -140,6 +160,9 @@ export class AudiobookshelfAPI {
   // ## ===============================================================
   // ## Session and Streaming
   // ## ===============================================================
+  //## -------------------------------------
+  //## getPlayInfo
+  //## -------------------------------------
   async getPlayInfo(itemId: string) {
     const response: AudiobookSession = await this.makeAuthenticatedRequest(
       `/api/items/${itemId}/play`,
@@ -168,18 +191,23 @@ export class AudiobookshelfAPI {
     // return { addObj, response };
   }
 
+  //## -------------------------------------
+  //## closeSession
+  //## -------------------------------------
   async closeSession(
     sessionId: string,
     data: { timeListened: number; currentTime: number; duration?: number }
   ) {
+    console.log("CLOSE SESSION");
     await this.makeAuthenticatedRequest(`/api/session/${sessionId}/close`, {
       method: "POST",
       data,
     });
   }
 
-  // # ------------------------------
-  // # syncProgressToServer
+  //## -------------------------------------
+  //## syncProgressToServer
+  //## -------------------------------------
   async syncProgressToServer(
     sessionId: string,
     syncData: { timeListened: number; currentTime: number }
@@ -189,15 +217,23 @@ export class AudiobookshelfAPI {
         method: "POST",
         data: syncData,
       });
-    } catch (error) {
+    } catch (error: any) {
+      // ✅ Handle 404 errors more gracefully (session was already closed)
+      if (error.statusCode === 404) {
+        console.warn(`Session ${sessionId} was already closed. Skipping sync.`);
+        return; // Don't log as error for closed sessions
+      }
       console.error("Failed to sync progress:", error);
+      throw error; // Re-throw other errors
     }
   }
   // ## ===============================================================
   // ## Session and Streaming ----- END
   // ## ===============================================================
 
-  // Get libraries for user
+  //## -------------------------------------
+  //## getLibraries
+  //## -------------------------------------
   async getLibraries() {
     const response = await this.makeAuthenticatedRequest<any>("/api/libraries");
     // Check if an active library set, if not, set the first one as active
@@ -215,18 +251,30 @@ export class AudiobookshelfAPI {
     }));
   }
 
+  //## -------------------------------------
+  //## setActiveLibraryId
+  //## -------------------------------------
   public setActiveLibraryId(libraryId: string): void {
     if (libraryId && libraryId.trim() === "") {
       throw new Error("Library ID cannot be an empty string");
     }
     this.activeLibraryId = libraryId;
+    // Store in MKV store
     kv.setString(Keys.absDefaultLibraryId, libraryId || "");
+    //Invalidate the all get queries.
+    queryClient.invalidateQueries();
   }
 
+  //## -------------------------------------
+  //## getActiveLibraryId
+  //## -------------------------------------
   public getActiveLibraryId(): string | undefined {
     return this.activeLibraryId;
   }
 
+  //## -------------------------------------
+  //## saveBookmark
+  //## -------------------------------------
   async saveBookmark(bookmark: Bookmark) {
     const { absBookId: itemId, positionSeconds, name } = bookmark;
     const data = { time: positionSeconds, title: name };
@@ -236,12 +284,18 @@ export class AudiobookshelfAPI {
     });
   }
 
+  //## -------------------------------------
+  //## deleteBookmark
+  //## -------------------------------------
   async deleteBookmark(itemId: string, positionSeconds: number) {
     return this.makeAuthenticatedRequest(`/api/me/item/${itemId}/bookmark/${positionSeconds}`, {
       method: "DELETE",
     });
   }
 
+  //## -------------------------------------
+  //## updateBookProgress
+  //## -------------------------------------
   async updateBookProgress(itemId: string, currentTime: number) {
     return this.makeAuthenticatedRequest(`/api/me/progress/${itemId}`, {
       method: "PATCH",
@@ -249,6 +303,9 @@ export class AudiobookshelfAPI {
     });
   }
 
+  //## -------------------------------------
+  //## getBookProgress
+  //## -------------------------------------
   async getBookProgress(itemId: string) {
     let resp;
     try {
@@ -260,6 +317,9 @@ export class AudiobookshelfAPI {
     return resp as MediaProgress;
   }
 
+  //## -------------------------------------
+  //## setBookFinished
+  //## -------------------------------------
   async setBookFinished(itemId: string, isFinished: boolean) {
     return this.makeAuthenticatedRequest(`/api/me/progress/${itemId}`, {
       method: "PATCH",
@@ -267,6 +327,9 @@ export class AudiobookshelfAPI {
     });
   }
 
+  //## -------------------------------------
+  //## setFavoriteTag
+  //## -------------------------------------
   async setFavoriteTag(itemId: string, tags: string[]) {
     return this.makeAuthenticatedRequest(`/api/items/${itemId}/media`, {
       method: "PATCH",
@@ -274,13 +337,16 @@ export class AudiobookshelfAPI {
     });
   }
 
-  // Returns same thing as getUserInfo
-  // Users bookmarks, books in progress etc
-  // https://api.audiobookshelf.org/#me
+  //## -------------------------------------
+  //## getMe
+  //## -------------------------------------
   async getMe() {
     return this.makeAuthenticatedRequest("/api/me") as Promise<User>;
   }
 
+  //## -------------------------------------
+  //## getUserInfo
+  //## -------------------------------------
   async getUserInfo(): Promise<ABSLoginResponse["user"]> {
     const resp: ABSLoginResponse = await this.makeAuthenticatedRequest("/api/authorize", {
       method: "POST",
@@ -288,6 +354,9 @@ export class AudiobookshelfAPI {
     return resp.user;
   }
 
+  //## -------------------------------------
+  //## buildCoverURL
+  //## -------------------------------------
   async buildCoverURL(itemId: string, format: "webp" | "jpeg" = "webp") {
     // const auth = await AudiobookshelfAuth.create();
     const token = await this.auth.getValidAccessToken();
@@ -297,7 +366,9 @@ export class AudiobookshelfAPI {
     return { coverThumb, coverFull };
   }
 
-  //-- Synchronous version of builCoverURL, MUST pass token
+  //## -------------------------------------
+  //## buildCoverURLSync
+  //## -------------------------------------
   buildCoverURLSync(itemId: string, token: string, format: "webp" | "jpeg" = "webp") {
     // const auth = await AudiobookshelfAuth.create();
     const serverUrl = this.auth.absURL;
@@ -306,7 +377,9 @@ export class AudiobookshelfAPI {
     return { coverThumb, coverFull };
   }
 
-  // 🔹 Favorited + Finished Items
+  //## -------------------------------------
+  //## getFavoritedAndFinishedItems
+  //## -------------------------------------
   async getFavoritedAndFinishedItems() {
     const userFavoriteInfo = await this.getUserFavoriteInfo();
     const progressurl = `/api/libraries/${this.getActiveLibraryId()}/items?filter=progress.ZmluaXNoZWQ=`;
@@ -347,7 +420,7 @@ export class AudiobookshelfAPI {
             itemId: el.id,
             type: "isRead",
             title: el.media.metadata.title,
-            author: el.media.metadata.authorName,
+            author: el.media.metadata.authorName || "",
             imageURL: coverURL.coverThumb,
           };
         }) ?? []
@@ -361,8 +434,8 @@ export class AudiobookshelfAPI {
           return {
             itemId: el.id,
             type: "isFavorite",
-            title: el.media.metadata.title,
-            author: el.media.metadata.authorName,
+            title: el.media.metadata.title || "",
+            author: el.media.metadata.authorName || "",
             imageURL: coverURL.coverThumb,
           };
         }) ?? []
@@ -388,6 +461,9 @@ export class AudiobookshelfAPI {
     return Array.from(resultMap.values()).filter((el) => el.itemId) as ItemInfoMerged[];
   }
 
+  //## -------------------------------------
+  //## getItemDetails
+  //## -------------------------------------
   async getItemDetails(itemId?: string) {
     let libraryItem: LibraryItem;
     try {
@@ -439,6 +515,9 @@ export class AudiobookshelfAPI {
     };
   }
 
+  //## -------------------------------------
+  //## absDownloadItem
+  //## -------------------------------------
   async absDownloadItem(itemId: string, fileIno: string) {
     const auth = await AudiobookshelfAuth.create();
     const token = await auth.getValidAccessToken();
@@ -451,6 +530,9 @@ export class AudiobookshelfAPI {
     return { url, urlWithToken, authHeader };
   }
 
+  //## -------------------------------------
+  //## downloadEbook
+  //## -------------------------------------
   async downloadEbook(itemId: string, fileIno: string, filenameWExt: string) {
     let tempFileUri: string | null = null;
     const { url, authHeader } = await this.absDownloadItem(itemId, fileIno);
@@ -495,6 +577,9 @@ export class AudiobookshelfAPI {
     }
   }
 
+  //## -------------------------------------
+  //## getLibraryFilterData
+  //## -------------------------------------
   async getLibraryFilterData(libraryId?: string) {
     let response;
     try {
@@ -523,9 +608,10 @@ export class AudiobookshelfAPI {
 
     return { id: libraryId, genres, tags, authors, series };
   }
-  //--=================================
-  //-- getLibraryItems
-  //--=================================
+
+  //## -------------------------------------
+  //##  getLibraryItems
+  //## -------------------------------------
   async getLibraryItems({
     libraryId,
     filterType,
@@ -606,6 +692,62 @@ export class AudiobookshelfAPI {
 
     return booksMin;
   }
+
+  //## -------------------------------------
+  //##  getItemsInProgress
+  //## -------------------------------------
+  async getItemsInProgress(): Promise<ABSGetItemsInProgress> {
+    const progressURL = `/api/me/items-in-progress`;
+    let progressData, userData;
+
+    try {
+      // ✅ Get user data with specific error handling
+      userData = await this.getMe();
+    } catch (error) {
+      console.log("absAPI-getItemsInProgress: Failed to get user data", error);
+      throw error;
+    }
+
+    try {
+      // ✅ Get items in progress with specific error handling
+      progressData = (await this.makeAuthenticatedRequest(progressURL)) as ItemsInProgressResponse;
+    } catch (error) {
+      console.log("absAPI-getItemsInProgress: Failed to get items-in-progress", error);
+      throw error;
+    }
+    const mediaProgress = userData.mediaProgress;
+    const continueListeningBooks = progressData.libraryItems;
+    let itemsInProgress: ABSGetItemsInProgress = [];
+
+    const token = await this.auth.getValidAccessToken();
+    if (!token) return [];
+
+    for (let book of continueListeningBooks) {
+      const mediaMatch = mediaProgress.find((el) => el.libraryItemId === book.id);
+
+      const coverURL = this.buildCoverURLSync(book.id, token);
+      if (book.libraryId !== this.activeLibraryId) continue;
+
+      itemsInProgress.push({
+        id: book.id,
+        title: book.media.metadata.title,
+        author: book.media.metadata.authorName || "",
+        narrator: book.media.metadata.narratorName || "",
+        progressPercent: mediaMatch?.progress,
+        duration: mediaMatch?.duration,
+        currentTime: mediaMatch?.currentTime,
+        isFinished: mediaMatch?.isFinished ? false : mediaMatch?.isFinished,
+        cover: coverURL.coverThumb,
+        coverFull: coverURL.coverFull,
+      });
+    }
+
+    return itemsInProgress;
+  }
+
+  //## -------------------------------------
+  //## getUserFavoriteInfo
+  //## -------------------------------------
   async getUserFavoriteInfo() {
     const auth = await AudiobookshelfAuth.create();
     const favoriteSearchString = btoa(`${auth.username}-laab-favorite`);
@@ -616,7 +758,9 @@ export class AudiobookshelfAPI {
     };
   }
 
-  //!!! TESTING
+  //## -------------------------------------
+  //## buildTrackPlayerTracks
+  //## -------------------------------------
   buildTrackPlayerTracks(playbackData: AudiobookSession, token) {
     const { audioTracks, libraryItem, chapters } = playbackData;
 

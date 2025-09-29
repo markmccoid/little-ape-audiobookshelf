@@ -1,6 +1,7 @@
-import { Stack, useRouter } from "expo-router";
+import HeaderButton from "@/src/components/common/LAABSHeaderButton";
+import { Link, Stack, useRouter } from "expo-router";
+import { SymbolView } from "expo-symbols";
 import React from "react";
-import { Pressable, Text } from "react-native";
 
 const LibraryLayout = () => {
   const router = useRouter();
@@ -15,9 +16,11 @@ const LibraryLayout = () => {
           headerShadowVisible: true,
           headerLeft: () => {
             return (
-              <Pressable onPress={() => router.push("/settings")}>
-                <Text className="dark:text-white">Settings</Text>
-              </Pressable>
+              <Link href={{ pathname: "/settings" }} asChild>
+                <HeaderButton>
+                  <SymbolView name="gearshape" />
+                </HeaderButton>
+              </Link>
             );
           },
         }}

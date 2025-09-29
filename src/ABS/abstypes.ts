@@ -376,6 +376,36 @@ export interface LibraryItem {
     nameIgnorePrefix: string;
     numBooks: number;
   };
+};
+
+//~~ ========================================================
+//~~ Items In Progress Types
+//~~ ========================================================
+export interface ItemInProgress {
+  id: string;
+  ino: string;
+  oldLibraryItemId: string | null;
+  libraryId: string;
+  folderId: string;
+  path: string;
+  relPath: string;
+  isFile: boolean;
+  mtimeMs: number;
+  ctimeMs: number;
+  birthtimeMs: number;
+  addedAt: number;
+  updatedAt: number;
+  isMissing: boolean;
+  isInvalid: boolean;
+  mediaType: string;
+  media: Media;
+  numFiles: number;
+  size: number;
+  progressLastUpdate: number;
+}
+
+export interface ItemsInProgressResponse {
+  libraryItems: ItemInProgress[];
 }
 
 //~~ ========================================================

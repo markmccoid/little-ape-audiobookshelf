@@ -1,7 +1,7 @@
-import { ColorPicker, Host } from "@expo/ui/swift-ui";
+import HomeContainer from "@/src/components/home/HomeContainer";
 import { useHeaderHeight } from "@react-navigation/elements";
 import React, { useState } from "react";
-import { Text, View } from "react-native";
+import { View } from "react-native";
 
 const HomeTab = () => {
   const [color, setColor] = useState("");
@@ -9,17 +9,7 @@ const HomeTab = () => {
 
   return (
     <View style={{ backgroundColor: color, flex: 1, paddingTop: headerHeight }}>
-      <Text>HomeTab</Text>
-      <View style={{ width: 250, backgroundColor: "white", borderWidth: 1, padding: 5 }}>
-        <Host>
-          <ColorPicker
-            label="Select a color"
-            selection={color}
-            onValueChanged={setColor}
-            style={{ width: 400, height: 30 }}
-          />
-        </Host>
-      </View>
+      <HomeContainer />
     </View>
   );
 };

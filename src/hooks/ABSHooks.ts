@@ -153,6 +153,35 @@ export const useGetBooks = (searchValue?: string) => {
 };
 
 //# ----------------------------------------------
+//# useGetBooksInProgress
+//# ----------------------------------------------
+export const useGetBooksInProgress = () => {
+  const absAPI = useSafeAbsAPI();
+  // Always get the library ID, even if null
+  const activeLibraryId = absAPI?.getActiveLibraryId() || null;
+
+  const { data, isError, ...rest } = useQuery({
+    queryKey: ["booksInProgress", activeLibraryId],
+    queryFn: async () => {
+      if (!absAPI) throw new Error("Not authenticated");
+      return absAPI?.getItemsInProgress();
+    },
+    enabled: !!absAPI && !!activeLibraryId,
+    refetchOnWindowFocus: false, // Prevent 404s during navigation
+    refetchOnReconnect: false, // Prevent unnecessary refetches
+    retry: (failureCount, error) => {
+      // Don't retry on 404s as they're likely not transient
+      if (error && typeof error === "object" && "status" in error && error.status === 404) {
+        return false;
+      }
+      return failureCount < 3;
+    },
+  });
+
+  return { data, isError, ...rest };
+};
+
+//# ----------------------------------------------
 //# useSafeGetBooks - Safe version that handles unauthenticated state
 //# ----------------------------------------------
 export const useSafeGetBooks = (searchValue?: string) => {

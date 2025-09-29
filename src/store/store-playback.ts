@@ -38,6 +38,7 @@ interface PlaybackActions {
   loadBook: (itemId: string) => Promise<void>;
   play: () => Promise<void>;
   pause: () => Promise<void>;
+  togglePlayPause: () => Promise<"playing" | "paused">;
   seekTo: (pos: number) => Promise<void>;
   closeSession: () => Promise<void>;
   destroy: () => Promise<void>;
@@ -170,6 +171,18 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       // AudiobookStreamer handles immediate sync on pause via its own event listener
     },
 
+    togglePlayPause: async () => {
+      const state = await TrackPlayer.getPlaybackState();
+
+      if (state.state === State.Playing) {
+        await get().actions.pause();
+        return "paused";
+      } else {
+        await get().actions.play();
+        return "playing";
+      }
+    },
+
     seekTo: async (pos: number) => {
       await TrackPlayer.seekTo(pos);
       set({ position: pos });
@@ -177,8 +190,15 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       // Immediately sync the new position to the server
       try {
         const streamer = AudiobookStreamer.getInstance();
-        await streamer.syncPosition();
+        // Only sync if we have an active session
+        const currentSession = streamer.getSession();
+        if (currentSession) {
+          await streamer.syncPosition();
+        } else {
+          console.log("Skipping position sync - no active session");
+        }
       } catch (error) {
+        // Log but don't throw on sync errors to avoid disrupting playback
         console.warn("Could not sync position after seek:", error);
       }
     },

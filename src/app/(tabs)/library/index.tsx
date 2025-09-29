@@ -1,8 +1,10 @@
 import LibraryMain from "@/src/components/absLibrary/LibraryContainer";
+import HeaderButton from "@/src/components/common/LAABSHeaderButton";
 import { useHeaderHeight } from "@react-navigation/elements";
-import { useNavigation } from "expo-router";
+import { Link, useNavigation } from "expo-router";
+import { SymbolView } from "expo-symbols";
 import React, { useLayoutEffect, useState } from "react";
-import { Text, View } from "react-native";
+import { View } from "react-native";
 
 const Books = () => {
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -12,9 +14,11 @@ const Books = () => {
     navigation.setOptions({
       headerLeft: () => {
         return (
-          <View>
-            <Text className="dark:text-white">Filter</Text>
-          </View>
+          <Link href={{ pathname: "/(tabs)/library/filterroute" }} asChild>
+            <HeaderButton>
+              <SymbolView name="brain.fill" size={20} />
+            </HeaderButton>
+          </Link>
         );
       },
     });

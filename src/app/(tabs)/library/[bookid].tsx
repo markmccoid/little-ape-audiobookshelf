@@ -1,59 +1,62 @@
-import { useAuth, useSafeAbsAPI } from "@/src/contexts/AuthContext";
 import BookSlider from "@/src/components/bookView/BookSlider";
 import TestPosition from "@/src/components/bookView/TestPosition";
 import { useSafeGetItemDetails } from "@/src/hooks/ABSHooks";
 import { useSmartPosition } from "@/src/hooks/trackPlayerHooks";
-import useAudiobookStreaming from "@/src/hooks/useAudiobookStreaming";
 import { formatSeconds } from "@/src/lib/formatUtils";
+import { configureBooksSession } from "@/src/rn-trackplayer/configureBookSession";
+import { usePlaybackActions } from "@/src/store/store-playback";
 import { useHeaderHeight } from "@react-navigation/elements";
+import { useFocusEffect } from "@react-navigation/native";
 import { Image } from "expo-image";
 import { Stack, useGlobalSearchParams } from "expo-router";
-import React from "react";
+import React, { useCallback } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
-import TrackPlayer, { State, usePlaybackState } from "react-native-track-player";
+import { State, usePlaybackState } from "react-native-track-player";
 
 const BookIdRoute = () => {
   const headerHeight = useHeaderHeight();
   const progress = useSmartPosition();
-
-  // const [pos, setPos] = useState(playbackPos);
-
-  // useEffect(() => {
-  //   if (progress.position != 0 && progress.position != undefined) {
-  //     console.log("POS&*&*", pos);
-  //     setPos(progress.position);
-  //   } else {
-  //     console.log("IN ELSE", pos, playbackPos);
-  //   }
-  // }, [progress.position, playbackPos]);
+  const { play, pause, togglePlayPause, setIsOnBookScreen } = usePlaybackActions();
 
   const { bookid, cover, title } = useGlobalSearchParams<{
     bookid: string;
     cover: string;
     title: string;
   }>();
-  const { session, closeSession } = useAudiobookStreaming(bookid);
 
+  const initBook = async () => {
+    await configureBooksSession(bookid);
+  };
   const { data, isPending } = useSafeGetItemDetails(bookid);
-  const absAPI = useSafeAbsAPI();
-  const { authInfo } = useAuth();
   const playbackState = usePlaybackState();
-
   // console.log("deferred Progress", pos, playbackPos, progress.position);
 
-  const togglePlayPause = async () => {
-    const state = await TrackPlayer.getPlaybackState();
-    console.log("State", state);
-    if (state.state === State.Playing) {
-      await TrackPlayer.pause();
-    } else {
-      await TrackPlayer.play();
-    }
-  };
+  // const togglePlayPause = async () => {
+  //   const state = await TrackPlayer.getPlaybackState();
+  //   console.log("State", state);
+  //   if (state.state === State.Playing) {
+  //     await pause();
+  //   } else {
+  //     await play();
+  //   }
+  // };
 
   // Check if player is currently playing
   const isPlaying = playbackState.state === State.Playing;
 
+  // Use useFocusEffect to handle route focus/unfocus
+  useFocusEffect(
+    useCallback(() => {
+      console.log("BookIdRoute: Route focused - setting isOnBookScreen(true)");
+      setIsOnBookScreen(true);
+      initBook();
+
+      return () => {
+        console.log("BookIdRoute: Route unfocused - setting isOnBookScreen(false)");
+        setIsOnBookScreen(false);
+      };
+    }, [bookid]) // Re-run if bookid changes
+  );
   return (
     <ScrollView
       className="flex-1"

@@ -4,6 +4,7 @@ import {
   usePlaybackIsPlaying,
   usePlaybackPosition,
   usePlaybackSession,
+  usePlaybackStore,
   useShowMiniPlayer,
 } from "@store/store-playback";
 import React, { useCallback, useMemo } from "react";
@@ -14,12 +15,13 @@ const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(ma
 export default function MiniPlayer() {
   const showMini = useShowMiniPlayer();
   const isPlaying = usePlaybackIsPlaying();
+  const isBookLoaded = usePlaybackStore((state) => state.isLoaded);
   const position = usePlaybackPosition() || 0;
   const duration = usePlaybackDuration();
   const session = usePlaybackSession();
   const { play, pause, seekTo, closeSession } = usePlaybackActions();
 
-  console.log("MiniPlayer", showMini, position);
+  // console.log("MiniPlayer", showMini, isBookLoaded, position);
   const seekBackwardSeconds = 15;
   const seekForwardSeconds = 15;
   const progressPct = useMemo(() => {
@@ -48,7 +50,10 @@ export default function MiniPlayer() {
     console.log("valChange", val);
   };
   return (
-    <View className="px-3 py-2 bg-slate-800 border-t border-slate-700 absolute w-full bottom-0">
+    <View
+      className="px-3 py-2 bg-slate-800 border-t border-slate-700 absolute w-full"
+      style={{ bottom: 100 }}
+    >
       <View className="flex-row items-center justify-between">
         <View className="flex-1 pr-3">
           <Text numberOfLines={1} className="text-slate-100 font-semibold">

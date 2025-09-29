@@ -1,4 +1,6 @@
-import { Stack, useRouter } from "expo-router";
+import HeaderButton from "@/src/components/common/LAABSHeaderButton";
+import { Link, Stack, useRouter } from "expo-router";
+import { SymbolView } from "expo-symbols";
 import { Pressable, Text } from "react-native";
 
 export default function SettingsLayout() {
@@ -15,9 +17,11 @@ export default function SettingsLayout() {
           headerBlurEffect: "systemUltraThinMaterialLight",
           headerRight: () => {
             return (
-              <Pressable onPress={() => router.dismiss()}>
-                <Text>Close</Text>
-              </Pressable>
+              <Link dismissTo href="/(tabs)/(home)" asChild>
+                <HeaderButton>
+                  <SymbolView name="xmark" />
+                </HeaderButton>
+              </Link>
             );
           },
         }}
@@ -32,7 +36,7 @@ export default function SettingsLayout() {
           headerBlurEffect: "systemUltraThinMaterialLight",
           headerRight: () => {
             return (
-              <Pressable onPress={() => router.replace("/(tabs)/(home)")}>
+              <Pressable onPress={() => router.dismissTo("/(tabs)/(home)")}>
                 <Text>Home</Text>
               </Pressable>
             );

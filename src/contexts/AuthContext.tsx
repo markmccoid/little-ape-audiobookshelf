@@ -6,6 +6,7 @@ import React, {
   useEffect,
   useState,
 } from "react";
+import { AudiobookshelfAPI } from "../ABS/absAPIClass";
 import { AudiobookshelfAuth } from "../ABS/absAuthClass";
 
 interface AuthInfo {
@@ -238,7 +239,7 @@ export const useSafeAbsAPI = () => {
   try {
     // Import here to avoid circular dependencies
     const { getAbsAPI } = require("../ABS/absInit");
-    const api = getAbsAPI();
+    const api = getAbsAPI() as AudiobookshelfAPI;
     return api;
   } catch (error) {
     console.warn("AbsAPI not initialized despite authentication:", error);

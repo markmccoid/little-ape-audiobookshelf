@@ -1,14 +1,16 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import { PortalHost } from "@rn-primitives/portal";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useRef, useState } from "react";
 import { LogBox, Text, useColorScheme, View } from "react-native";
 import { absInitalize } from "../ABS/absInit";
+import MiniPlayer from "../components/MiniPlayer";
 import { AuthProvider, useAuth } from "../contexts/AuthContext";
 import "../global.css";
 import "../lib/polyfills";
+import { queryClient } from "../lib/queryClient";
 import { trackPlayerInit } from "../rn-trackplayer/rn-trackplayerInit";
 SplashScreen.preventAutoHideAsync();
 
@@ -18,8 +20,6 @@ LogBox.ignoreLogs([
 export const unstable_settings = {
   intialRouteName: "(tabs)",
 };
-
-export const queryClient = new QueryClient();
 
 function AppContent() {
   let [isReady, setIsReady] = useState(false);
@@ -72,7 +72,7 @@ function AppContent() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="settings" options={{ presentation: "fullScreenModal" }} />
       </Stack>
-      {/* <MiniPlayer /> */}
+      <MiniPlayer />
     </>
   );
 }

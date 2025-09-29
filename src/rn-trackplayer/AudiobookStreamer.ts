@@ -25,11 +25,14 @@ export default class AudiobookStreamer {
 
   // Race condition prevention
   private isSyncing: boolean = false;
+  private sessionClosed: boolean = false; // ✅ Add flag to track if session is closed
   private pendingSessionClose: {
     sessionId: string;
     position: number;
     timeListened: number;
   } | null = null;
+  private lastSyncAttempt: number = 0;
+  private syncDebounceMs: number = 1000; // Minimum time between sync attempts
 
   // Prevent syncing during book loading - only sync after user starts playback
   private hasUserStartedPlayback: boolean = false;
@@ -166,6 +169,8 @@ export default class AudiobookStreamer {
     this.session = response;
     // Reset playback flag when switching sessions
     this.hasUserStartedPlayback = false;
+    // ✅ Reset session closed flag for new session
+    this.sessionClosed = false;
 
     console.log(
       `AudiobookStreamer: Session changed from ${previousSessionId || "none"} to ${
@@ -197,9 +202,9 @@ export default class AudiobookStreamer {
   }
 
   async syncProgress(currentPosition?: number): Promise<void> {
-    // Prevent concurrent sync operations
-    if (this.isSyncing) {
-      // console.log("Sync already in progress, skipping...");
+    // Prevent concurrent sync operations or syncing to closed sessions
+    if (this.isSyncing || this.sessionClosed) {
+      // console.log("Sync already in progress or session closed, skipping...");
       return;
     }
 
@@ -250,6 +255,14 @@ export default class AudiobookStreamer {
         `Synced to session ${activeSessionId} - listened: ${timeListened}s, position: ${position}s`
       );
     } catch (error) {
+      // Check if it's a 404 error (session not found) - match API error format
+      if (error && typeof error === 'object' && 
+          (('status' in error && error.status === 404) || 
+           ('statusCode' in error && error.statusCode === 404))) {
+        console.warn(`Session ${activeSessionId} not found on server - marking as closed`);
+        this.sessionClosed = true;
+        return;
+      }
       console.error("Failed to sync progress:", error);
     } finally {
       this.isSyncing = false;
@@ -271,6 +284,20 @@ export default class AudiobookStreamer {
       return;
     }
 
+    // Don't sync if session is already closed
+    if (this.sessionClosed) {
+      console.log("Skipping position sync - session already closed");
+      return;
+    }
+
+    // Debounce rapid sync attempts to prevent API spam during navigation
+    const now = Date.now();
+    if (now - this.lastSyncAttempt < this.syncDebounceMs) {
+      console.log("Skipping position sync - debounced (too recent)");
+      return;
+    }
+    this.lastSyncAttempt = now;
+
     try {
       const { position } = await TrackPlayer.getProgress();
       const activeSessionId = await this.getActiveSessionId();
@@ -286,8 +313,16 @@ export default class AudiobookStreamer {
       };
 
       await this.apiClient.syncProgressToServer(activeSessionId, syncData);
-      console.log(`Position synced to session ${activeSessionId} - position: ${position}s`);
+      // console.log(`Position synced to session ${activeSessionId} - position: ${position}s`);
     } catch (error) {
+      // Check if it's a 404 error (session not found) - match API error format
+      if (error && typeof error === 'object' && 
+          (('status' in error && error.status === 404) || 
+           ('statusCode' in error && error.statusCode === 404))) {
+        console.warn(`Session ${this.session?.id} not found on server - marking as closed`);
+        this.sessionClosed = true;
+        return;
+      }
       console.error("Failed to sync position:", error);
     }
   }
@@ -296,6 +331,9 @@ export default class AudiobookStreamer {
     // Allow closing even if only pending exists
     if (!this.session && !this.pendingSessionClose) return;
     console.log("Close Session");
+    
+    // ✅ Prevent any further sync attempts
+    this.sessionClosed = true;
     try {
       // Get sessionId from the currently active track to prevent cross-session contamination
       const activeSessionId = await this.getActiveSessionId();
@@ -428,8 +466,10 @@ export default class AudiobookStreamer {
 
     // Reset race condition prevention flags
     this.isSyncing = false;
+    this.sessionClosed = false; // ✅ Reset session closed flag
     this.pendingSessionClose = null;
     this.hasUserStartedPlayback = false;
+    this.lastSyncAttempt = 0; // Reset debounce timer
 
     // Note: We intentionally don't clear offline sessions here
     // as they need to persist for sync when coming back online

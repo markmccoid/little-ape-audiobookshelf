@@ -69,7 +69,7 @@ const LibraryMain = () => {
   );
   const scrollTo = useCallback(() => {
     if (flatListRef.current) {
-      console.log(flatListRef.current);
+      // console.log(flatListRef.current);
       flatListRef.current?.scrollToTop();
     }
     console.log("Scroll in ScrollTo");
@@ -149,7 +149,7 @@ const LibraryMain = () => {
         ref={flatListRef}
         // style={{ paddingTop: 42 }}
         scrollEnabled
-        // contentInset={{ top: headerHeight }}
+        contentInset={{ top: headerHeight }}
         contentOffset={{ x: 0, y: -headerHeight }}
         data={data}
         renderItem={renderItem}

@@ -2,12 +2,20 @@
 import { useAuth } from "@/src/contexts/AuthContext";
 import { Eye, EyeOff } from "lucide-react-native";
 import React, { useState } from "react";
-import { Button, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 interface LoginFormProps {
   onSubmit: (url: string, username: string, password: string) => void;
+  isLoggingIn: boolean;
 }
 
-export const LoginForm: React.FC<LoginFormProps> = ({ onSubmit }) => {
+export const LoginForm: React.FC<LoginFormProps> = ({ onSubmit, isLoggingIn }) => {
   const { authInfo } = useAuth();
   const [url, setUrl] = useState(authInfo.serverUrl || "");
   const [username, setUsername] = useState("");
@@ -52,6 +60,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSubmit }) => {
           secureTextEntry={hidePassword}
           className="border px-3 py-2 bg-white border-gray-300 rounded-lg flex-1"
         />
+
         <TouchableOpacity
           onPress={() => setHidePassword(() => !hidePassword)}
           className="absolute right-1"
@@ -59,8 +68,16 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSubmit }) => {
           {!hidePassword ? <Eye size={20} /> : <EyeOff size={20} />}
         </TouchableOpacity>
       </View>
-
-      <Button title="Login" onPress={() => onSubmit(url.trim(), username.trim(), password)} />
+      <View className="flex-row justify-center items-center">
+        {isLoggingIn && <ActivityIndicator size="large" className="absolute z-10 bottom-0" />}
+        <TouchableOpacity
+          disabled={isLoggingIn}
+          onPress={() => onSubmit(url.trim(), username.trim(), password)}
+          className="p-2 bg-blue-500 border rounded-lg"
+        >
+          <Text>Login</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };

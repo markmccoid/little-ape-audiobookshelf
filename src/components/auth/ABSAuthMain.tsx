@@ -1,7 +1,7 @@
 import { AudiobookshelfAuth } from "@/src/ABS/absAuthClass";
-import { queryClient } from "@/src/app/_layout";
 import { LoginForm } from "@/src/components/auth/LoginForm";
 import { useAuth, useSafeAbsAPI } from "@/src/contexts/AuthContext";
+import { queryClient } from "@/src/lib/queryClient";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import ABSLibrarySelect from "./ABSLibrarySelect";
@@ -9,6 +9,8 @@ import ABSLibrarySelect from "./ABSLibrarySelect";
 export default function ABSAuthMain() {
   const { isAuthenticated, authInfo, logout, initializeAfterLogin } = useAuth();
   const [error, setError] = useState<string | undefined>(undefined);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
   // Always call hooks at the top level, regardless of conditional rendering
   const absAPI = useSafeAbsAPI();
 
@@ -21,12 +23,11 @@ export default function ABSAuthMain() {
       const libraries = await absAPI.getLibraries();
       // const me = await absAPI.getUserInfo();
       // console.log("ME", me);
-      console.log(
-        "Library",
-        libraries.map((el) => `${el.name}-${el.active}-${el.id}`)
-      );
+      // console.log(
+      //   "Library",
+      //   libraries.map((el) => `${el.name}-${el.active}-${el.id}`)
+      // );
       const activeLib = absAPI.getActiveLibraryId();
-      console.log("ActiveLib", activeLib);
     } catch (error) {
       console.error("Error debugging ABS API:", error);
     }
@@ -34,10 +35,11 @@ export default function ABSAuthMain() {
 
   const onSubmit = async (url: string, username: string, password: string) => {
     try {
+      setIsLoggingIn(true);
       setError(undefined);
       const auth = await AudiobookshelfAuth.create(url);
       const info = await auth.login({ username, password });
-      console.log(info.user.librariesAccessible);
+      // console.log(info.user.librariesAccessible);
       console.log("Initializing after login...");
       // Initialize both auth and API after successful login
       await initializeAfterLogin(queryClient);
@@ -47,6 +49,8 @@ export default function ABSAuthMain() {
       console.error("Login failed:", error);
       setError(error);
       // You might want to show an error message to the user here
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -96,7 +100,7 @@ export default function ABSAuthMain() {
         </View>
       ) : (
         <>
-          <LoginForm onSubmit={onSubmit} />
+          <LoginForm onSubmit={onSubmit} isLoggingIn={isLoggingIn} />
           {error && (
             <View className="border bg-red-400 rounded-lg p-2 mx-4">
               <Text className="text-xl font-semibold">Error Logging In -- {error.message}</Text>
