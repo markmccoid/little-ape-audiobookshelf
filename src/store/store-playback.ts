@@ -115,6 +115,9 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
     },
 
     loadBook: async (itemId: string) => {
+      // Ensure events are bound before loading (idempotent - safe to call multiple times)
+      get().actions.bindEvents();
+
       // Store-level guard: if the same book is already loaded, do nothing
       const currentSession = get().session;
       if (currentSession?.libraryItemId === itemId) {

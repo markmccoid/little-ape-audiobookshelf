@@ -1,9 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { reverse, sortBy } from "lodash";
 import { useEffect, useMemo, useState } from "react";
-import { ABSGetLibraries, ABSGetLibraryItem, ABSGetLibraryItems } from "../ABS/absAPIClass";
+import {
+  ABSGetItemsInProgress,
+  ABSGetLibraries,
+  ABSGetLibraryItem,
+  ABSGetLibraryItems,
+} from "../ABS/absAPIClass";
 import { useAbsAPI } from "../ABS/absInit";
 import { useSafeAbsAPI } from "../contexts/AuthContext";
+import { queryClient } from "../lib/queryClient";
 import { useSortDirection, useSortedBy } from "../store/store-filters";
 
 //# ----------------------------------------------
@@ -167,18 +173,68 @@ export const useGetBooksInProgress = () => {
       return absAPI?.getItemsInProgress();
     },
     enabled: !!absAPI && !!activeLibraryId,
-    refetchOnWindowFocus: false, // Prevent 404s during navigation
-    refetchOnReconnect: false, // Prevent unnecessary refetches
-    retry: (failureCount, error) => {
-      // Don't retry on 404s as they're likely not transient
-      if (error && typeof error === "object" && "status" in error && error.status === 404) {
-        return false;
-      }
-      return failureCount < 3;
-    },
+    // refetchOnWindowFocus: false, // Prevent 404s during navigation
+    // refetchOnReconnect: false, // Prevent unnecessary refetches
+    // retry: (failureCount, error) => {
+    //   // Don't retry on 404s as they're likely not transient
+    //   if (error && typeof error === "object" && "status" in error && error.status === 404) {
+    //     return false;
+    //   }
+    //   return failureCount < 3;
+    // },
   });
 
   return { data, isError, ...rest };
+};
+
+//# ----------------------------------------------
+//# moveBookToTopOfInProgress - Optimistic Update Helper
+//# ----------------------------------------------
+/**
+ * Optimistically updates the booksInProgress cache to move a book to the top
+ * when playback starts. This provides immediate UI feedback without waiting
+ * for server synchronization.
+ * 
+ * @param bookId - The ID of the book that started playing
+ * @param activeLibraryId - The active library ID (for cache key)
+ */
+export const moveBookToTopOfInProgress = (bookId: string, activeLibraryId: string | null) => {
+  if (!activeLibraryId) return;
+
+  const queryKey = ["booksInProgress", activeLibraryId];
+  
+  // Get current cache data
+  const currentData = queryClient.getQueryData<ABSGetItemsInProgress>(queryKey);
+  
+  if (!currentData || currentData.length === 0) {
+    console.log("moveBookToTopOfInProgress: No data in cache to update");
+    return;
+  }
+
+  // Find the book that's starting to play
+  const bookIndex = currentData.findIndex((book) => book.id === bookId);
+  
+  if (bookIndex === -1) {
+    console.log(`moveBookToTopOfInProgress: Book ${bookId} not found in cache`);
+    return;
+  }
+
+  if (bookIndex === 0) {
+    console.log(`moveBookToTopOfInProgress: Book ${bookId} already at top`);
+    return;
+  }
+
+  // Create new array with the book moved to the top
+  const updatedData = [
+    currentData[bookIndex], // Move playing book to position 0
+    ...currentData.slice(0, bookIndex), // Everything before it
+    ...currentData.slice(bookIndex + 1), // Everything after it
+  ];
+
+  // Optimistically update the cache
+  queryClient.setQueryData<ABSGetItemsInProgress>(queryKey, updatedData);
+  
+  console.log(`moveBookToTopOfInProgress: Moved "${currentData[bookIndex].title}" to top`);
 };
 
 //# ----------------------------------------------
@@ -290,4 +346,22 @@ export const useSafeGetItemDetails = (itemId?: string) => {
   }
 
   return { data, isPending, isError, isLoading, error, ...rest };
+};
+
+export const useInvalidateQueries = () => {
+  const absAPI = useSafeAbsAPI();
+  // Always get the library ID, even if null
+  const activeLibraryId = absAPI?.getActiveLibraryId();
+  return (queryIdentifier: "booksInProgress") => {
+    switch (queryIdentifier) {
+      case "booksInProgress":
+        console.log("Invalidating");
+        queryClient.invalidateQueries({ queryKey: ["booksInProgress", activeLibraryId] });
+
+        break;
+
+      default:
+        break;
+    }
+  };
 };

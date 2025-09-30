@@ -1,119 +1,72 @@
-import { ABSGetItemInProgress } from "@/src/ABS/absAPIClass";
-import { useGetBooksInProgress } from "@/src/hooks/ABSHooks";
-import { formatSeconds } from "@/src/lib/formatUtils";
-import { configureBooksSession } from "@/src/rn-trackplayer/configureBookSession";
+import { useSafeAbsAPI } from "@/src/contexts/AuthContext";
+import { moveBookToTopOfInProgress, useGetBooksInProgress } from "@/src/hooks/ABSHooks";
 import {
   usePlaybackActions,
   usePlaybackIsPlaying,
   usePlaybackSession,
 } from "@/src/store/store-playback";
+import { useHeaderHeight } from "@react-navigation/elements";
 import { FlashList, ListRenderItem } from "@shopify/flash-list";
-import { Image } from "expo-image";
-import React, { useCallback, useMemo } from "react";
-import { Pressable, Text, View } from "react-native";
+import React, { useCallback, useMemo, useRef } from "react";
+import { Text, View } from "react-native";
 import { useProgress } from "react-native-track-player";
-
-// Define the enhanced book type with additional properties
-type EnhancedBookItem = ABSGetItemInProgress & {
-  isCurrentlyLoaded: boolean;
-  isPlaying: boolean;
-  currentTime: number;
-};
-
-// Props interface for ItemComponent
-interface ItemComponentProps {
-  item: EnhancedBookItem;
-  onInitBook: (itemId: string) => Promise<void>;
-  togglePlayPause: () => Promise<"paused" | "playing">;
-}
-
-// Simplified ItemComponent with less aggressive memoization
-const ItemComponent = React.memo<ItemComponentProps>(
-  ({ item, onInitBook, togglePlayPause }) => {
-    // console.log(
-    //   `ITEM RENDER: ${item.title} - Playing: ${item.isPlaying} - Loaded: ${item.isCurrentlyLoaded}`
-    // );
-
-    return (
-      <View
-        key={item.id}
-        className="flex-row"
-        style={{ backgroundColor: item.isCurrentlyLoaded ? "#ecce67aa" : "" }}
-      >
-        <Image source={item.cover} style={{ width: 150, height: 150 }} contentFit="contain" />
-        <View className="flex-col ">
-          <Text className="font-semibold">{item.title}</Text>
-          <Text>{item.author}</Text>
-          <Text>{item.progressPercent}%</Text>
-          <Text>
-            {formatSeconds(item.currentTime)} of {formatSeconds(item.duration || 0)}
-          </Text>
-          <View className="flex-row">
-            <Pressable
-              onPress={async () => {
-                if (item.isCurrentlyLoaded) {
-                  await togglePlayPause();
-                } else {
-                  await onInitBook(item.id);
-                  await togglePlayPause();
-                }
-              }}
-              className="border p-2 z-10"
-              style={{
-                backgroundColor: item.isPlaying ? "#f87171" : "#3b82f6", // red-400 : blue-500
-              }}
-            >
-              <Text style={{ color: "white", fontWeight: "600", textAlign: "center" }}>
-                {item.isPlaying ? "Pause" : "Play"}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-      </View>
-    );
-  },
-  // More lenient comparison - only check ID and the critical state
-  (prevProps, nextProps) => {
-    const same =
-      prevProps.item.id === nextProps.item.id &&
-      prevProps.item.isPlaying === nextProps.item.isPlaying &&
-      prevProps.item.isCurrentlyLoaded === nextProps.item.isCurrentlyLoaded &&
-      Math.floor(prevProps.item.currentTime) === Math.floor(nextProps.item.currentTime);
-
-    if (!same) {
-      // console.log(`Item ${prevProps.item.title} will re-render:`, {
-      //   idSame: prevProps.item.id === nextProps.item.id,
-      //   playingSame: prevProps.item.isPlaying === nextProps.item.isPlaying,
-      //   loadedSame: prevProps.item.isCurrentlyLoaded === nextProps.item.isCurrentlyLoaded,
-      //   timeSame: Math.floor(prevProps.item.currentTime) === Math.floor(nextProps.item.currentTime),
-      // });
-    }
-
-    return same;
-  }
-);
+import InProgressItem, { EnhancedBookItem } from "./InProgressItem";
 
 const HomeContainer = () => {
-  const { data: books, isLoading, isError } = useGetBooksInProgress();
-  const { togglePlayPause: storeTogglePlayPause } = usePlaybackActions();
+  const { data: booksInProgress, isLoading, isError } = useGetBooksInProgress();
+  const { togglePlayPause: storeTogglePlayPause, loadBook: handleInitBook } = usePlaybackActions();
   const isPlaying = usePlaybackIsPlaying();
   const session = usePlaybackSession();
   const progress = useProgress();
+  const headerHeight = useHeaderHeight();
+  const absAPI = useSafeAbsAPI();
+  const activeLibraryId = absAPI?.getActiveLibraryId() || null;
+
+  // Cache to store the last known position for each book
+  // This persists between loads/unloads without needing React Query invalidation
+  const positionCacheRef = useRef<Record<string, number>>({});
+
+  // Wrapper function that loads book and optimistically updates cache
+  const handleInitBookWithOptimisticUpdate = useCallback(
+    async (itemId: string) => {
+      // First, load the book
+      await handleInitBook(itemId);
+      // Then, optimistically move it to the top of the in-progress list
+      moveBookToTopOfInProgress(itemId, activeLibraryId);
+    },
+    [handleInitBook, activeLibraryId]
+  );
 
   // console.log("HomeContainer render - isPlaying:", isPlaying, "session:", session?.libraryItemId);
 
-  const handleInitBook = useCallback(async (itemId: string) => {
-    await configureBooksSession(itemId);
-  }, []);
-
   // Enhance data with current progress info
   const enhancedBooks = useMemo((): EnhancedBookItem[] => {
-    if (!books) return [];
+    if (!booksInProgress) return [];
 
-    return books.map((book) => {
+    return booksInProgress.map((book) => {
       const isCurrentlyLoaded = session?.libraryItemId === book.id;
-      const currentTime =
-        isCurrentlyLoaded && progress?.position ? progress.position : book.currentTime || 0;
+
+      // Determine current time with priority:
+      // 1. If loaded and playing: use live progress.position
+      // 2. If unloaded but we have cached position: use cached position
+      // 3. Otherwise: fall back to server data (book.currentTime)
+      let currentTime: number;
+
+      if (isCurrentlyLoaded && progress?.position != null && progress.position !== 0) {
+        // Book is loaded: use live position and update cache
+        // Need to fallback to book.currentTime if progress.position is zero
+        // it isn't
+        currentTime = progress.position;
+        positionCacheRef.current[book.id] = currentTime;
+      } else if (positionCacheRef.current[book.id] != null) {
+        // Book is unloaded but we have cached position: use cache
+        currentTime = positionCacheRef.current[book.id];
+      } else {
+        // No cache yet: use server data
+        currentTime = book.currentTime || 0;
+        // Initialize cache with server data
+        positionCacheRef.current[book.id] = currentTime;
+      }
 
       const bookIsPlaying = isCurrentlyLoaded ? isPlaying : false;
 
@@ -124,17 +77,17 @@ const HomeContainer = () => {
         isPlaying: bookIsPlaying,
       };
     });
-  }, [books, session?.libraryItemId, progress?.position, isPlaying]);
+  }, [booksInProgress, session?.libraryItemId, progress?.position, isPlaying]);
 
   const renderItem: ListRenderItem<EnhancedBookItem> = useCallback(
     ({ item }) => (
-      <ItemComponent
+      <InProgressItem
         item={item}
-        onInitBook={handleInitBook}
+        onInitBook={handleInitBookWithOptimisticUpdate}
         togglePlayPause={storeTogglePlayPause}
       />
     ),
-    [handleInitBook, storeTogglePlayPause]
+    [handleInitBookWithOptimisticUpdate, storeTogglePlayPause]
   );
 
   const keyExtractor = useCallback((item: EnhancedBookItem) => item.id, []);
@@ -156,14 +109,13 @@ const HomeContainer = () => {
   }
 
   return (
-    <View className="flex-1">
+    <View className="flex-1" style={{ paddingTop: headerHeight }}>
       <FlashList<EnhancedBookItem>
         data={enhancedBooks}
+        horizontal
+        showsHorizontalScrollIndicator={false}
         renderItem={renderItem}
         keyExtractor={keyExtractor}
-        // Debug props to help identify issues
-        onLoad={() => console.log("FlashList loaded")}
-        // Force update when critical state changes
         extraData={{ isPlaying, sessionId: session?.libraryItemId }}
       />
     </View>

@@ -3,7 +3,6 @@ import TestPosition from "@/src/components/bookView/TestPosition";
 import { useSafeGetItemDetails } from "@/src/hooks/ABSHooks";
 import { useSmartPosition } from "@/src/hooks/trackPlayerHooks";
 import { formatSeconds } from "@/src/lib/formatUtils";
-import { configureBooksSession } from "@/src/rn-trackplayer/configureBookSession";
 import { usePlaybackActions } from "@/src/store/store-playback";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useFocusEffect } from "@react-navigation/native";
@@ -16,7 +15,7 @@ import { State, usePlaybackState } from "react-native-track-player";
 const BookIdRoute = () => {
   const headerHeight = useHeaderHeight();
   const progress = useSmartPosition();
-  const { play, pause, togglePlayPause, setIsOnBookScreen } = usePlaybackActions();
+  const { play, pause, togglePlayPause, setIsOnBookScreen, loadBook } = usePlaybackActions();
 
   const { bookid, cover, title } = useGlobalSearchParams<{
     bookid: string;
@@ -25,21 +24,10 @@ const BookIdRoute = () => {
   }>();
 
   const initBook = async () => {
-    await configureBooksSession(bookid);
+    await loadBook(bookid);
   };
   const { data, isPending } = useSafeGetItemDetails(bookid);
   const playbackState = usePlaybackState();
-  // console.log("deferred Progress", pos, playbackPos, progress.position);
-
-  // const togglePlayPause = async () => {
-  //   const state = await TrackPlayer.getPlaybackState();
-  //   console.log("State", state);
-  //   if (state.state === State.Playing) {
-  //     await pause();
-  //   } else {
-  //     await play();
-  //   }
-  // };
 
   // Check if player is currently playing
   const isPlaying = playbackState.state === State.Playing;

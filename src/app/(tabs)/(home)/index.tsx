@@ -8,7 +8,7 @@ const HomeTab = () => {
   const headerHeight = useHeaderHeight();
 
   return (
-    <View style={{ backgroundColor: color, flex: 1, paddingTop: headerHeight }}>
+    <View style={{ backgroundColor: color, flex: 1 }}>
       <HomeContainer />
     </View>
   );

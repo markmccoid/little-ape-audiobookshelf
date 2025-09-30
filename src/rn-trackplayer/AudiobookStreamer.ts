@@ -256,10 +256,12 @@ export default class AudiobookStreamer {
       );
     } catch (error) {
       // Check if it's a 404 error (session not found) - match API error format
-      if (error && typeof error === 'object' && 
-          (('status' in error && error.status === 404) || 
-           ('statusCode' in error && error.statusCode === 404))) {
-        console.warn(`Session ${activeSessionId} not found on server - marking as closed`);
+      if (
+        error &&
+        typeof error === "object" &&
+        (("status" in error && error.status === 404) ||
+          ("statusCode" in error && error.statusCode === 404))
+      ) {
         this.sessionClosed = true;
         return;
       }
@@ -316,9 +318,12 @@ export default class AudiobookStreamer {
       // console.log(`Position synced to session ${activeSessionId} - position: ${position}s`);
     } catch (error) {
       // Check if it's a 404 error (session not found) - match API error format
-      if (error && typeof error === 'object' && 
-          (('status' in error && error.status === 404) || 
-           ('statusCode' in error && error.statusCode === 404))) {
+      if (
+        error &&
+        typeof error === "object" &&
+        (("status" in error && error.status === 404) ||
+          ("statusCode" in error && error.statusCode === 404))
+      ) {
         console.warn(`Session ${this.session?.id} not found on server - marking as closed`);
         this.sessionClosed = true;
         return;
@@ -331,7 +336,7 @@ export default class AudiobookStreamer {
     // Allow closing even if only pending exists
     if (!this.session && !this.pendingSessionClose) return;
     console.log("Close Session");
-    
+
     // ✅ Prevent any further sync attempts
     this.sessionClosed = true;
     try {
