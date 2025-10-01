@@ -1,3 +1,5 @@
+import { reverse, sortBy } from "lodash";
+import { MediaProgress } from "./abstypes";
 // services/AudiobookshelfAPI.ts
 import axios, { AxiosRequestConfig } from "axios";
 import * as FileSystem from "expo-file-system";
@@ -21,7 +23,6 @@ import {
   ItemsInProgressResponse,
   Library,
   LibraryItem,
-  MediaProgress,
   NetworkError,
   User,
 } from "./abstypes";
@@ -66,16 +67,19 @@ export type ABSGetLibraries = Awaited<ReturnType<AudiobookshelfAPI["getLibraries
 
 // Items in progress type - based on actual return structure from getItemsInProgress
 export type ABSGetItemsInProgress = {
-  id: string;
+  bookId: string;
+  progressId: string | undefined;
   title: string;
   author: string;
   narrator: string;
   progressPercent?: number;
   duration?: number;
   currentTime?: number;
+  hideFromContinueListening?: boolean;
   isFinished?: boolean;
   cover: string;
   coverFull: string;
+  lastUpdate: number;
 }[];
 export type ABSGetItemInProgress = ABSGetItemsInProgress[number];
 
@@ -694,7 +698,7 @@ export class AudiobookshelfAPI {
   }
 
   //## -------------------------------------
-  //##  getItemsInProgress
+  //##  getItemsInProgress / Continue Listening
   //## -------------------------------------
   async getItemsInProgress(): Promise<ABSGetItemsInProgress> {
     const progressURL = `/api/me/items-in-progress`;
@@ -729,7 +733,8 @@ export class AudiobookshelfAPI {
       if (book.libraryId !== this.activeLibraryId) continue;
 
       itemsInProgress.push({
-        id: book.id,
+        progressId: mediaMatch?.id,
+        bookId: book.id,
         title: book.media.metadata.title,
         author: book.media.metadata.authorName || "",
         narrator: book.media.metadata.narratorName || "",
@@ -737,12 +742,30 @@ export class AudiobookshelfAPI {
         duration: mediaMatch?.duration,
         currentTime: mediaMatch?.currentTime,
         isFinished: mediaMatch?.isFinished ? false : mediaMatch?.isFinished,
+        hideFromContinueListening: mediaMatch?.hideFromContinueListening,
         cover: coverURL.coverThumb,
         coverFull: coverURL.coverFull,
+        lastUpdate: mediaMatch?.lastUpdate || 0,
       });
     }
+    // Keep sorted in last time position was updated in descending order
+    return reverse(sortBy(itemsInProgress, ["lastUpdate"]));
+  }
 
-    return itemsInProgress;
+  //## -------------------------------------
+  //## hideFromContinueListening
+  //## -------------------------------------
+  async hideFromContinueListening(progressId: string) {
+    if (!progressId) return undefined;
+    const url = `/api/me/progress/${progressId}/remove-from-continue-listening`;
+    let userResults: User | undefined;
+    try {
+      userResults = await this.makeAuthenticatedRequest(url);
+      queryClient.invalidateQueries({ queryKey: ["booksInProgress", this.activeLibraryId] });
+    } catch (e) {
+      console.log("Error in hideFromContinueListening", e);
+    }
+    return userResults;
   }
 
   //## -------------------------------------

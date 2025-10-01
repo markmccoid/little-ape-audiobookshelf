@@ -155,6 +155,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
         duration: sessionData.duration ?? get().duration,
         isLoaded: true,
       });
+
       console.log(
         "BOOK LOADED START TIME",
         get().position,

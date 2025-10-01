@@ -6,9 +6,10 @@ import {
   usePlaybackSession,
 } from "@/src/store/store-playback";
 import { useHeaderHeight } from "@react-navigation/elements";
-import { FlashList, ListRenderItem } from "@shopify/flash-list";
-import React, { useCallback, useMemo, useRef } from "react";
-import { Text, View } from "react-native";
+import { SymbolView } from "expo-symbols";
+import React, { useCallback, useMemo, useReducer, useRef } from "react";
+import { ListRenderItem, Pressable, ScrollView, Text, View } from "react-native";
+import Animated, { LinearTransition } from "react-native-reanimated";
 import { useProgress } from "react-native-track-player";
 import InProgressItem, { EnhancedBookItem } from "./InProgressItem";
 
@@ -21,12 +22,17 @@ const HomeContainer = () => {
   const headerHeight = useHeaderHeight();
   const absAPI = useSafeAbsAPI();
   const activeLibraryId = absAPI?.getActiveLibraryId() || null;
+  const [showHidden, toggleShowHidden] = useReducer((state) => !state, false);
 
   // Cache to store the last known position for each book
   // This persists between loads/unloads without needing React Query invalidation
   const positionCacheRef = useRef<Record<string, number>>({});
 
-  // Wrapper function that loads book and optimistically updates cache
+  //# Wrapper function that loads book and optimistically updates cache
+  // This function is passed to each render item (book) and then the render item
+  // checks to see if there is an existing session and if so, it it matches the book
+  // trying to be played.  If it matches, then we just want to toggle play/pause
+  // if not then render item will call this function and then the play/pause toggle function
   const handleInitBookWithOptimisticUpdate = useCallback(
     async (itemId: string) => {
       // First, load the book
@@ -37,47 +43,48 @@ const HomeContainer = () => {
     [handleInitBook, activeLibraryId]
   );
 
-  // console.log("HomeContainer render - isPlaying:", isPlaying, "session:", session?.libraryItemId);
-
-  // Enhance data with current progress info
+  //# Enhance data with current progress info
   const enhancedBooks = useMemo((): EnhancedBookItem[] => {
     if (!booksInProgress) return [];
 
-    return booksInProgress.map((book) => {
-      const isCurrentlyLoaded = session?.libraryItemId === book.id;
+    return booksInProgress
+      .map((book) => {
+        if (!showHidden) {
+          if (book?.hideFromContinueListening || book?.isFinished) return undefined;
+        }
+        const isCurrentlyLoaded = session?.libraryItemId === book.bookId;
+        // Determine current time with priority:
+        // 1. If loaded and playing: use live progress.position
+        // 2. If unloaded but we have cached position: use cached position
+        // 3. Otherwise: fall back to server data (book.currentTime)
+        let currentTime: number;
+        if (isCurrentlyLoaded && progress?.position != null && progress.position !== 0) {
+          // Book is loaded: use live position and update cache
+          // Need to fallback to book.currentTime if progress.position is zero
+          // it isn't
+          currentTime = progress.position;
+          positionCacheRef.current[book.bookId] = currentTime;
+        } else if (positionCacheRef.current[book.bookId] != null) {
+          // Book is unloaded but we have cached position: use cache
+          currentTime = positionCacheRef.current[book.bookId];
+        } else {
+          // No cache yet: use server data
+          currentTime = book.currentTime || 0;
+          // Initialize cache with server data
+          positionCacheRef.current[book.bookId] = currentTime;
+        }
 
-      // Determine current time with priority:
-      // 1. If loaded and playing: use live progress.position
-      // 2. If unloaded but we have cached position: use cached position
-      // 3. Otherwise: fall back to server data (book.currentTime)
-      let currentTime: number;
+        const bookIsPlaying = isCurrentlyLoaded ? isPlaying : false;
 
-      if (isCurrentlyLoaded && progress?.position != null && progress.position !== 0) {
-        // Book is loaded: use live position and update cache
-        // Need to fallback to book.currentTime if progress.position is zero
-        // it isn't
-        currentTime = progress.position;
-        positionCacheRef.current[book.id] = currentTime;
-      } else if (positionCacheRef.current[book.id] != null) {
-        // Book is unloaded but we have cached position: use cache
-        currentTime = positionCacheRef.current[book.id];
-      } else {
-        // No cache yet: use server data
-        currentTime = book.currentTime || 0;
-        // Initialize cache with server data
-        positionCacheRef.current[book.id] = currentTime;
-      }
-
-      const bookIsPlaying = isCurrentlyLoaded ? isPlaying : false;
-
-      return {
-        ...book,
-        isCurrentlyLoaded,
-        currentTime,
-        isPlaying: bookIsPlaying,
-      };
-    });
-  }, [booksInProgress, session?.libraryItemId, progress?.position, isPlaying]);
+        return {
+          ...book,
+          isCurrentlyLoaded,
+          currentTime,
+          isPlaying: bookIsPlaying,
+        };
+      })
+      .filter((el): el is EnhancedBookItem => el !== undefined);
+  }, [booksInProgress, session?.libraryItemId, progress?.position, isPlaying, showHidden]);
 
   const renderItem: ListRenderItem<EnhancedBookItem> = useCallback(
     ({ item }) => (
@@ -90,7 +97,7 @@ const HomeContainer = () => {
     [handleInitBookWithOptimisticUpdate, storeTogglePlayPause]
   );
 
-  const keyExtractor = useCallback((item: EnhancedBookItem) => item.id, []);
+  const keyExtractor = useCallback((item: EnhancedBookItem) => item.bookId, []);
 
   if (isLoading) {
     return (
@@ -109,16 +116,25 @@ const HomeContainer = () => {
   }
 
   return (
-    <View className="flex-1" style={{ paddingTop: headerHeight }}>
-      <FlashList<EnhancedBookItem>
-        data={enhancedBooks}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        renderItem={renderItem}
-        keyExtractor={keyExtractor}
-        extraData={{ isPlaying, sessionId: session?.libraryItemId }}
-      />
-    </View>
+    <ScrollView className="flex-1 px-2">
+      <View className="mt-2">
+        <View className="flex-row gap-2">
+          <Text className="text-lg font-bold">Continue Listening</Text>
+          <Pressable onPress={toggleShowHidden}>
+            {showHidden ? <SymbolView name="eye" /> : <SymbolView name="eye.slash" />}
+          </Pressable>
+        </View>
+        <Animated.FlatList<EnhancedBookItem>
+          data={enhancedBooks}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          renderItem={renderItem}
+          keyExtractor={keyExtractor}
+          extraData={{ isPlaying, sessionId: session?.libraryItemId }}
+          itemLayoutAnimation={LinearTransition}
+        />
+      </View>
+    </ScrollView>
   );
 };
 

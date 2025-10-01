@@ -7,6 +7,7 @@ import {
   usePlaybackStore,
   useShowMiniPlayer,
 } from "@store/store-playback";
+import { Link } from "expo-router";
 import React, { useCallback, useMemo } from "react";
 import { Pressable, Text, View } from "react-native";
 
@@ -50,42 +51,44 @@ export default function MiniPlayer() {
     console.log("valChange", val);
   };
   return (
-    <View
-      className="px-3 py-2 bg-slate-800 border-t border-slate-700 absolute w-full"
-      style={{ bottom: 100 }}
-    >
-      <View className="flex-row items-center justify-between">
-        <View className="flex-1 pr-3">
-          <Text numberOfLines={1} className="text-slate-100 font-semibold">
-            {session?.displayTitle ?? "Playing"}
-          </Text>
-          <Text numberOfLines={1} className="text-slate-300 text-xs">
-            {session?.displayAuthor ?? ""}
-          </Text>
+    <Link href="/main-player" asChild>
+      <Pressable
+        className="mx-2 px-3 py-2 bg-slate-400 border-t border-slate-700 absolute rounded-lg"
+        style={{ bottom: 100 }}
+      >
+        <View className="flex-row items-center justify-between w-full">
+          <View className="flex-1 pr-3">
+            <Text numberOfLines={1} className="text-slate-100 font-semibold">
+              {session?.displayTitle ?? "Playing"}
+            </Text>
+            <Text numberOfLines={1} className="text-slate-300 text-xs">
+              {session?.displayAuthor ?? ""}
+            </Text>
+          </View>
+
+          <View className="flex-row items-center gap-3">
+            <Pressable onPress={onBack} className="px-2 py-1 rounded bg-slate-700">
+              <Text className="text-slate-100">-{seekBackwardSeconds}s</Text>
+            </Pressable>
+
+            <Pressable onPress={onToggle} className="px-3 py-2 rounded bg-emerald-600">
+              <Text className="text-white font-semibold">{isPlaying ? "Pause" : "Play"}</Text>
+            </Pressable>
+
+            <Pressable onPress={onFwd} className="px-2 py-1 rounded bg-slate-700">
+              <Text className="text-slate-100">+{seekForwardSeconds}s</Text>
+            </Pressable>
+
+            <Pressable onPress={closeSession} className="px-2 py-1 rounded bg-rose-600">
+              <Text className="text-white">Close</Text>
+            </Pressable>
+          </View>
         </View>
 
-        <View className="flex-row items-center gap-3">
-          <Pressable onPress={onBack} className="px-2 py-1 rounded bg-slate-700">
-            <Text className="text-slate-100">-{seekBackwardSeconds}s</Text>
-          </Pressable>
-
-          <Pressable onPress={onToggle} className="px-3 py-2 rounded bg-emerald-600">
-            <Text className="text-white font-semibold">{isPlaying ? "Pause" : "Play"}</Text>
-          </Pressable>
-
-          <Pressable onPress={onFwd} className="px-2 py-1 rounded bg-slate-700">
-            <Text className="text-slate-100">+{seekForwardSeconds}s</Text>
-          </Pressable>
-
-          <Pressable onPress={closeSession} className="px-2 py-1 rounded bg-rose-600">
-            <Text className="text-white">Close</Text>
-          </Pressable>
+        <View className="mt-2 h-1 rounded bg-slate-600 overflow-hidden">
+          <View style={{ width: `${progressPct}%` }} className="h-full bg-emerald-500" />
         </View>
-      </View>
-
-      <View className="mt-2 h-1 rounded bg-slate-600 overflow-hidden">
-        <View style={{ width: `${progressPct}%` }} className="h-full bg-emerald-500" />
-      </View>
-    </View>
+      </Pressable>
+    </Link>
   );
 }

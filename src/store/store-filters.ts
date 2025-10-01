@@ -115,10 +115,10 @@ const useFiltersStore = create<FiltersStore>()(
       storage: createJSONStorage(() => mmkvStorage),
       // Only persist the state, not the actions
       partialize: (state) => ({
-        searchValue: state.searchValue,
-        genres: state.genres,
-        tags: state.tags,
-        author: state.author,
+        // searchValue: state.searchValue,
+        // genres: state.genres,
+        // tags: state.tags,
+        // author: state.author,
         sortedBy: state.sortedBy,
       }),
     }

@@ -1,8 +1,11 @@
 import { ABSGetItemInProgress } from "@/src/ABS/absAPIClass";
+import { useSafeAbsAPI } from "@/src/contexts/AuthContext";
 import { formatSeconds } from "@/src/lib/formatUtils";
 import { Image } from "expo-image";
-import React from "react";
-import { Pressable, Text, View } from "react-native";
+import { Link } from "expo-router";
+import React, { useCallback } from "react";
+import { StyleSheet, Text, View } from "react-native";
+import Animated from "react-native-reanimated";
 
 // Enhanced book item type with playback state
 export type EnhancedBookItem = ABSGetItemInProgress & {
@@ -24,47 +27,100 @@ interface InProgressItemProps {
  */
 const InProgressItem = React.memo<InProgressItemProps>(
   ({ item, onInitBook, togglePlayPause }) => {
+    const playPause = useCallback(async () => {
+      if (item.isCurrentlyLoaded) {
+        await togglePlayPause();
+      } else {
+        await onInitBook(item.bookId);
+        await togglePlayPause();
+      }
+    }, [item.isCurrentlyLoaded]);
+    // console.log(
+    //   "ProgressItem",
+    //   item.title,
+    //   item.bookId,
+    //   item.hideFromContinueListening,
+    //   item.isFinished
+    // );
+    // console.log("ProgressItem", item.title, item.progressId, item.hideFromContinueListening);
+    const absAPI = useSafeAbsAPI();
+
     return (
-      <View
-        key={item.id}
-        className="flex-col w-[200] p-2 mr-3"
+      <Animated.View
+        className="flex-col w-[200] p-2 justify-center items-center rounded-lg"
         style={{ backgroundColor: item.isCurrentlyLoaded ? "#ecce67aa" : "transparent" }}
       >
-        <Image 
-          source={item.cover} 
-          style={{ width: "100%", height: 200, borderRadius: 8 }} 
-          contentFit="cover" 
-        />
-        <View className="flex-col mt-2">
-          <Text 
-            className="font-semibold text-sm" 
-            numberOfLines={2}
-          >
+        <Link href="">
+          <Link.Trigger>
+            {/* <SwiftImage systemName="line.3.horizontal.decrease.circle" size={24} /> */}
+            <Image
+              source={item.cover}
+              style={{
+                width: 175,
+                height: 175,
+                borderRadius: 10,
+                borderWidth: StyleSheet.hairlineWidth,
+              }}
+              className="border-hairline"
+              contentFit="cover"
+            />
+          </Link.Trigger>
+          <Link.Menu>
+            <Link.MenuAction
+              title={item.isPlaying ? "Pause" : "Play"}
+              onPress={playPause}
+              icon={item.isPlaying ? "pause" : "play"}
+            />
+            <Link.MenuAction
+              title="Hide"
+              onPress={() => absAPI?.hideFromContinueListening(item.progressId || "")}
+              icon="eye.slash"
+            />
+
+            <Link.MenuAction
+              title="Mark as Finished"
+              onPress={() => absAPI?.setBookFinished(item.bookId, true)}
+              icon="flag"
+            />
+            <Link.MenuAction
+              title="Mark as Unfinished"
+              onPress={() => absAPI?.setBookFinished(item.bookId, false)}
+              icon="flag.slash"
+            />
+          </Link.Menu>
+        </Link>
+
+        <View className="flex-col mt-2 items-center w-full">
+          <Text className="font-semibold text-sm" numberOfLines={1} lineBreakMode="tail">
             {item.title}
           </Text>
+
           <Text className="text-xs text-gray-600 mt-1">
             {formatSeconds(item.currentTime)} / {formatSeconds(item.duration || 0)}
           </Text>
-          <Pressable
-            onPress={async () => {
-              if (item.isCurrentlyLoaded) {
-                await togglePlayPause();
-              } else {
-                await onInitBook(item.id);
-                await togglePlayPause();
-              }
-            }}
-            className="mt-2 p-2 rounded-md"
-            style={{
-              backgroundColor: item.isPlaying ? "#f87171" : "#3b82f6",
-            }}
-          >
-            <Text style={{ color: "white", fontWeight: "600", textAlign: "center" }}>
-              {item.isPlaying ? "Pause" : "Play"}
-            </Text>
-          </Pressable>
+
+          {/* <View className="flex-row w-full justify-center">
+            <Pressable
+              onPress={async () => {
+                if (item.isCurrentlyLoaded) {
+                  await togglePlayPause();
+                } else {
+                  await onInitBook(item.id);
+                  await togglePlayPause();
+                }
+              }}
+              className="mt-2 py-2 px-8 rounded-md"
+              style={{
+                backgroundColor: item.isPlaying ? "#f87171" : "#3b82f6",
+              }}
+            >
+              <Text style={{ color: "white", fontWeight: "600", textAlign: "center" }}>
+                {item.isPlaying ? "Pause" : "Play"}
+              </Text>
+            </Pressable>
+          </View> */}
         </View>
-      </View>
+      </Animated.View>
     );
   },
   // Optimized comparison - only re-render when critical props change

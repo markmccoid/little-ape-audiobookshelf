@@ -194,7 +194,7 @@ export const useGetBooksInProgress = () => {
  * Optimistically updates the booksInProgress cache to move a book to the top
  * when playback starts. This provides immediate UI feedback without waiting
  * for server synchronization.
- * 
+ *
  * @param bookId - The ID of the book that started playing
  * @param activeLibraryId - The active library ID (for cache key)
  */
@@ -202,18 +202,18 @@ export const moveBookToTopOfInProgress = (bookId: string, activeLibraryId: strin
   if (!activeLibraryId) return;
 
   const queryKey = ["booksInProgress", activeLibraryId];
-  
+
   // Get current cache data
   const currentData = queryClient.getQueryData<ABSGetItemsInProgress>(queryKey);
-  
+
   if (!currentData || currentData.length === 0) {
     console.log("moveBookToTopOfInProgress: No data in cache to update");
     return;
   }
 
   // Find the book that's starting to play
-  const bookIndex = currentData.findIndex((book) => book.id === bookId);
-  
+  const bookIndex = currentData.findIndex((book) => book.bookId === bookId);
+
   if (bookIndex === -1) {
     console.log(`moveBookToTopOfInProgress: Book ${bookId} not found in cache`);
     return;
@@ -233,7 +233,7 @@ export const moveBookToTopOfInProgress = (bookId: string, activeLibraryId: strin
 
   // Optimistically update the cache
   queryClient.setQueryData<ABSGetItemsInProgress>(queryKey, updatedData);
-  
+
   console.log(`moveBookToTopOfInProgress: Moved "${currentData[bookIndex].title}" to top`);
 };
 

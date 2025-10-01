@@ -71,6 +71,7 @@ function AppContent() {
       >
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="settings" options={{ presentation: "fullScreenModal" }} />
+        <Stack.Screen name="main-player" options={{ presentation: "modal" }} />
       </Stack>
       <MiniPlayer />
     </>
