@@ -6,8 +6,9 @@ import React, {
   useEffect,
   useState,
 } from "react";
-import { AudiobookshelfAPI } from "../ABS/absAPIClass";
-import { AudiobookshelfAuth } from "../ABS/absAuthClass";
+import { absInitalize, cleanupAbsInstances, getAbsAPI, getAbsAuth } from "../utils/AudiobookShelf/absInit";
+import { AudiobookshelfAPI } from "../utils/AudiobookShelf/absAPIClass";
+import { AudiobookshelfAuth } from "../utils/AudiobookShelf/absAuthClass";
 
 interface AuthInfo {
   serverUrl: string | null;
@@ -95,7 +96,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const updateAuthInfo = useCallback(async () => {
     try {
-      const { getAbsAuth } = require("../ABS/absInit");
       const authInstance = getAbsAuth();
 
       setAuthInfo({
@@ -129,7 +129,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
 
     try {
-      const { getAbsAuth } = require("../ABS/absInit");
       return getAbsAuth();
     } catch (error) {
       console.warn("Could not get auth instance:", error);
@@ -141,8 +140,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     async (queryClient?: any): Promise<void> => {
       try {
         // Re-run the full initialization to create API instance with new auth
-        const { absInitalize } = require("../ABS/absInit");
-
         await absInitalize(queryClient);
 
         // Update auth status after initialization
@@ -178,7 +175,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       // Finally cleanup ABS instances
-      const { cleanupAbsInstances } = require("../ABS/absInit");
       cleanupAbsInstances();
     } catch (error) {
       console.error("Error during logout:", error);
@@ -194,7 +190,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       });
 
       try {
-        const { cleanupAbsInstances } = require("../ABS/absInit");
         cleanupAbsInstances();
       } catch (cleanupError) {
         console.warn("Failed to cleanup instances:", cleanupError);
@@ -237,8 +232,6 @@ export const useSafeAbsAPI = () => {
 
   // Even when authenticated, still safely handle the case where instances might be cleared
   try {
-    // Import here to avoid circular dependencies
-    const { getAbsAPI } = require("../ABS/absInit");
     const api = getAbsAPI() as AudiobookshelfAPI;
     return api;
   } catch (error) {

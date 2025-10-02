@@ -2,8 +2,8 @@ import BookSlider from "@/src/components/bookView/BookSlider";
 import TestPosition from "@/src/components/bookView/TestPosition";
 import { useSafeGetItemDetails } from "@/src/hooks/ABSHooks";
 import { useSmartPosition } from "@/src/hooks/trackPlayerHooks";
-import { formatSeconds } from "@/src/lib/formatUtils";
 import { usePlaybackActions } from "@/src/store/store-playback";
+import { formatSeconds } from "@/src/utils/formatUtils";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useFocusEffect } from "@react-navigation/native";
 import { Image } from "expo-image";
@@ -15,7 +15,8 @@ import { State, usePlaybackState } from "react-native-track-player";
 const BookIdRoute = () => {
   const headerHeight = useHeaderHeight();
   const progress = useSmartPosition();
-  const { play, pause, togglePlayPause, setIsOnBookScreen, loadBook } = usePlaybackActions();
+  const { play, pause, updatePlaybackSpeed, togglePlayPause, setIsOnBookScreen, loadBook } =
+    usePlaybackActions();
 
   const { bookid, cover, title } = useGlobalSearchParams<{
     bookid: string;
@@ -71,6 +72,15 @@ const BookIdRoute = () => {
       <View className="flex-row items-center justify-between px-5">
         <Pressable className="p-3 bg-blue-500 rounded-lg" onPress={togglePlayPause}>
           <Text className="text-white font-semibold">{isPlaying ? "Pause" : "Play"}</Text>
+        </Pressable>
+        <Pressable onPress={() => updatePlaybackSpeed(1)} className="p-2 border bg-slate-300">
+          <Text>1</Text>
+        </Pressable>
+        <Pressable onPress={() => updatePlaybackSpeed(1.5)} className="p-2 border bg-slate-300">
+          <Text>1.5</Text>
+        </Pressable>
+        <Pressable onPress={() => updatePlaybackSpeed(2)} className="p-2 border bg-slate-300">
+          <Text>2</Text>
         </Pressable>
       </View>
       {/* <View className="flex-row items-center justify-between px-5">

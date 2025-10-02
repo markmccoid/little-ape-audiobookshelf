@@ -1,16 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { reverse, sortBy } from "lodash";
 import { useEffect, useMemo, useState } from "react";
+import { useSafeAbsAPI } from "../contexts/AuthContext";
+import { useSortDirection, useSortedBy } from "../store/store-filters";
 import {
   ABSGetItemsInProgress,
   ABSGetLibraries,
   ABSGetLibraryItem,
   ABSGetLibraryItems,
-} from "../ABS/absAPIClass";
-import { useAbsAPI } from "../ABS/absInit";
-import { useSafeAbsAPI } from "../contexts/AuthContext";
-import { queryClient } from "../lib/queryClient";
-import { useSortDirection, useSortedBy } from "../store/store-filters";
+} from "../utils/AudiobookShelf/absAPIClass";
+import { useAbsAPI } from "../utils/AudiobookShelf/absInit";
+import { queryClient } from "../utils/queryClient";
 
 //# ----------------------------------------------
 //# useLibraries - return user's libraries

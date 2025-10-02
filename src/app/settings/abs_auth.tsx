@@ -1,4 +1,4 @@
-import ABSAuthMain from "@/src/components/auth/ABSAuthMain";
+import ABSAuthMain from "@/src/screens/Settings/auth/ABSAuthMain";
 import React from "react";
 import { ScrollView } from "react-native";
 

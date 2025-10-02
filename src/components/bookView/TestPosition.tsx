@@ -1,5 +1,5 @@
 import { useSmartPosition } from "@/src/hooks/trackPlayerHooks";
-import { formatSeconds } from "@/src/lib/formatUtils";
+import { formatSeconds } from "@/src/utils/formatUtils";
 import React from "react";
 import { Text, View } from "react-native";
 

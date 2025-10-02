@@ -3,7 +3,7 @@ import "expo-router/entry"; // This line is crucial for Expo Router to function 
 import { Text, TextInput } from "react-native";
 import TrackPlayer from "react-native-track-player";
 
-import { PlaybackService } from "./src/rn-trackplayer/services";
+import { PlaybackService } from "@/src/utils/rn-trackplayer/services";
 // Your code to run before _layout.tsx goes here
 
 //Register Track Player

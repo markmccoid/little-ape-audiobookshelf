@@ -1,5 +1,5 @@
-import { ABSGetLibraryItem } from "@/src/ABS/absAPIClass";
-import { formatSeconds } from "@/src/lib/formatUtils";
+import { ABSGetLibraryItem } from "@/src/utils/AudiobookShelf/absAPIClass";
+import { formatSeconds } from "@/src/utils/formatUtils";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { AudioLines, Calendar, Clock5, UserPen } from "lucide-react-native";

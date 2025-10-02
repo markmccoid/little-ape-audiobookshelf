@@ -1,10 +1,10 @@
 import { useSmartPosition } from "@/src/hooks/trackPlayerHooks";
-import { formatSeconds } from "@/src/lib/formatUtils";
 import {
   usePlaybackActions,
   usePlaybackDuration,
   usePlaybackStore,
 } from "@/src/store/store-playback";
+import { formatSeconds } from "@/src/utils/formatUtils";
 // import { Host, Slider } from "@expo/ui/swift-ui";
 import Slider from "@react-native-community/slider";
 import React, { useEffect, useRef, useState } from "react";

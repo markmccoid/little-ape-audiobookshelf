@@ -1,7 +1,7 @@
-import { AudiobookshelfAuth } from "@/src/ABS/absAuthClass";
-import { LoginForm } from "@/src/components/auth/LoginForm";
 import { useAuth, useSafeAbsAPI } from "@/src/contexts/AuthContext";
-import { queryClient } from "@/src/lib/queryClient";
+import { LoginForm } from "@/src/screens/Settings/auth/LoginForm";
+import { AudiobookshelfAuth } from "@/src/utils/AudiobookShelf/absAuthClass";
+import { queryClient } from "@/src/utils/queryClient";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import ABSLibrarySelect from "./ABSLibrarySelect";

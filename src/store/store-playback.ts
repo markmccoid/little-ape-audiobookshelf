@@ -1,9 +1,11 @@
-import type { AudiobookshelfAPI } from "@/src/ABS/absAPIClass";
-import type { AudiobookSession } from "@/src/ABS/abstypes";
-import AudiobookStreamer from "@/src/rn-trackplayer/AudiobookStreamer";
-import { trackPlayerInit } from "@/src/rn-trackplayer/rn-trackplayerInit";
+import type { AudiobookshelfAPI } from "@/src/utils/AudiobookShelf/absAPIClass";
+import { getAbsAPI, getAbsAuth } from "@/src/utils/AudiobookShelf/absInit";
+import type { AudiobookSession } from "@/src/utils/AudiobookShelf/abstypes";
+import AudiobookStreamer from "@/src/utils/rn-trackplayer/AudiobookStreamer";
+import { trackPlayerInit } from "@/src/utils/rn-trackplayer/rn-trackplayerInit";
 import TrackPlayer, { Event, State, Track } from "react-native-track-player";
 import { create } from "zustand";
+import { useBooksStore } from "./store-books";
 
 // Extend Track to reflect extra fields we attach from ABS
 export type ABSQueuedTrack = Track & {
@@ -26,6 +28,7 @@ interface PlaybackState {
   position: number;
   duration: number;
   isOnBookScreen: boolean;
+  playbackSpeed: number;
 }
 
 interface PlaybackActions {
@@ -38,6 +41,7 @@ interface PlaybackActions {
   loadBook: (itemId: string) => Promise<void>;
   play: () => Promise<void>;
   pause: () => Promise<void>;
+  updatePlaybackSpeed: (newSpeed: number) => Promise<void>;
   togglePlayPause: () => Promise<"playing" | "paused">;
   seekTo: (pos: number) => Promise<void>;
   closeSession: () => Promise<void>;
@@ -63,6 +67,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
   position: 0,
   duration: 0,
   isOnBookScreen: false,
+  playbackSpeed: 1.0,
 
   // ---- Actions
   actions: {
@@ -83,7 +88,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
 
       // Safe auth access for Zustand store
       try {
-        const { getAbsAuth, getAbsAPI } = require("@/src/ABS/absInit");
+        // const { getAbsAuth, getAbsAPI } = require("@/src/ABS/absInit");
         const absAuth = getAbsAuth();
         const absAPI = getAbsAPI();
         AudiobookStreamer.getInstance(absAuth.absURL, absAPI);
@@ -117,7 +122,6 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
     loadBook: async (itemId: string) => {
       // Ensure events are bound before loading (idempotent - safe to call multiple times)
       get().actions.bindEvents();
-
       // Store-level guard: if the same book is already loaded, do nothing
       const currentSession = get().session;
       if (currentSession?.libraryItemId === itemId) {
@@ -141,12 +145,19 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       const { tracks, sessionData } = await streamer.setupAudioPlayback(itemId);
       // set({ position: sessionData.startTime });
       // setTimeout(() => {}, 0);
+      //~ Look into books store to find out if we have this book saved
+      const bookActions = useBooksStore.getState().actions;
+      const savedBook = bookActions.addBook(sessionData.libraryItemId);
+      console.log("SavedBook", savedBook);
+      const savedPlaybackSpeed = savedBook?.playbackSpeed || 1;
+      //~
       await TrackPlayer.reset();
       await TrackPlayer.add(tracks);
 
       // If no previous start time default to zero
       const startTime = sessionData.startTime || 0;
       await TrackPlayer.seekTo(startTime);
+      await TrackPlayer.setRate(savedPlaybackSpeed);
       set({ position: startTime });
 
       set({
@@ -173,6 +184,14 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       await TrackPlayer.pause();
       set({ isPlaying: false });
       // AudiobookStreamer handles immediate sync on pause via its own event listener
+    },
+
+    updatePlaybackSpeed: async (newSpeed) => {
+      const bookActions = useBooksStore.getState().actions;
+      await TrackPlayer.setRate(newSpeed);
+      const libraryItemId = get().session?.libraryItemId;
+      if (!libraryItemId) return;
+      bookActions.updatePlaybackSpeed(libraryItemId, newSpeed);
     },
 
     togglePlayPause: async () => {

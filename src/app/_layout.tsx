@@ -5,13 +5,13 @@ import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useRef, useState } from "react";
 import { LogBox, Text, useColorScheme, View } from "react-native";
-import { absInitalize } from "../ABS/absInit";
 import MiniPlayer from "../components/MiniPlayer";
 import { AuthProvider, useAuth } from "../contexts/AuthContext";
 import "../global.css";
 import "../lib/polyfills";
-import { queryClient } from "../lib/queryClient";
-import { trackPlayerInit } from "../rn-trackplayer/rn-trackplayerInit";
+import { absInitalize } from "../utils/AudiobookShelf/absInit";
+import { queryClient } from "../utils/queryClient";
+import { trackPlayerInit } from "../utils/rn-trackplayer/rn-trackplayerInit";
 SplashScreen.preventAutoHideAsync();
 
 LogBox.ignoreLogs([

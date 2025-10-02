@@ -5,12 +5,12 @@ import React from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useProgress } from "react-native-track-player";
 import { useSafeGetItemDetails } from "../hooks/ABSHooks";
-import { formatSeconds } from "../lib/formatUtils";
 import {
   usePlaybackActions,
   usePlaybackIsPlaying,
   usePlaybackSession,
 } from "../store/store-playback";
+import { formatSeconds } from "../utils/formatUtils";
 
 /**
  * Main audiobook player screen

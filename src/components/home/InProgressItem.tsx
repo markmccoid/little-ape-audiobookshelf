@@ -1,6 +1,6 @@
-import { ABSGetItemInProgress } from "@/src/ABS/absAPIClass";
 import { useSafeAbsAPI } from "@/src/contexts/AuthContext";
-import { formatSeconds } from "@/src/lib/formatUtils";
+import { ABSGetItemInProgress } from "@/src/utils/AudiobookShelf/absAPIClass";
+import { formatSeconds } from "@/src/utils/formatUtils";
 import { Image } from "expo-image";
 import { Link } from "expo-router";
 import React, { useCallback } from "react";

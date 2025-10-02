@@ -11,7 +11,7 @@ import { kv } from "@store/mmkv/mmkv";
 import { Keys } from "@store/mmkv/storageKeys";
 
 import { PitchAlgorithm } from "react-native-track-player";
-import { queryClient } from "../lib/queryClient";
+import { queryClient } from "../queryClient";
 import { AudiobookshelfAuth } from "./absAuthClass";
 import {
   ABSLoginResponse,

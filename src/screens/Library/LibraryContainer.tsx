@@ -1,6 +1,6 @@
-import { ABSGetLibraryItem } from "@/src/ABS/absAPIClass";
 import { useAuth } from "@/src/contexts/AuthContext";
 import { useFiltersActions, useSearchValue, useSortedBy } from "@/src/store/store-filters";
+import { ABSGetLibraryItem } from "@/src/utils/AudiobookShelf/absAPIClass";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation, useRouter } from "expo-router";
 import { debounce } from "lodash";
@@ -10,7 +10,7 @@ import LibraryRenderItem from "./LibraryRenderItem";
 // import { LegendList } from "@legendapp/list";
 import { useSafeGetBooks } from "@/src/hooks/ABSHooks";
 import { FlashList, FlashListRef } from "@shopify/flash-list";
-import LoadingAnimation from "../common/LoadingAnimation";
+import LoadingAnimation from "../../components/common/LoadingAnimation";
 // import { FlashList, FlashListRef } from "@shopify/flash-list";
 
 const LibraryMain = () => {

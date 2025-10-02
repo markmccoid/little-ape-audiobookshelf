@@ -1,7 +1,7 @@
 import TrackPlayer, { Event, State } from "react-native-track-player";
-import { AudiobookshelfAPI } from "../ABS/absAPIClass";
-import { AudiobookSession } from "../ABS/abstypes";
-import { ABSQueuedTrack } from "../store/store-playback";
+import { ABSQueuedTrack } from "../../store/store-playback";
+import { AudiobookshelfAPI } from "../AudiobookShelf/absAPIClass";
+import { AudiobookSession } from "../AudiobookShelf/abstypes";
 
 type SyncData = { timeListened: number; currentTime: number };
 type OfflineListenSession = {

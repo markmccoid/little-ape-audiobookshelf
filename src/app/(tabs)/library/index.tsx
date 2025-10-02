@@ -1,5 +1,5 @@
-import LibraryMain from "@/src/components/absLibrary/LibraryContainer";
 import HeaderButton from "@/src/components/common/LAABSHeaderButton";
+import LibraryMain from "@/src/screens/Library/LibraryContainer";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { Link, useNavigation } from "expo-router";
 import { SymbolView } from "expo-symbols";
