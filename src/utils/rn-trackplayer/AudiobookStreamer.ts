@@ -151,9 +151,10 @@ export default class AudiobookStreamer {
     }
   }
 
-  async setupAudioPlayback(
-    itemId: string
-  ): Promise<{ tracks: ABSQueuedTrack[]; sessionData: AudiobookSession }> {
+  async setupAudioPlayback(itemId: string): Promise<{
+    tracks: ABSQueuedTrack[];
+    sessionData: AudiobookSession & { absServerURL: string; coverURL: string };
+  }> {
     const currentProgress = await this.apiClient.getBookProgress(itemId);
     // console.log("setupAudioPlaybook**CurrTime", currentProgress?.currentTime);
 
@@ -185,20 +186,28 @@ export default class AudiobookStreamer {
 
     // Use the real progress, not the session's startTime
     const actualStartTime = currentProgress?.currentTime || response.startTime || 0;
-
+    const coverURL = await this.apiClient.buildCoverURL(itemId);
     const tracks = response.audioTracks.map((audioTrack) => ({
       id: `${response.id}-${audioTrack.index}`,
       url: `${this.serverUrl}/audiobookshelf/public/session/${response.id}/track/${audioTrack.index}`,
       title: response.displayTitle,
       artist: response.displayAuthor,
-      artwork: `${this.serverUrl}/api/items/${response.libraryItemId}/cover`,
+      artwork: coverURL.coverFull, //`${this.serverUrl}/api/items/${response.libraryItemId}/cover`,
       duration: audioTrack.duration,
       sessionId: response.id,
       libraryItemId: response.libraryItemId,
       chapters: response.chapters,
     }));
 
-    return { tracks, sessionData: { ...response, startTime: actualStartTime } };
+    return {
+      tracks,
+      sessionData: {
+        ...response,
+        startTime: actualStartTime,
+        absServerURL: this.serverUrl,
+        coverURL: coverURL.coverFull,
+      },
+    };
   }
 
   async syncProgress(currentPosition?: number): Promise<void> {

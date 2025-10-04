@@ -49,7 +49,7 @@ function AppContent() {
   useEffect(() => {
     if (isReady) {
       SplashScreen.hideAsync();
-      router.push("/(tabs)/library");
+      // router.push("/(tabs)/library");
     }
   }, [isReady]);
 

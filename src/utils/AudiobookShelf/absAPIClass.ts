@@ -702,7 +702,8 @@ export class AudiobookshelfAPI {
   //## -------------------------------------
   async getItemsInProgress(): Promise<ABSGetItemsInProgress> {
     const progressURL = `/api/me/items-in-progress`;
-    let progressData, userData;
+    const finishedURL = `/api/libraries/${this.activeLibraryId}/items?filter=progress.ZmluaXNoZWQ=`;
+    let progressData, userData, finishedData;
 
     try {
       // ✅ Get user data with specific error handling
@@ -719,19 +720,34 @@ export class AudiobookshelfAPI {
       console.log("absAPI-getItemsInProgress: Failed to get items-in-progress", error);
       throw error;
     }
+    try {
+      finishedData = (await this.makeAuthenticatedRequest(finishedURL)) as GetLibraryItemsResponse;
+    } catch (error) {
+      console.log("absAPI-getItemsInProgress: Failed to get finishedItems", error);
+      throw error;
+    }
     const mediaProgress = userData.mediaProgress;
     const continueListeningBooks = progressData.libraryItems;
+    const finishedBooks = finishedData.results;
+
     let itemsInProgress: ABSGetItemsInProgress = [];
 
     const token = await this.auth.getValidAccessToken();
     if (!token) return [];
 
-    for (let book of continueListeningBooks) {
-      const mediaMatch = mediaProgress.find((el) => el.libraryItemId === book.id);
+    for (let mediaMatch of mediaProgress) {
+      // const mediaMatch = mediaProgress.find((el) => el.libraryItemId === book.id);
+      let book = continueListeningBooks.find((el) => el.id === mediaMatch?.libraryItemId);
+      let finBook;
+      if (!book) {
+        book = finishedBooks.find((el) => el.id === mediaMatch?.libraryItemId);
+      }
+      if (!book) continue;
 
       const coverURL = this.buildCoverURLSync(book.id, token);
-      if (book.libraryId !== this.activeLibraryId) continue;
 
+      if (book.libraryId !== this.activeLibraryId) continue;
+      //!! NEED TO CHECK TO SEE WHY ISFINISHED BOOKS STILL SHOWING
       itemsInProgress.push({
         progressId: mediaMatch?.id,
         bookId: book.id,
@@ -748,6 +764,30 @@ export class AudiobookshelfAPI {
         lastUpdate: mediaMatch?.lastUpdate || 0,
       });
     }
+    // for (let book of continueListeningBooks) {
+    //   const mediaMatch = mediaProgress.find((el) => el.libraryItemId === book.id);
+
+    //   const coverURL = this.buildCoverURLSync(book.id, token);
+
+    //   if (book.libraryId !== this.activeLibraryId) continue;
+
+    //   itemsInProgress.push({
+    //     progressId: mediaMatch?.id,
+    //     bookId: book.id,
+    //     title: book.media.metadata.title,
+    //     author: book.media.metadata.authorName || "",
+    //     narrator: book.media.metadata.narratorName || "",
+    //     progressPercent: mediaMatch?.progress,
+    //     duration: mediaMatch?.duration,
+    //     currentTime: mediaMatch?.currentTime,
+    //     isFinished: mediaMatch?.isFinished ? false : mediaMatch?.isFinished,
+    //     hideFromContinueListening: mediaMatch?.hideFromContinueListening,
+    //     cover: coverURL.coverThumb,
+    //     coverFull: coverURL.coverFull,
+    //     lastUpdate: mediaMatch?.lastUpdate || 0,
+    //   });
+    // }
+
     // Keep sorted in last time position was updated in descending order
     return reverse(sortBy(itemsInProgress, ["lastUpdate"]));
   }

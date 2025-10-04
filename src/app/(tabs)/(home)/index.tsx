@@ -1,4 +1,4 @@
-import HomeContainer from "@/src/components/home/HomeContainer";
+import HomeContainer from "@/src/screens/Home/HomeContainer";
 import { useHeaderHeight } from "@react-navigation/elements";
 import React, { useState } from "react";
 import { View } from "react-native";

@@ -6,9 +6,14 @@ import React, {
   useEffect,
   useState,
 } from "react";
-import { absInitalize, cleanupAbsInstances, getAbsAPI, getAbsAuth } from "../utils/AudiobookShelf/absInit";
 import { AudiobookshelfAPI } from "../utils/AudiobookShelf/absAPIClass";
 import { AudiobookshelfAuth } from "../utils/AudiobookShelf/absAuthClass";
+import {
+  absInitalize,
+  cleanupAbsInstances,
+  getAbsAPI,
+  getAbsAuth,
+} from "../utils/AudiobookShelf/absInit";
 
 interface AuthInfo {
   serverUrl: string | null;

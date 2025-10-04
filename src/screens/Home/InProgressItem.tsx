@@ -2,7 +2,7 @@ import { useSafeAbsAPI } from "@/src/contexts/AuthContext";
 import { ABSGetItemInProgress } from "@/src/utils/AudiobookShelf/absAPIClass";
 import { formatSeconds } from "@/src/utils/formatUtils";
 import { Image } from "expo-image";
-import { Link } from "expo-router";
+import { Link, useRouter } from "expo-router";
 import React, { useCallback } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
@@ -27,6 +27,7 @@ interface InProgressItemProps {
  */
 const InProgressItem = React.memo<InProgressItemProps>(
   ({ item, onInitBook, togglePlayPause }) => {
+    const router = useRouter();
     const playPause = useCallback(async () => {
       if (item.isCurrentlyLoaded) {
         await togglePlayPause();
@@ -50,9 +51,15 @@ const InProgressItem = React.memo<InProgressItemProps>(
         className="flex-col w-[200] p-2 justify-center items-center rounded-lg"
         style={{ backgroundColor: item.isCurrentlyLoaded ? "#ecce67aa" : "transparent" }}
       >
-        <Link href="">
+        <Link
+          href={{
+            pathname: `/(tabs)/(home)/[bookid]`,
+            params: { bookid: item.bookId, cover: item.coverFull, title: item.title },
+          }}
+        >
           <Link.Trigger>
             {/* <SwiftImage systemName="line.3.horizontal.decrease.circle" size={24} /> */}
+
             <Image
               source={item.cover}
               style={{

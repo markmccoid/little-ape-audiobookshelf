@@ -4,7 +4,9 @@ import { mmkvStorage } from "./mmkv-storage";
 
 // Define the book object type
 export type Book = {
+  userId: string;
   libraryItemId: string;
+  title?: string;
   playbackSpeed: number;
   isDownloaded: boolean;
 };
@@ -17,7 +19,7 @@ interface BooksState {
 // Define the actions interface
 interface BooksActions {
   setBooks: (books: Book[]) => void;
-  addBook: (libraryItemId: string | undefined) => Book | undefined;
+  getSavedBook: (bookItem: Partial<Book>) => Book | undefined;
   updateBook: (libraryItemId: string, updates: Partial<Omit<Book, "libraryItemId">>) => void;
   removeBook: (libraryItemId: string) => void;
   clearBooks: () => void;
@@ -45,23 +47,31 @@ export const useBooksStore = create<BooksStore>()(
       actions: {
         setBooks: (books: Book[]) => set({ books }),
 
-        addBook: (libraryItemId) => {
+        getSavedBook: (bookItem) => {
           // Validation check
-          if (!libraryItemId) return undefined;
+
+          if (!bookItem?.libraryItemId || !bookItem.userId) return undefined;
 
           // Check if book already exists
-          // const exists = get().books.some((b) => b.libraryItemId === libraryItemId);
-          const foundBook = get().books.find((b) => b.libraryItemId === libraryItemId);
+          // If book already exists, spread the new items thus updating the fields
+          // We don't pass playbackSpeed or isDownloaded, etc.  Those won't update.
+          const foundBook = get().books.find(
+            (b) => b.libraryItemId === bookItem.libraryItemId && b.userId === bookItem.userId
+          );
           if (foundBook) {
-            return foundBook;
+            console.log("Book Found", foundBook.title, foundBook.userId);
+            return { ...foundBook };
           }
 
           // Add the book
           const newBook: Book = {
-            libraryItemId,
+            userId: bookItem.userId || "",
+            libraryItemId: bookItem.libraryItemId,
+            title: bookItem?.title || "",
             playbackSpeed: 1,
             isDownloaded: false,
           };
+          console.log("Saving Book ", newBook);
           set((state) => {
             return { books: [...state.books, newBook] };
           });

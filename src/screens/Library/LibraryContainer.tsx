@@ -149,8 +149,8 @@ const LibraryMain = () => {
         ref={flatListRef}
         // style={{ paddingTop: 42 }}
         scrollEnabled
-        contentInset={{ top: headerHeight }}
-        contentOffset={{ x: 0, y: -headerHeight }}
+        // contentInset={{ top: headerHeight }}
+        // contentOffset={{ x: 0, y: -headerHeight }}
         data={data}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}

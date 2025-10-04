@@ -234,7 +234,7 @@ export const moveBookToTopOfInProgress = (bookId: string, activeLibraryId: strin
   // Optimistically update the cache
   queryClient.setQueryData<ABSGetItemsInProgress>(queryKey, updatedData);
 
-  console.log(`moveBookToTopOfInProgress: Moved "${currentData[bookIndex].title}" to top`);
+  // console.log(`moveBookToTopOfInProgress: Moved "${currentData[bookIndex].title}" to top`);
 };
 
 //# ----------------------------------------------
@@ -302,25 +302,9 @@ export const useSafeGetBooks = (searchValue?: string) => {
 };
 
 //# ----------------------------------------------
-//# useGetItemDetails
+//# useGetItemDetails - Safe version that handles unauthenticated state
 //# ----------------------------------------------
 export const useGetItemDetails = (itemId?: string) => {
-  const absAPI = useAbsAPI();
-
-  const { data, isPending, isError, isLoading, error, ...rest } = useQuery({
-    queryKey: ["itemDetails", itemId],
-    queryFn: async () => await absAPI.getItemDetails(itemId),
-    enabled: !!itemId, // Only run query if itemId is provided
-    staleTime: 1000,
-  });
-
-  return { data, isPending, isError, isLoading, error, ...rest };
-};
-
-//# ----------------------------------------------
-//# useSafeGetItemDetails - Safe version that handles unauthenticated state
-//# ----------------------------------------------
-export const useSafeGetItemDetails = (itemId?: string) => {
   const absAPI = useSafeAbsAPI();
 
   // Always call useQuery, but control when it's enabled

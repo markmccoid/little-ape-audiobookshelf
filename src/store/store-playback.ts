@@ -20,8 +20,11 @@ let playerInitialized = false;
 const listeners: { remove: () => void }[] = [];
 
 // ---- Store Types
+type PlaybackAudioBookSession = AudiobookSession & {
+  coverURL: string;
+};
 interface PlaybackState {
-  session: AudiobookSession | null;
+  session: PlaybackAudioBookSession | null;
   queue: ABSQueuedTrack[];
   isPlaying: boolean;
   isLoaded: boolean;
@@ -120,10 +123,14 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
     },
 
     loadBook: async (itemId: string) => {
+      const absAuth = getAbsAuth();
+      const userId = absAuth.userId;
+      console.log("USER", userId);
       // Ensure events are bound before loading (idempotent - safe to call multiple times)
       get().actions.bindEvents();
       // Store-level guard: if the same book is already loaded, do nothing
       const currentSession = get().session;
+
       if (currentSession?.libraryItemId === itemId) {
         // No-op: preserve current playback state (playing or paused)
         console.log(`PlaybackStore: Book ${itemId} already loaded. Skipping reload.`);
@@ -145,10 +152,19 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       const { tracks, sessionData } = await streamer.setupAudioPlayback(itemId);
       // set({ position: sessionData.startTime });
       // setTimeout(() => {}, 0);
+
+      const playbackSessionData: PlaybackAudioBookSession = {
+        ...sessionData,
+      };
+
       //~ Look into books store to find out if we have this book saved
       const bookActions = useBooksStore.getState().actions;
-      const savedBook = bookActions.addBook(sessionData.libraryItemId);
-      console.log("SavedBook", savedBook);
+      const savedBook = bookActions.getSavedBook({
+        userId,
+        libraryItemId: sessionData.libraryItemId,
+        title: sessionData.displayTitle,
+      });
+      console.log("playback-savedbook", savedBook);
       const savedPlaybackSpeed = savedBook?.playbackSpeed || 1;
       //~
       await TrackPlayer.reset();
@@ -161,7 +177,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       set({ position: startTime });
 
       set({
-        session: sessionData,
+        session: playbackSessionData,
         queue: tracks,
         duration: sessionData.duration ?? get().duration,
         isLoaded: true,

@@ -2,9 +2,9 @@ import { useHeaderHeight } from "@react-navigation/elements";
 import { Image } from "expo-image";
 import { SymbolView } from "expo-symbols";
 import React from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useProgress } from "react-native-track-player";
-import { useSafeGetItemDetails } from "../hooks/ABSHooks";
+import MainPlayerContainer from "../screens/MainPlayer.tsx/MainPlayerContainer";
 import {
   usePlaybackActions,
   usePlaybackIsPlaying,
@@ -19,24 +19,24 @@ import { formatSeconds } from "../utils/formatUtils";
 const MainPlayerRouter = () => {
   const playbackActions = usePlaybackActions();
   const isPlaying = usePlaybackIsPlaying();
-
   const headerHeight = useHeaderHeight();
-  const session = usePlaybackSession();
+  const playbackSession = usePlaybackSession();
   const progress = useProgress();
-  const { data: bookDetails, isPending } = useSafeGetItemDetails(session?.libraryItemId);
+  return <MainPlayerContainer />;
+  // const { data: bookDetails, isPending } = useSafeGetItemDetails(playbackSession?.libraryItemId);
 
   // Loading state
-  if (isPending) {
-    return (
-      <View style={[styles.container, { paddingTop: headerHeight }]}>
-        <ActivityIndicator size="large" />
-        <Text style={styles.loadingText}>Loading audiobook...</Text>
-      </View>
-    );
-  }
+  // if (isPending) {
+  //   return (
+  //     <View style={[styles.container, { paddingTop: headerHeight }]}>
+  //       <ActivityIndicator size="large" />
+  //       <Text style={styles.loadingText}>Loading audiobook...</Text>
+  //     </View>
+  //   );
+  // }
 
-  // No session state
-  if (!session) {
+  // // No session state
+  if (!playbackSession) {
     return (
       <View style={[styles.container, { paddingTop: headerHeight }]}>
         <Text style={styles.errorText}>No active playback session</Text>
@@ -52,7 +52,7 @@ const MainPlayerRouter = () => {
       {/* Cover Art */}
       <View style={styles.coverContainer}>
         <Image
-          source={bookDetails?.coverURI}
+          source={{ uri: playbackSession.coverURL }}
           style={styles.coverImage}
           contentFit="cover"
           placeholder={require("../../assets/images/icon.png")}
@@ -62,10 +62,10 @@ const MainPlayerRouter = () => {
       {/* Book Info */}
       <View style={styles.infoContainer}>
         <Text style={styles.title} numberOfLines={2}>
-          {session.displayTitle}
+          {playbackSession.displayTitle}
         </Text>
         <Text style={styles.author} numberOfLines={1}>
-          {session.displayAuthor}
+          {playbackSession.displayAuthor}
         </Text>
       </View>
 
@@ -73,7 +73,7 @@ const MainPlayerRouter = () => {
       <View style={styles.progressContainer}>
         <View style={styles.timeRow}>
           <Text style={styles.timeText}>{formatSeconds(progress.position, "compact")}</Text>
-          <Text style={styles.timeText}>{formatSeconds(session.duration, "compact")}</Text>
+          <Text style={styles.timeText}>{formatSeconds(playbackSession.duration, "compact")}</Text>
         </View>
       </View>
 
