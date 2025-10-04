@@ -13,17 +13,17 @@ import { State, usePlaybackState } from "react-native-track-player";
 
 const BookContainer = () => {
   const headerHeight = useHeaderHeight();
-  const progress = useSmartPosition();
 
   const { bookid, cover, title } = useGlobalSearchParams<{
     bookid: string;
     cover: string;
     title: string;
   }>();
-
   const { data, isPending } = useGetItemDetails(bookid);
-  const playbackState = usePlaybackState();
+  console.log("data", data?.userMediaProgress?.currentTime);
+  const progress = useSmartPosition(data?.userMediaProgress?.currentTime);
 
+  const playbackState = usePlaybackState();
   // Check if player is currently playing
   const isPlaying = playbackState.state === State.Playing;
 

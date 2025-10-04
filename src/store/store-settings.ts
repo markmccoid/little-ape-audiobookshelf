@@ -6,12 +6,14 @@ import { mmkvStorage } from "./mmkv-storage";
 interface SettingsState {
   seekForwardSeconds: number;
   seekBackwardSeconds: number;
+  syncIntervalSeconds: number;
 }
 
 // Define the actions interface
 interface SettingsActions {
   setSeekForwardSeconds: (seconds: number) => void;
   setSeekBackwardSeconds: (seconds: number) => void;
+  setSyncIntervalSeconds: (seconds: number) => void;
   resetToDefaults: () => void;
 }
 
@@ -23,6 +25,7 @@ interface SettingsStore extends SettingsState {
 // Default values
 const DEFAULT_SEEK_FORWARD_SECONDS = 30;
 const DEFAULT_SEEK_BACKWARD_SECONDS = 15;
+const DEFAULT_SYNC_INTERVAL_SECONDS = 5;
 
 // Create the store (not exported directly - following best practices)
 const useSettingsStore = create<SettingsStore>()(
@@ -31,6 +34,7 @@ const useSettingsStore = create<SettingsStore>()(
       // State
       seekForwardSeconds: DEFAULT_SEEK_FORWARD_SECONDS,
       seekBackwardSeconds: DEFAULT_SEEK_BACKWARD_SECONDS,
+      syncIntervalSeconds: DEFAULT_SYNC_INTERVAL_SECONDS,
 
       // Actions grouped in a separate namespace
       actions: {
@@ -38,10 +42,13 @@ const useSettingsStore = create<SettingsStore>()(
 
         setSeekBackwardSeconds: (seconds: number) => set({ seekBackwardSeconds: seconds }),
 
+        setSyncIntervalSeconds: (seconds: number) => set({ syncIntervalSeconds: seconds }),
+
         resetToDefaults: () =>
           set({
             seekForwardSeconds: DEFAULT_SEEK_FORWARD_SECONDS,
             seekBackwardSeconds: DEFAULT_SEEK_BACKWARD_SECONDS,
+            syncIntervalSeconds: DEFAULT_SYNC_INTERVAL_SECONDS,
           }),
       },
     }),
@@ -52,6 +59,7 @@ const useSettingsStore = create<SettingsStore>()(
       partialize: (state) => ({
         seekForwardSeconds: state.seekForwardSeconds,
         seekBackwardSeconds: state.seekBackwardSeconds,
+        syncIntervalSeconds: state.syncIntervalSeconds,
       }),
     }
   )
@@ -62,6 +70,8 @@ const useSettingsStore = create<SettingsStore>()(
 export const useSeekForwardSeconds = () => useSettingsStore((state) => state.seekForwardSeconds);
 
 export const useSeekBackwardSeconds = () => useSettingsStore((state) => state.seekBackwardSeconds);
+
+export const useSyncIntervalSeconds = () => useSettingsStore((state) => state.syncIntervalSeconds);
 
 /**
  * Hook to get all settings actions

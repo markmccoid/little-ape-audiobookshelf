@@ -88,3 +88,34 @@ This is a React Native audiobook player app built with Expo that connects to an 
 - MMKV for fast local storage persistence
 - Expo Image for optimized image loading with placeholders
 - TypeScript throughout for type safety
+
+### Sync Configuration
+
+The audiobook sync interval is configurable via the settings store:
+
+**Real-time sync behavior:**
+- Progress syncs every N real seconds (configurable) during playback using setInterval
+- Additional sync on pause/stop events
+- UI position updates continue to use TrackPlayer progress events (unaffected by playback speed)
+- Queued syncs for network failures with retry logic
+
+**Configurable settings:**
+- `syncIntervalSeconds` in `src/store/store-settings.ts` (default: 5)
+- Access via `useSyncIntervalSeconds()` hook
+- Modify via `useSettingsActions().setSyncIntervalSeconds()`
+- Real-time updates via `useAudiobookStreamerSync()` hook
+
+**Network resilience:**
+- Failed syncs are queued and retried after successful connection
+- Maximum 3 retry attempts per queued sync
+- Sync queue processing after successful network connection
+
+**Key implementation:**
+- `AudiobookStreamer.ts` uses real-time setInterval for server syncs
+- TrackPlayer progress events continue for UI position updates
+- Separate timers ensure consistent sync frequency regardless of playback speed
+
+**Usage:**
+- Add `useAudiobookStreamerSync()` hook to app root for settings integration
+- Sync interval updates automatically when settings change
+- Timer management is handled automatically by AudiobookStreamer

@@ -2,6 +2,7 @@ import TrackPlayer, { Event, State } from "react-native-track-player";
 import { ABSQueuedTrack } from "../../store/store-playback";
 import { AudiobookshelfAPI } from "../AudiobookShelf/absAPIClass";
 import { AudiobookSession } from "../AudiobookShelf/abstypes";
+import { useSyncIntervalSeconds } from "../../store/store-settings";
 
 type SyncData = { timeListened: number; currentTime: number };
 type OfflineListenSession = {
@@ -12,6 +13,14 @@ type OfflineListenSession = {
   timeListened: number;
   currentTime: number;
   timestamp: number;
+};
+
+type QueuedSync = {
+  sessionId: string;
+  timeListened: number;
+  currentTime: number;
+  timestamp: number;
+  retryCount: number;
 };
 
 export default class AudiobookStreamer {
@@ -25,7 +34,7 @@ export default class AudiobookStreamer {
 
   // Race condition prevention
   private isSyncing: boolean = false;
-  private sessionClosed: boolean = false; // ✅ Add flag to track if session is closed
+  private sessionClosed: boolean = false;
   private pendingSessionClose: {
     sessionId: string;
     position: number;
@@ -34,29 +43,39 @@ export default class AudiobookStreamer {
   private lastSyncAttempt: number = 0;
   private syncDebounceMs: number = 1000; // Minimum time between sync attempts
 
-  // Prevent syncing during book loading - only sync after user starts playback
-  private hasUserStartedPlayback: boolean = false;
-
-  // Offline sync properties (for future implementation)
+  // Offline sync properties
   private isOfflineMode: boolean = false;
   private offlineListenSessions: OfflineListenSession[] = [];
+  private queuedSyncs: QueuedSync[] = [];
+  private maxRetries: number = 3;
+
+  // Real-time sync timer properties
+  private syncTimer: NodeJS.Timeout | null = null;
+  private syncIntervalSeconds: number = 5; // Default, will be updated from settings
 
   private constructor(
     private serverUrl: string,
-    private apiClient: AudiobookshelfAPI // Your ABS API class instance
-  ) {}
+    private apiClient: AudiobookshelfAPI, // Your ABS API class instance
+    syncIntervalSeconds: number = 5
+  ) {
+    this.syncIntervalSeconds = syncIntervalSeconds;
+  }
 
   /**
    * Gets or creates the singleton instance
    */
-  public static getInstance(serverUrl?: string, apiClient?: AudiobookshelfAPI): AudiobookStreamer {
+  public static getInstance(
+    serverUrl?: string,
+    apiClient?: AudiobookshelfAPI,
+    syncIntervalSeconds?: number
+  ): AudiobookStreamer {
     if (!AudiobookStreamer.instance) {
       if (!serverUrl || !apiClient) {
         throw new Error(
           "AudiobookStreamer: serverUrl and apiClient required for first initialization"
         );
       }
-      AudiobookStreamer.instance = new AudiobookStreamer(serverUrl, apiClient);
+      AudiobookStreamer.instance = new AudiobookStreamer(serverUrl, apiClient, syncIntervalSeconds);
       AudiobookStreamer.instance.initialize();
     }
     return AudiobookStreamer.instance;
@@ -65,11 +84,15 @@ export default class AudiobookStreamer {
   /**
    * Updates the singleton with new connection details (useful for server changes)
    */
-  public static updateInstance(serverUrl: string, apiClient: AudiobookshelfAPI): AudiobookStreamer {
+  public static updateInstance(
+    serverUrl: string,
+    apiClient: AudiobookshelfAPI,
+    syncIntervalSeconds?: number
+  ): AudiobookStreamer {
     if (AudiobookStreamer.instance) {
       AudiobookStreamer.instance.cleanup();
     }
-    AudiobookStreamer.instance = new AudiobookStreamer(serverUrl, apiClient);
+    AudiobookStreamer.instance = new AudiobookStreamer(serverUrl, apiClient, syncIntervalSeconds);
     AudiobookStreamer.instance.initialize();
     return AudiobookStreamer.instance;
   }
@@ -94,50 +117,64 @@ export default class AudiobookStreamer {
   }
 
   private setupTrackPlayerEvents() {
-    // Handle progress updates for syncing
-    this.progressUpdateListener = TrackPlayer.addEventListener(
-      Event.PlaybackProgressUpdated,
-      async (event) => {
-        // Directly sync on each 5s progress update from TrackPlayer
-        await this.handleProgressUpdate(event.position);
-      }
-    );
-
     // Handle state changes for immediate sync on pause
     this.playbackStateListener = TrackPlayer.addEventListener(
       Event.PlaybackState,
       async (event) => {
-        // console.log("STATE CHANGE**", event.state);
         await this.handlePlaybackStateChange(event);
       }
     );
   }
-  /**
-   * Periodically syncs progress ONLY while playing.
-   */
-  private async handleProgressUpdate(position: number | undefined = undefined) {
-    // Don't sync during book loading - only after user has started playback
-    if (!this.session || !this.hasUserStartedPlayback) return;
 
-    await this.syncProgress(position);
+  /**
+   * Starts the real-time sync timer for consistent server syncs
+   */
+  private startRealTimeSyncTimer(): void {
+    // Clear any existing timer first
+    this.stopRealTimeSyncTimer();
+
+    const syncIntervalMs = this.syncIntervalSeconds * 1000; // Convert to milliseconds
+
+    this.syncTimer = setInterval(() => {
+      // Only sync if we have an active session and have started timing
+      if (this.session && this.lastSyncTime) {
+        this.syncProgress();
+      }
+    }, syncIntervalMs);
+
+    console.log(`Started real-time sync timer with ${this.syncIntervalSeconds}s interval`);
   }
 
+  /**
+   * Stops the real-time sync timer
+   */
+  private stopRealTimeSyncTimer(): void {
+    if (this.syncTimer) {
+      clearInterval(this.syncTimer);
+      this.syncTimer = null;
+      console.log("Stopped real-time sync timer");
+    }
+  }
+  
   /**
    * Manages the sync timer based on playback state.
    */
   private async handlePlaybackStateChange(state: { state: State }) {
     if (state.state === State.Playing) {
-      // Mark that user has started playback (not just loading)
-      this.hasUserStartedPlayback = true;
       // Start the timer ONLY if it's not already running
       if (this.session && !this.lastSyncTime) {
         // console.log("Playback started, starting sync timer.");
         this.lastSyncTime = Date.now();
+        // Start the real-time sync timer
+        this.startRealTimeSyncTimer();
       }
     } else if (state.state === State.Paused || state.state === State.Stopped) {
-      // Only perform final sync if user had actually started playback
-      if (this.lastSyncTime && this.hasUserStartedPlayback) {
+      // Always perform final sync when playback stops
+      if (this.lastSyncTime) {
         // console.log("Playback paused/stopped, performing final sync.");
+
+        // Stop the real-time sync timer
+        this.stopRealTimeSyncTimer();
 
         // Don't sync if we already have a pending session close (avoids race condition)
         if (!this.pendingSessionClose && !this.isSyncing) {
@@ -146,7 +183,7 @@ export default class AudiobookStreamer {
           console.log("Skipping sync - already have pending session close or sync in progress");
         }
 
-        this.lastSyncTime = null; // Stop the timer
+        this.lastSyncTime = null; // Stop timing
       }
     }
   }
@@ -161,6 +198,9 @@ export default class AudiobookStreamer {
     // Reset sync timer when switching sessions - only start timing when playback actually starts
     this.lastSyncTime = null;
 
+    // Stop any existing real-time timer when switching sessions
+    this.stopRealTimeSyncTimer();
+
     // RACE CONDITION FIX: Capture current session state before switching
     await this.captureCurrentSessionForFinalSync();
 
@@ -168,8 +208,6 @@ export default class AudiobookStreamer {
 
     const previousSessionId = this.session?.id;
     this.session = response;
-    // Reset playback flag when switching sessions
-    this.hasUserStartedPlayback = false;
     // ✅ Reset session closed flag for new session
     this.sessionClosed = false;
 
@@ -256,25 +294,47 @@ export default class AudiobookStreamer {
         currentTime: position,
       };
 
-      await this.apiClient.syncProgressToServer(activeSessionId, syncData);
+      try {
+        await this.apiClient.syncProgressToServer(activeSessionId, syncData);
 
-      this.lastSyncTime = now;
+        this.lastSyncTime = now;
 
-      console.log(
-        `Synced to session ${activeSessionId} - listened: ${timeListened}s, position: ${position}s`
-      );
-    } catch (error) {
-      // Check if it's a 404 error (session not found) - match API error format
-      if (
-        error &&
-        typeof error === "object" &&
-        (("status" in error && error.status === 404) ||
-          ("statusCode" in error && error.statusCode === 404))
-      ) {
-        this.sessionClosed = true;
-        return;
+        console.log(
+          `Synced to session ${activeSessionId} - listened: ${timeListened}s, position: ${position}s`
+        );
+
+        // Process any queued syncs after successful sync
+        await this.processQueuedSyncs();
+      } catch (serverError) {
+        // Check if it's a 404 error (session not found) - match API error format
+        if (
+          serverError &&
+          typeof serverError === "object" &&
+          (("status" in serverError && serverError.status === 404) ||
+            ("statusCode" in serverError && serverError.statusCode === 404))
+        ) {
+          this.sessionClosed = true;
+          return;
+        }
+
+        // Handle network errors by queuing the sync for later
+        const networkError = serverError as any;
+        if (
+          serverError &&
+          typeof serverError === "object" &&
+          ((networkError.status === 0 || networkError.status >= 500) ||
+            (networkError.statusCode === 0 || networkError.statusCode >= 500) ||
+            (typeof networkError.message === "string" &&
+             (networkError.message.includes("Network") || networkError.message.includes("timeout"))))
+        ) {
+          console.warn("Network error detected, queuing sync for later:", serverError);
+          await this.queueSyncForLater(activeSessionId, syncData);
+          return;
+        } else {
+          // Re-throw other errors to be caught by the outer catch block
+          throw serverError;
+        }
       }
-      console.error("Failed to sync progress:", error);
     } finally {
       this.isSyncing = false;
     }
@@ -457,17 +517,98 @@ export default class AudiobookStreamer {
   }
 
   /**
+   * Queue a sync for later when network is available
+   */
+  private async queueSyncForLater(sessionId: string, syncData: SyncData): Promise<void> {
+    const queuedSync: QueuedSync = {
+      sessionId,
+      timeListened: syncData.timeListened,
+      currentTime: syncData.currentTime,
+      timestamp: Date.now(),
+      retryCount: 0,
+    };
+
+    this.queuedSyncs.push(queuedSync);
+    console.log(`Queued sync for session ${sessionId} - ${syncData.timeListened}s listened`);
+  }
+
+  /**
+   * Process any queued syncs after successful network connection
+   */
+  private async processQueuedSyncs(): Promise<void> {
+    if (this.queuedSyncs.length === 0) return;
+
+    console.log(`Processing ${this.queuedSyncs.length} queued syncs...`);
+
+    const failedSyncs: QueuedSync[] = [];
+
+    for (const queuedSync of this.queuedSyncs) {
+      if (queuedSync.retryCount >= this.maxRetries) {
+        console.warn(`Skipping sync for session ${queuedSync.sessionId} - max retries exceeded`);
+        continue;
+      }
+
+      try {
+        await this.apiClient.syncProgressToServer(queuedSync.sessionId, {
+          timeListened: queuedSync.timeListened,
+          currentTime: queuedSync.currentTime,
+        });
+        console.log(
+          `Successfully synced queued data for session ${queuedSync.sessionId} - ${queuedSync.timeListened}s listened`
+        );
+      } catch (error) {
+        queuedSync.retryCount++;
+        console.warn(
+          `Failed to sync queued data for session ${queuedSync.sessionId} (attempt ${queuedSync.retryCount}/${this.maxRetries}):`,
+          error
+        );
+
+        if (queuedSync.retryCount < this.maxRetries) {
+          failedSyncs.push(queuedSync);
+        }
+      }
+    }
+
+    this.queuedSyncs = failedSyncs;
+  }
+
+  /**
+   * Get count of pending queued syncs
+   */
+  public getQueuedSyncCount(): number {
+    return this.queuedSyncs.length;
+  }
+
+  /**
+   * Update the sync interval dynamically
+   */
+  public updateSyncInterval(newIntervalSeconds: number): void {
+    if (newIntervalSeconds <= 0) {
+      console.warn("Sync interval must be positive, using default of 5 seconds");
+      newIntervalSeconds = 5;
+    }
+
+    this.syncIntervalSeconds = newIntervalSeconds;
+
+    // If timer is currently running, restart it with new interval
+    if (this.syncTimer) {
+      this.stopRealTimeSyncTimer();
+      this.startRealTimeSyncTimer();
+    }
+
+    console.log(`Updated sync interval to ${newIntervalSeconds} seconds`);
+  }
+
+  /**
    * Comprehensive cleanup method
    */
   cleanup(): void {
     console.log("AudiobookStreamer: Cleaning up...");
 
-    // Remove event listeners using the stored handles
-    if (this.progressUpdateListener) {
-      this.progressUpdateListener.remove();
-      this.progressUpdateListener = null;
-    }
+    // Stop the real-time sync timer
+    this.stopRealTimeSyncTimer();
 
+    // Remove event listeners using the stored handles
     if (this.playbackStateListener) {
       this.playbackStateListener.remove();
       this.playbackStateListener = null;
@@ -480,10 +621,12 @@ export default class AudiobookStreamer {
 
     // Reset race condition prevention flags
     this.isSyncing = false;
-    this.sessionClosed = false; // ✅ Reset session closed flag
+    this.sessionClosed = false;
     this.pendingSessionClose = null;
-    this.hasUserStartedPlayback = false;
     this.lastSyncAttempt = 0; // Reset debounce timer
+
+    // Clear queued syncs on cleanup
+    this.queuedSyncs = [];
 
     // Note: We intentionally don't clear offline sessions here
     // as they need to persist for sync when coming back online
@@ -523,7 +666,7 @@ export default class AudiobookStreamer {
    * Store offline listening session for later sync
    * This will be called when listening offline to downloaded books
    */
-  private storeOfflineSession(sessionData: Omit<OfflineListenSession, "timestamp">): void {
+  public storeOfflineSession(sessionData: Omit<OfflineListenSession, "timestamp">): void {
     const offlineSession: OfflineListenSession = {
       ...sessionData,
       timestamp: Date.now(),

@@ -3,6 +3,7 @@ import { getAbsAPI, getAbsAuth } from "@/src/utils/AudiobookShelf/absInit";
 import type { AudiobookSession } from "@/src/utils/AudiobookShelf/abstypes";
 import AudiobookStreamer from "@/src/utils/rn-trackplayer/AudiobookStreamer";
 import { trackPlayerInit } from "@/src/utils/rn-trackplayer/rn-trackplayerInit";
+import { useSyncIntervalSeconds } from "./store-settings";
 import TrackPlayer, { Event, State, Track } from "react-native-track-player";
 import { create } from "zustand";
 import { useBooksStore } from "./store-books";
@@ -79,8 +80,9 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
         await trackPlayerInit().catch(() => {});
         playerInitialized = true;
       }
-      // Use singleton pattern
-      AudiobookStreamer.getInstance(serverUrl, api);
+      // Use singleton pattern with default sync interval
+      const syncInterval = 5; // Default value, could be parameterized
+      AudiobookStreamer.getInstance(serverUrl, api, syncInterval);
     },
 
     initFromABS: async () => {
@@ -94,7 +96,8 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
         // const { getAbsAuth, getAbsAPI } = require("@/src/ABS/absInit");
         const absAuth = getAbsAuth();
         const absAPI = getAbsAPI();
-        AudiobookStreamer.getInstance(absAuth.absURL, absAPI);
+        const syncInterval = 5; // Default value, could use settings hook here
+        AudiobookStreamer.getInstance(absAuth.absURL, absAPI, syncInterval);
       } catch (error) {
         console.error("Failed to initialize from ABS - auth not available:", error);
         throw new Error("Authentication required for playback initialization");
