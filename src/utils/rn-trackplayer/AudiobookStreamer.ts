@@ -2,7 +2,6 @@ import TrackPlayer, { Event, State } from "react-native-track-player";
 import { ABSQueuedTrack } from "../../store/store-playback";
 import { AudiobookshelfAPI } from "../AudiobookShelf/absAPIClass";
 import { AudiobookSession } from "../AudiobookShelf/abstypes";
-import { useSyncIntervalSeconds } from "../../store/store-settings";
 
 type SyncData = { timeListened: number; currentTime: number };
 type OfflineListenSession = {
@@ -155,7 +154,7 @@ export default class AudiobookStreamer {
       console.log("Stopped real-time sync timer");
     }
   }
-  
+
   /**
    * Manages the sync timer based on playback state.
    */
@@ -295,13 +294,29 @@ export default class AudiobookStreamer {
       };
 
       try {
-        await this.apiClient.syncProgressToServer(activeSessionId, syncData);
+        const syncResult = await this.apiClient.syncProgressToServer(activeSessionId, syncData);
 
         this.lastSyncTime = now;
 
         console.log(
           `Synced to session ${activeSessionId} - listened: ${timeListened}s, position: ${position}s`
         );
+
+        // ✅ Update books store with confirmed position (server accepted our sync)
+        if (syncResult.success && this.session) {
+          const { useBooksStore } = require("../../store/store-books");
+          const bookActions = useBooksStore.getState().actions;
+          console.log(`[AudiobookStreamer] Updating books store with:`, {
+            libraryItemId: this.session.libraryItemId,
+            currentTime: syncResult.currentTime,
+            duration: this.session.duration,
+          });
+          bookActions.updateCurrentPosition(
+            this.session.libraryItemId,
+            syncResult.currentTime,
+            this.session.duration
+          );
+        }
 
         // Process any queued syncs after successful sync
         await this.processQueuedSyncs();
@@ -322,10 +337,13 @@ export default class AudiobookStreamer {
         if (
           serverError &&
           typeof serverError === "object" &&
-          ((networkError.status === 0 || networkError.status >= 500) ||
-            (networkError.statusCode === 0 || networkError.statusCode >= 500) ||
+          (networkError.status === 0 ||
+            networkError.status >= 500 ||
+            networkError.statusCode === 0 ||
+            networkError.statusCode >= 500 ||
             (typeof networkError.message === "string" &&
-             (networkError.message.includes("Network") || networkError.message.includes("timeout"))))
+              (networkError.message.includes("Network") ||
+                networkError.message.includes("timeout"))))
         ) {
           console.warn("Network error detected, queuing sync for later:", serverError);
           await this.queueSyncForLater(activeSessionId, syncData);
@@ -383,7 +401,18 @@ export default class AudiobookStreamer {
         currentTime: position,
       };
 
-      await this.apiClient.syncProgressToServer(activeSessionId, syncData);
+      const syncResult = await this.apiClient.syncProgressToServer(activeSessionId, syncData);
+
+      // ✅ Update books store with confirmed position
+      if (syncResult.success && this.session) {
+        const { useBooksStore } = require("../../store/store-books");
+        const bookActions = useBooksStore.getState().actions;
+        bookActions.updateCurrentPosition(
+          this.session.libraryItemId,
+          syncResult.currentTime,
+          this.session.duration
+        );
+      }
       // console.log(`Position synced to session ${activeSessionId} - position: ${position}s`);
     } catch (error) {
       // Check if it's a 404 error (session not found) - match API error format

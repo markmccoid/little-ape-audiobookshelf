@@ -1,21 +1,25 @@
-import { useSmartPosition } from "@/src/hooks/trackPlayerHooks";
-import {
-  usePlaybackActions,
-  usePlaybackDuration,
-  usePlaybackStore,
-} from "@/src/store/store-playback";
+import { useBookData, useSmartPosition } from "@/src/hooks/trackPlayerHooks";
+import { usePlaybackActions, usePlaybackDuration } from "@/src/store/store-playback";
 import { formatSeconds } from "@/src/utils/formatUtils";
 // import { Host, Slider } from "@expo/ui/swift-ui";
 import Slider from "@react-native-community/slider";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Text, View } from "react-native";
 
-const BookSlider = () => {
-  const position = useSmartPosition();
+interface BookSliderProps {
+  bookId: string;
+  title?: string;
+}
 
-  const loaded = usePlaybackStore((state) => state.isLoaded);
-  const duration = usePlaybackDuration();
+const BookSlider: React.FC<BookSliderProps> = ({ bookId, title }) => {
+  const { position } = useSmartPosition(bookId, title);
+  const { duration: bookDuration } = useBookData(bookId, title);
+  // const loaded = usePlaybackStore((state) => state.isLoaded);
+  const playbackDuration = usePlaybackDuration();
   const { seekTo } = usePlaybackActions();
+
+  // Use playback duration when available (book is loaded), otherwise use book duration from cache/server
+  const duration = playbackDuration || bookDuration || 0;
   const isMountedRef = useRef(true);
 
   // Track if user is actively sliding
@@ -30,7 +34,12 @@ const BookSlider = () => {
   }, []);
 
   // Calculate the display value for the slider
-  const sliderDisplayValue = isUserSliding ? localSliderValue : position;
+  const sliderDisplayValue = useMemo(
+    () => (isUserSliding ? localSliderValue : position || 0),
+    [isUserSliding, position]
+  );
+  // const sliderDisplayValue = isUserSliding ? localSliderValue : position || 0;
+  console.log("BOok Slider", position, sliderDisplayValue);
   // loaded &&
   //   console.log(
   //     "SLIDER",
@@ -42,12 +51,6 @@ const BookSlider = () => {
   //     duration
   //   );
 
-  if (!loaded)
-    return (
-      <View style={{ width: "100%", height: 40 }}>
-        <Text>loading...</Text>
-      </View>
-    );
   return (
     <View>
       <Text>{formatSeconds(sliderDisplayValue || 0)}</Text>

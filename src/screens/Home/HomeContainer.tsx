@@ -5,6 +5,7 @@ import {
   usePlaybackIsPlaying,
   usePlaybackSession,
 } from "@/src/store/store-playback";
+import { useThemeColors } from "@/src/utils/theme";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { SymbolView } from "expo-symbols";
 import React, { useCallback, useMemo, useReducer, useRef } from "react";
@@ -14,6 +15,7 @@ import { useProgress } from "react-native-track-player";
 import InProgressItem, { EnhancedBookItem } from "./InProgressItem";
 
 const HomeContainer = () => {
+  const themeColors = useThemeColors();
   const { data: booksInProgress, isLoading, isError } = useGetBooksInProgress();
   const { togglePlayPause: storeTogglePlayPause, loadBook: handleInitBook } = usePlaybackActions();
   const isPlaying = usePlaybackIsPlaying();
@@ -119,9 +121,13 @@ const HomeContainer = () => {
     <ScrollView className="flex-1 px-2">
       <View className="mt-2">
         <View className="flex-row gap-2">
-          <Text className="text-lg font-bold">Continue Listening</Text>
+          <Text className="text-lg font-bold text-accent">Continue Listening</Text>
           <Pressable onPress={toggleShowHidden}>
-            {showHidden ? <SymbolView name="eye" /> : <SymbolView name="eye.slash" />}
+            {showHidden ? (
+              <SymbolView name="eye" tintColor={themeColors.accent} />
+            ) : (
+              <SymbolView name="eye.slash" tintColor={themeColors.accent} />
+            )}
           </Pressable>
         </View>
         <Animated.FlatList<EnhancedBookItem>

@@ -1,60 +1,59 @@
-import { DarkTheme, DefaultTheme, type Theme } from "@react-navigation/native";
+import { DarkTheme, DefaultTheme, Theme } from "@react-navigation/native";
+import { useColorScheme } from "react-native";
 
-export const THEME = {
+// Base color palette
+const THEME = {
   light: {
-    background: "hsl(0 0% 100%)",
-    foreground: "hsl(0 0% 3.9%)",
-    card: "hsl(0 0% 100%)",
-    cardForeground: "hsl(0 0% 3.9%)",
-    popover: "hsl(0 0% 100%)",
-    popoverForeground: "hsl(0 0% 3.9%)",
-    primary: "hsl(0 0% 9%)",
-    primaryForeground: "hsl(0 0% 98%)",
-    secondary: "hsl(0 0% 96.1%)",
-    secondaryForeground: "hsl(0 0% 9%)",
-    muted: "hsl(0 0% 96.1%)",
-    mutedForeground: "hsl(0 0% 45.1%)",
-    accent: "hsl(0 0% 96.1%)",
-    accentForeground: "hsl(0 0% 9%)",
-    destructive: "hsl(0 84.2% 60.2%)",
-    border: "hsl(0 0% 89.8%)",
-    input: "hsl(0 0% 89.8%)",
-    ring: "hsl(0 0% 63%)",
-    radius: "0.625rem",
-    chart1: "hsl(12 76% 61%)",
-    chart2: "hsl(173 58% 39%)",
-    chart3: "hsl(197 37% 24%)",
-    chart4: "hsl(43 74% 66%)",
-    chart5: "hsl(27 87% 67%)",
+    // Backgrounds
+    background: "#FFF",
+    card: "#ccc",
+
+    // Foreground colors
+    foreground: "#09090B",
+    muted: "#71717A",
+
+    // Border colors
+    border: "#E4E4E7",
+
+    // Primary brand color
+    primary: "#18181B",
+
+    // Accent color for interactive elements
+    accent: "#41751C", // green accent
+    accentForeground: "#FFFFFF",
+
+    // Status colors
+    destructive: "#EF4444",
+    success: "#10B981",
+    warning: "#F59E0B",
   },
   dark: {
-    background: "hsl(0 0% 3.9%)",
-    foreground: "hsl(0 0% 98%)",
-    card: "hsl(0 0% 3.9%)",
-    cardForeground: "hsl(0 0% 98%)",
-    popover: "hsl(0 0% 3.9%)",
-    popoverForeground: "hsl(0 0% 98%)",
-    primary: "hsl(0 0% 98%)",
-    primaryForeground: "hsl(0 0% 9%)",
-    secondary: "hsl(0 0% 14.9%)",
-    secondaryForeground: "hsl(0 0% 98%)",
-    muted: "hsl(0 0% 14.9%)",
-    mutedForeground: "hsl(0 0% 63.9%)",
-    accent: "hsl(0 0% 14.9%)",
-    accentForeground: "hsl(0 0% 98%)",
-    destructive: "hsl(0 70.9% 59.4%)",
-    border: "hsl(0 0% 14.9%)",
-    input: "hsl(0 0% 14.9%)",
-    ring: "hsl(300 0% 45%)",
-    radius: "0.625rem",
-    chart1: "hsl(220 70% 50%)",
-    chart2: "hsl(160 60% 45%)",
-    chart3: "hsl(30 80% 55%)",
-    chart4: "hsl(280 65% 60%)",
-    chart5: "hsl(340 75% 55%)",
-  },
-};
+    // Backgrounds
+    background: "#09090B",
+    card: "#18181B",
 
+    // Foreground colors
+    foreground: "#FAFAFA",
+    muted: "#A1A1AA",
+
+    // Border colors
+    border: "#27272A",
+
+    // Primary brand color
+    primary: "#FAFAFA",
+
+    // Accent color for interactive elements
+    accent: "#84CC16", // Lighter green for dark mode
+    accentForeground: "#09090B",
+
+    // Status colors
+    destructive: "#F87171",
+    success: "#34D399",
+    warning: "#FBBF24",
+  },
+} as const;
+
+// React Navigation theme structure
 export const NAV_THEME: Record<"light" | "dark", Theme> = {
   light: {
     ...DefaultTheme,
@@ -79,3 +78,62 @@ export const NAV_THEME: Record<"light" | "dark", Theme> = {
     },
   },
 };
+
+// Export the full theme for use in components
+export { THEME };
+
+// Helper hook for accessing theme colors in components
+export const useThemeColors = () => {
+  const colorScheme = useColorScheme();
+  return THEME[colorScheme];
+};
+
+/* 
+USAGE RECOMMENDATIONS:
+
+1. TAB BAR ICONS:
+   Use THEME[colorScheme].accent for active tabs
+   Use THEME[colorScheme].muted for inactive tabs
+
+   Example:
+   <Tab.Screen
+     options={{
+       tabBarIcon: ({ focused }) => (
+         <Icon 
+           color={focused ? THEME[colorScheme].accent : THEME[colorScheme].muted}
+         />
+       ),
+     }}
+   />
+
+2. TAB BAR LABELS:
+   Use THEME[colorScheme].accent for active labels
+   Use THEME[colorScheme].foreground for inactive labels
+
+   Example:
+   tabBarActiveTintColor: THEME[colorScheme].accent,
+   tabBarInactiveTintColor: THEME[colorScheme].muted,
+
+3. BUTTONS & CALL-TO-ACTIONS:
+   Background: THEME[colorScheme].accent
+   Text: THEME[colorScheme].accentForeground
+
+4. LINKS & INTERACTIVE TEXT:
+   Color: THEME[colorScheme].accent
+
+5. BADGES & HIGHLIGHTS:
+   Background: THEME[colorScheme].accent with opacity (e.g., rgba)
+   Text: THEME[colorScheme].accent
+
+6. EXAMPLE TAB NAVIGATOR CONFIGURATION:
+   <Tab.Navigator
+     screenOptions={{
+       tabBarActiveTintColor: THEME[colorScheme].accent,
+       tabBarInactiveTintColor: THEME[colorScheme].muted,
+       tabBarStyle: {
+         backgroundColor: THEME[colorScheme].card,
+         borderTopColor: THEME[colorScheme].border,
+       },
+     }}
+   >
+*/

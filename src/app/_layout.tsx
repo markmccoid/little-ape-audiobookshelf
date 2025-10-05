@@ -1,10 +1,12 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native";
+import { NAV_THEME } from "@/src/utils/theme";
+import { ThemeProvider } from "@react-navigation/native";
 import { PortalHost } from "@rn-primitives/portal";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
+// import { useColorScheme } from "nativewind";
 import { useEffect, useRef, useState } from "react";
-import { LogBox, Text, useColorScheme, View } from "react-native";
+import { LogBox, Text, View, useColorScheme } from "react-native";
 import MiniPlayer from "../components/MiniPlayer";
 import { AuthProvider, useAuth } from "../contexts/AuthContext";
 import "../global.css";
@@ -79,11 +81,16 @@ function AppContent() {
 }
 
 export default function RootLayout() {
-  const scheme = useColorScheme();
+  // const { colorScheme, setColorScheme } = useColorScheme();
+  const colorScheme = useColorScheme();
+  // useEffect(() => {
+  //   Appearance.setColorScheme("light");
+  // }, [colorScheme]);
 
   return (
-    <View style={{ flex: 1 }}>
-      <ThemeProvider value={scheme === "dark" ? DarkTheme : DefaultTheme}>
+    <View style={{ flex: 1 }} className={colorScheme === "dark" ? "dark" : ""}>
+      <ThemeProvider value={colorScheme === "dark" ? NAV_THEME.dark : NAV_THEME.light}>
+        {/* <ThemeProvider value={scheme === "dark" ? DarkTheme : DefaultTheme}> */}
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
             <AppContent />

@@ -20,8 +20,8 @@ const BookContainer = () => {
     title: string;
   }>();
   const { data, isPending } = useGetItemDetails(bookid);
-  console.log("data", data?.userMediaProgress?.currentTime);
-  const progress = useSmartPosition(data?.userMediaProgress?.currentTime);
+
+  const { position, isLoading, error } = useSmartPosition(bookid, title);
 
   const playbackState = usePlaybackState();
   // Check if player is currently playing
@@ -51,7 +51,7 @@ const BookContainer = () => {
           headerTitle: title,
         }}
       />
-      <BookSlider />
+      <BookSlider bookId={bookid} title={title} />
       <View className="flex-row justify-center border">
         <Image
           source={data?.coverURI || cover}
@@ -60,7 +60,13 @@ const BookContainer = () => {
         />
       </View>
       <View>
-        <Text>{formatSeconds(progress || 0)}</Text>
+        {isLoading ? (
+          <Text>Loading position...</Text>
+        ) : error ? (
+          <Text>Error loading position</Text>
+        ) : (
+          <Text>{formatSeconds(position || 0)}</Text>
+        )}
         <TestPosition />
       </View>
       <BookControls libraryItemId={bookid} />

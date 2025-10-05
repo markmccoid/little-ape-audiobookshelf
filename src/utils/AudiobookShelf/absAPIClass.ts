@@ -215,17 +215,20 @@ export class AudiobookshelfAPI {
   async syncProgressToServer(
     sessionId: string,
     syncData: { timeListened: number; currentTime: number }
-  ) {
+  ): Promise<{ success: boolean; currentTime: number }> {
     try {
       await this.makeAuthenticatedRequest(`/api/session/${sessionId}/sync`, {
         method: "POST",
         data: syncData,
       });
+      // Server only returns 200 OK, no progress data
+      // Return the position we sent as confirmation
+      return { success: true, currentTime: syncData.currentTime };
     } catch (error: any) {
       // ✅ Handle 404 errors more gracefully (session was already closed)
       if (error.statusCode === 404) {
         console.warn(`Session ${sessionId} was already closed. Skipping sync.`);
-        return; // Don't log as error for closed sessions
+        return { success: false, currentTime: syncData.currentTime };
       }
       console.error("Failed to sync progress:", error);
       throw error; // Re-throw other errors
@@ -666,9 +669,9 @@ export class AudiobookshelfAPI {
     const token = await this.auth.getValidAccessToken();
     // If not token, should probably throw error.
     if (!token) return [];
-
     const booksMin = libraryItems.map((item) => {
       const coverURL = this.buildCoverURLSync(item.id, token);
+
       return {
         id: item.id,
         title: item.media.metadata.title,

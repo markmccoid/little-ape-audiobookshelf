@@ -3,7 +3,6 @@ import { getAbsAPI, getAbsAuth } from "@/src/utils/AudiobookShelf/absInit";
 import type { AudiobookSession } from "@/src/utils/AudiobookShelf/abstypes";
 import AudiobookStreamer from "@/src/utils/rn-trackplayer/AudiobookStreamer";
 import { trackPlayerInit } from "@/src/utils/rn-trackplayer/rn-trackplayerInit";
-import { useSyncIntervalSeconds } from "./store-settings";
 import TrackPlayer, { Event, State, Track } from "react-native-track-player";
 import { create } from "zustand";
 import { useBooksStore } from "./store-books";
@@ -19,6 +18,10 @@ export type ABSQueuedTrack = Track & {
 let eventsBound = false;
 let playerInitialized = false;
 const listeners: { remove: () => void }[] = [];
+
+// Throttling for books store updates
+let lastBookStoreUpdate = 0;
+const BOOK_STORE_UPDATE_INTERVAL = 10000; // 10 seconds
 
 // ---- Store Types
 type PlaybackAudioBookSession = AudiobookSession & {
@@ -111,10 +114,15 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       // Mirror progress into store for UI, this is at 5 second intervals
       // set in setup track player.
       const l1 = TrackPlayer.addEventListener(Event.PlaybackProgressUpdated, (e) => {
-        set({
-          position: e.position,
-          duration: typeof e.duration === "number" ? e.duration : get().duration,
-        });
+        const position = e.position;
+        const duration = typeof e.duration === "number" ? e.duration : get().duration;
+
+        set({ position, duration });
+
+        // ❌ REMOVED: Redundant sync to books store
+        // AudiobookStreamer now handles syncing to server (every 5s)
+        // and updates books store FROM server response (server is source of truth)
+        // This eliminates duplicate syncs and ensures server is always the authority
       });
 
       // Mirror playback state into store for UI
@@ -247,6 +255,10 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
 
     closeSession: async () => {
       try {
+        // ❌ REMOVED: Redundant final position sync
+        // AudiobookStreamer.closeSession() handles final sync to server
+        // and books store will be updated from server response
+
         const streamer = AudiobookStreamer.getInstance();
         await streamer.closeSession();
       } catch {
@@ -323,3 +335,12 @@ export const usePlaybackPosition = () =>
 export const useHasActiveSession = () => usePlaybackStore((s) => Boolean(s.session));
 export const useShowMiniPlayer = () =>
   usePlaybackStore((s) => Boolean(s.session) && !s.isOnBookScreen);
+
+// Library Item ID-Aware Hooks
+/**
+ * Hook to check if a specific book is the currently active book in playback
+ * @param libraryItemId - The ID of the book to check
+ * @returns Boolean indicating if this book is the current active session
+ */
+export const useIsBookActive = (libraryItemId: string) =>
+  usePlaybackStore((state) => state.session?.libraryItemId === libraryItemId);

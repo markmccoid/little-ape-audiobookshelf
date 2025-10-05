@@ -17,7 +17,11 @@ const LibraryRenderItem = ({ item }: { item: ABSGetLibraryItem }) => {
       onPress={() =>
         router.push({
           pathname: `/(tabs)/library/[bookid]`,
-          params: { bookid: item.id, cover: item.coverFull, title: item.title },
+          params: {
+            bookid: item.id,
+            cover: item.coverFull,
+            title: item.title,
+          },
         })
       }
     >

@@ -1,13 +1,15 @@
-import * as AC from "@bacons/apple-colors";
+import { useThemeColors } from "@/src/utils/theme";
 import { useRouter } from "expo-router";
 import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
 
 export default function SettingsLayout() {
   const router = useRouter();
+  const colors = useThemeColors();
+
   return (
     <NativeTabs
       // tintColor={"red"}
-      tintColor={AC.systemPurple}
+      tintColor={colors.accent}
       // labelStyle={{ color: DynamicColorIOS({ light: "purple", dark: "" }) }}
     >
       <NativeTabs.Trigger name="(home)">

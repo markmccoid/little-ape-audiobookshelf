@@ -9,6 +9,9 @@ export type Book = {
   title?: string;
   playbackSpeed: number;
   isDownloaded: boolean;
+  currentPosition: number;
+  duration?: number;
+  lastUpdated?: number;
 };
 
 // Define the state interface
@@ -20,12 +23,18 @@ interface BooksState {
 interface BooksActions {
   setBooks: (books: Book[]) => void;
   getSavedBook: (bookItem: Partial<Book>) => Book | undefined;
+  getOrFetchBook: (params: {
+    userId: string;
+    libraryItemId: string;
+    title?: string;
+  }) => Promise<Book>;
   updateBook: (libraryItemId: string, updates: Partial<Omit<Book, "libraryItemId">>) => void;
   removeBook: (libraryItemId: string) => void;
   clearBooks: () => void;
   getBook: (libraryItemId: string) => Book | undefined;
   updatePlaybackSpeed: (libraryItemId: string, speed: number) => void;
   updateIsDownloaded: (libraryItemId: string, isDownloaded: boolean) => void;
+  updateCurrentPosition: (libraryItemId: string, position: number, duration?: number) => void;
 }
 
 // Combined store interface
@@ -70,6 +79,9 @@ export const useBooksStore = create<BooksStore>()(
             title: bookItem?.title || "",
             playbackSpeed: 1,
             isDownloaded: false,
+            currentPosition: 0,
+            duration: 0,
+            lastUpdated: Date.now(),
           };
           console.log("Saving Book ", newBook);
           set((state) => {
@@ -112,6 +124,107 @@ export const useBooksStore = create<BooksStore>()(
               book.libraryItemId === libraryItemId ? { ...book, isDownloaded } : book
             ),
           })),
+
+        getOrFetchBook: async ({ userId, libraryItemId, title }) => {
+          console.log(`[BooksStore] getOrFetchBook called for: ${libraryItemId}`);
+
+          // Check cache first
+          const existingBook = get().books.find(
+            (b) => b.libraryItemId === libraryItemId && b.userId === userId
+          );
+
+          if (existingBook) {
+            console.log(`[BooksStore] Found existing book:`, {
+              title: existingBook.title,
+              currentPosition: existingBook.currentPosition,
+              duration: existingBook.duration,
+            });
+            return existingBook;
+          }
+
+          console.log(`[BooksStore] Book not in cache, fetching from server...`);
+
+          // Fetch from server if not found
+          try {
+            const { getAbsAPI } = require("@/src/utils/AudiobookShelf/absInit");
+            const absAPI = getAbsAPI();
+            const progress = await absAPI.getBookProgress(libraryItemId);
+
+            console.log(`[BooksStore] Server progress response:`, {
+              currentTime: progress?.currentTime,
+              duration: progress?.duration,
+              displayTitle: progress?.displayTitle,
+            });
+
+            const newBook: Book = {
+              userId,
+              libraryItemId,
+              title: title || progress?.displayTitle || "",
+              playbackSpeed: 1,
+              isDownloaded: false,
+              currentPosition: progress?.currentTime || 0,
+              duration: progress?.duration || 0,
+              lastUpdated: Date.now(),
+            };
+
+            console.log(`[BooksStore] Saving new book:`, newBook);
+
+            set((state) => ({
+              books: [...state.books, newBook],
+            }));
+
+            return newBook;
+          } catch (error) {
+            console.error("Failed to fetch book progress:", error);
+
+            // Return default book on error
+            const defaultBook: Book = {
+              userId,
+              libraryItemId,
+              title: title || "",
+              playbackSpeed: 1,
+              isDownloaded: false,
+              currentPosition: 0,
+              duration: 0,
+              lastUpdated: Date.now(),
+            };
+
+            set((state) => ({
+              books: [...state.books, defaultBook],
+            }));
+
+            return defaultBook;
+          }
+        },
+
+        updateCurrentPosition: (libraryItemId, position, duration) => {
+          console.log(`[BooksStore] updateCurrentPosition called:`, {
+            libraryItemId,
+            position,
+            duration,
+          });
+
+          set((state) => ({
+            books: state.books.map((book) =>
+              book.libraryItemId === libraryItemId
+                ? {
+                    ...book,
+                    currentPosition: position,
+                    duration: duration ?? book.duration,
+                    lastUpdated: Date.now(),
+                  }
+                : book
+            ),
+          }));
+
+          // Log the updated book
+          const updatedBook = get().books.find((b) => b.libraryItemId === libraryItemId);
+          console.log(`[BooksStore] Book after update:`, {
+            title: updatedBook?.title,
+            currentPosition: updatedBook?.currentPosition,
+            duration: updatedBook?.duration,
+          });
+        },
       },
     }),
     {
