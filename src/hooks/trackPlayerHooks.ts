@@ -12,12 +12,10 @@ const bookDataCache = new Map<string, Book>();
  * Optimized for slider and progress displays that update every ~250ms.
  *
  * @param libraryItemId - The book's library item ID
- * @param title - Optional book title for initial save
  * @returns Object with position, loading state, and error
  */
 export const useSmartPosition = (
-  libraryItemId: string,
-  title?: string
+  libraryItemId: string
 ): {
   position: number | undefined;
   isLoading: boolean;
@@ -54,7 +52,6 @@ export const useSmartPosition = (
         const book = await bookActions.getOrFetchBook({
           userId,
           libraryItemId,
-          title,
         });
 
         // Cache for useBookData hook to prevent duplicate fetches
@@ -80,7 +77,7 @@ export const useSmartPosition = (
     return () => {
       isMounted = false;
     };
-  }, [libraryItemId, title]); // ✅ FIXED: Removed bookActions from dependencies
+  }, [libraryItemId]); // ✅ FIXED: Removed bookActions from dependencies
 
   // Update to playback position when available AND it's for THIS book
   useEffect(() => {
@@ -104,26 +101,29 @@ export const useSmartPosition = (
  * Hook for static book data (duration, metadata, playback speed).
  * Optimized to prevent unnecessary re-renders - only updates when book data changes.
  * Uses shared cache with useSmartPosition to prevent duplicate API calls.
+ * Also returns isBookActive which lets us know if the book looking up data on is loaded
+ * into the playback store.
  *
  * @param libraryItemId - The book's library item ID
- * @param title - Optional book title for initial save
  * @returns Object with book data, duration, playback speed, loading state, and error
  */
 export const useBookData = (
-  libraryItemId: string,
-  title?: string
+  libraryItemId: string
 ): {
   book: Book | null;
   duration: number | undefined;
   playbackSpeed: number;
   isLoading: boolean;
   error: Error | null;
+  isBookActive: boolean;
 } => {
   const bookActions = useBooksStore((state) => state.actions);
   const [book, setBook] = useState<Book | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isBookActive, setIsBookActive] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-
+  const session = usePlaybackStore((s) => s.session); // ✅ Use selector directly
+  console.log("Session Changed in useBookData", session?.libraryItemId);
   useEffect(() => {
     let isMounted = true;
 
@@ -134,6 +134,8 @@ export const useBookData = (
       const cached = bookDataCache.get(libraryItemId);
       if (cached) {
         setBook(cached);
+        const loadedBookId = session?.libraryItemId;
+        setIsBookActive(loadedBookId === libraryItemId);
         return;
       }
 
@@ -151,7 +153,6 @@ export const useBookData = (
         const fetchedBook = await bookActions.getOrFetchBook({
           userId,
           libraryItemId,
-          title,
         });
 
         // Update cache for other hooks
@@ -168,6 +169,8 @@ export const useBookData = (
         if (isMounted) {
           setIsLoading(false);
         }
+        const loadedBookId = session?.libraryItemId;
+        setIsBookActive(loadedBookId === libraryItemId);
       }
     };
 
@@ -176,7 +179,7 @@ export const useBookData = (
     return () => {
       isMounted = false;
     };
-  }, [libraryItemId, title]); // ✅ FIXED: Removed bookActions from dependencies
+  }, [libraryItemId, session?.libraryItemId]); // ✅ FIXED: Removed bookActions from dependencies
 
   return {
     book,
@@ -184,6 +187,7 @@ export const useBookData = (
     playbackSpeed: book?.playbackSpeed ?? 1,
     isLoading,
     error,
+    isBookActive,
   };
 };
 

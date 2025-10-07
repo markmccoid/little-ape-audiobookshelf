@@ -136,7 +136,9 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
     loadBook: async (itemId: string) => {
       const absAuth = getAbsAuth();
       const userId = absAuth.userId;
-      console.log("USER", userId);
+      //!! Potential ERROR catch
+      if (!userId) return;
+
       // Ensure events are bound before loading (idempotent - safe to call multiple times)
       get().actions.bindEvents();
       // Store-level guard: if the same book is already loaded, do nothing
@@ -170,10 +172,9 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
 
       //~ Look into books store to find out if we have this book saved
       const bookActions = useBooksStore.getState().actions;
-      const savedBook = bookActions.getSavedBook({
-        userId,
+      const savedBook = await bookActions.getOrFetchBook({
+        userId: userId,
         libraryItemId: sessionData.libraryItemId,
-        title: sessionData.displayTitle,
       });
       console.log("playback-savedbook", savedBook);
       const savedPlaybackSpeed = savedBook?.playbackSpeed || 1;

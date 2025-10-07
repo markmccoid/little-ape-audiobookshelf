@@ -1,8 +1,10 @@
 import { useSafeAbsAPI } from "@/src/contexts/AuthContext";
 import { ABSGetItemInProgress } from "@/src/utils/AudiobookShelf/absAPIClass";
 import { formatSeconds } from "@/src/utils/formatUtils";
+import { useThemeColors } from "@/src/utils/theme";
 import { Image } from "expo-image";
 import { Link, useRouter } from "expo-router";
+import { SymbolView } from "expo-symbols";
 import React, { useCallback } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
@@ -45,12 +47,20 @@ const InProgressItem = React.memo<InProgressItemProps>(
     // );
     // console.log("ProgressItem", item.title, item.progressId, item.hideFromContinueListening);
     const absAPI = useSafeAbsAPI();
-
+    const themeColors = useThemeColors();
     return (
       <Animated.View
         className="flex-col w-[200] p-2 justify-center items-center rounded-lg"
         style={{ backgroundColor: item.isCurrentlyLoaded ? "#ecce67aa" : "transparent" }}
       >
+        {(item.isFinished || item.hideFromContinueListening) && (
+          <View className="absolute top-0 border-hairline rounded-full z-10 left-0 bg-gray-300">
+            {item.hideFromContinueListening && (
+              <SymbolView name="eye.slash.circle.fill" tintColor={themeColors.warning} />
+            )}
+            {item.isFinished && <SymbolView name="checkmark" tintColor={themeColors.warning} />}
+          </View>
+        )}
         <Link
           href={{
             pathname: `/(tabs)/(home)/[bookid]`,
@@ -102,11 +112,15 @@ const InProgressItem = React.memo<InProgressItemProps>(
         </Link>
 
         <View className="flex-col mt-2 items-center w-full">
-          <Text className="font-semibold text-sm" numberOfLines={1} lineBreakMode="tail">
+          <Text
+            className="font-semibold text-sm text-accent"
+            numberOfLines={1}
+            lineBreakMode="tail"
+          >
             {item.title}
           </Text>
 
-          <Text className="text-xs text-gray-600 mt-1">
+          <Text className="text-xs text-muted mt-1">
             {formatSeconds(item.currentTime)} / {formatSeconds(item.duration || 0)}
           </Text>
 

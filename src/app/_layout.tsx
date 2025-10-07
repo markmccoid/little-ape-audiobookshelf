@@ -73,7 +73,20 @@ function AppContent() {
       >
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="settings" options={{ presentation: "fullScreenModal" }} />
-        <Stack.Screen name="main-player" options={{ presentation: "modal" }} />
+        <Stack.Screen
+          name="main-player"
+          options={{
+            presentation: "card",
+            headerShown: false,
+            gestureDirection: "vertical",
+            gestureEnabled: true,
+            contentStyle: {
+              borderTopLeftRadius: 25,
+              borderTopRightRadius: 25,
+              overflow: "hidden",
+            },
+          }}
+        />
       </Stack>
       <MiniPlayer />
     </>

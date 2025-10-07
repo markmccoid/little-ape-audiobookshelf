@@ -3,31 +3,31 @@
 @tailwind utilities;
  
 @layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;;
-    --card: 0 0% 96%;
-    --muted: 240 3.8% 46.1%;
-    --border: 240 5.9% 90%;
-    --primary: 240 10% 3.9%;
-    --accent: #41751C;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 84.2% 60.2%;
-    --success: 142 71% 45%;
-    --warning: 38 92% 50%;
-  }
+:root {
+  --background: #ffffff;
+  --foreground: #09090b;
+  --card: #f5f5f5;
+  --muted: #737373;
+  --border: #e4e4e7;
+  --primary: #09090b;
+  --accent: #41751C;
+  --accent-foreground: #ffffff;
+  --destructive: #ef4444;
+  --success: #22c55e;
+  --warning: #f97316;
+}
 
-  .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;;
-    --card: 240 10% 9.8%;
-    --muted: 240 5% 64.9%;
-    --border: 240 3.7% 15.9%;
-    --primary: 0 0% 98%;
-    --accent: #84CC16;
-    --accent-foreground: 240 10% 3.9%;
-    --destructive: 0 84.2% 70%;
-    --success: 142 71% 59%;
-    --warning: 38 92% 65%;
-  }
+.dark {
+  --background: #09090b;
+  --foreground: #fafafa;
+  --card: #18181b;
+  --muted: #a1a1aa;
+  --border: #27272a;
+  --primary: #fafafa;
+  --accent: #84CC16;
+  --accent-foreground: #09090b;
+  --destructive: #f87171;
+  --success: #4ade80;
+  --warning: #fb923c;
+}
 }

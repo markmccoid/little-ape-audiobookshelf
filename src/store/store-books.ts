@@ -22,11 +22,9 @@ interface BooksState {
 // Define the actions interface
 interface BooksActions {
   setBooks: (books: Book[]) => void;
-  getSavedBook: (bookItem: Partial<Book>) => Book | undefined;
   getOrFetchBook: (params: {
     userId: string;
     libraryItemId: string;
-    title?: string;
   }) => Promise<Book>;
   updateBook: (libraryItemId: string, updates: Partial<Omit<Book, "libraryItemId">>) => void;
   removeBook: (libraryItemId: string) => void;
@@ -55,41 +53,6 @@ export const useBooksStore = create<BooksStore>()(
       // Actions grouped in a separate namespace
       actions: {
         setBooks: (books: Book[]) => set({ books }),
-
-        getSavedBook: (bookItem) => {
-          // Validation check
-
-          if (!bookItem?.libraryItemId || !bookItem.userId) return undefined;
-
-          // Check if book already exists
-          // If book already exists, spread the new items thus updating the fields
-          // We don't pass playbackSpeed or isDownloaded, etc.  Those won't update.
-          const foundBook = get().books.find(
-            (b) => b.libraryItemId === bookItem.libraryItemId && b.userId === bookItem.userId
-          );
-          if (foundBook) {
-            console.log("Book Found", foundBook.title, foundBook.userId);
-            return { ...foundBook };
-          }
-
-          // Add the book
-          const newBook: Book = {
-            userId: bookItem.userId || "",
-            libraryItemId: bookItem.libraryItemId,
-            title: bookItem?.title || "",
-            playbackSpeed: 1,
-            isDownloaded: false,
-            currentPosition: 0,
-            duration: 0,
-            lastUpdated: Date.now(),
-          };
-          console.log("Saving Book ", newBook);
-          set((state) => {
-            return { books: [...state.books, newBook] };
-          });
-
-          return newBook;
-        },
 
         updateBook: (libraryItemId: string, updates: Partial<Omit<Book, "libraryItemId">>) =>
           set((state) => ({
@@ -125,7 +88,7 @@ export const useBooksStore = create<BooksStore>()(
             ),
           })),
 
-        getOrFetchBook: async ({ userId, libraryItemId, title }) => {
+        getOrFetchBook: async ({ userId, libraryItemId }) => {
           console.log(`[BooksStore] getOrFetchBook called for: ${libraryItemId}`);
 
           // Check cache first
@@ -134,15 +97,15 @@ export const useBooksStore = create<BooksStore>()(
           );
 
           if (existingBook) {
-            console.log(`[BooksStore] Found existing book:`, {
-              title: existingBook.title,
-              currentPosition: existingBook.currentPosition,
-              duration: existingBook.duration,
-            });
+            // console.log(`[BooksStore] Found existing book:`, {
+            //   title: existingBook.title,
+            //   currentPosition: existingBook.currentPosition,
+            //   duration: existingBook.duration,
+            // });
             return existingBook;
           }
 
-          console.log(`[BooksStore] Book not in cache, fetching from server...`);
+          // console.log(`[BooksStore] Book not in cache, fetching from server...`);
 
           // Fetch from server if not found
           try {
@@ -150,16 +113,16 @@ export const useBooksStore = create<BooksStore>()(
             const absAPI = getAbsAPI();
             const progress = await absAPI.getBookProgress(libraryItemId);
 
-            console.log(`[BooksStore] Server progress response:`, {
-              currentTime: progress?.currentTime,
-              duration: progress?.duration,
-              displayTitle: progress?.displayTitle,
-            });
+            // console.log(`[BooksStore] Server progress response:`, {
+            //   currentTime: progress?.currentTime,
+            //   duration: progress?.duration,
+            //   displayTitle: progress?.displayTitle,
+            // });
 
             const newBook: Book = {
               userId,
               libraryItemId,
-              title: title || progress?.displayTitle || "",
+              title: progress?.displayTitle || "",
               playbackSpeed: 1,
               isDownloaded: false,
               currentPosition: progress?.currentTime || 0,
@@ -181,7 +144,7 @@ export const useBooksStore = create<BooksStore>()(
             const defaultBook: Book = {
               userId,
               libraryItemId,
-              title: title || "",
+              title: "",
               playbackSpeed: 1,
               isDownloaded: false,
               currentPosition: 0,

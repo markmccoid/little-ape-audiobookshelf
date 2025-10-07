@@ -26,22 +26,26 @@ const BookControls = ({ libraryItemId }: Props) => {
   };
 
   // Determine if we should show playing state
-  // We don't want to show that the book is playing if it is not the active book.
+  // We don't want to show that the book is playing if it is not the active
   const showPlayingState = isBookActive && isPlaying;
   return (
     <View className="flex-row items-center justify-between px-5">
       <Pressable className="p-3 rounded-lg" onPress={localTogglePlayPause}>
-        <PlayPauseAnimation isPlaying={showPlayingState} size={32} duration={600} />
+        <PlayPauseAnimation isPlaying={showPlayingState} size={50} duration={600} />
       </Pressable>
-      <Pressable onPress={() => updatePlaybackSpeed(1)} className="p-2 border bg-slate-300">
-        <Text>1</Text>
-      </Pressable>
-      <Pressable onPress={() => updatePlaybackSpeed(1.5)} className="p-2 border bg-slate-300">
-        <Text>1.5</Text>
-      </Pressable>
-      <Pressable onPress={() => updatePlaybackSpeed(2)} className="p-2 border bg-slate-300">
-        <Text>2</Text>
-      </Pressable>
+      {isBookActive && (
+        <View>
+          <Pressable onPress={() => updatePlaybackSpeed(1)} className="p-2 border bg-slate-300">
+            <Text>1</Text>
+          </Pressable>
+          <Pressable onPress={() => updatePlaybackSpeed(1.5)} className="p-2 border bg-slate-300">
+            <Text>1.5</Text>
+          </Pressable>
+          <Pressable onPress={() => updatePlaybackSpeed(2)} className="p-2 border bg-slate-300">
+            <Text>2</Text>
+          </Pressable>
+        </View>
+      )}
     </View>
   );
 };

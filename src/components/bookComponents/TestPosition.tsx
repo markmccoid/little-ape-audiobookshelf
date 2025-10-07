@@ -4,10 +4,12 @@ import React from "react";
 import { Text, View } from "react-native";
 
 const TestPosition = () => {
-  const pos = useSmartPosition();
+  // Note: useSmartPosition requires libraryItemId parameter
+  // This component needs to be updated to receive and pass the libraryItemId
+  // const pos = useSmartPosition(libraryItemId);
   return (
     <View>
-      <Text>{formatSeconds(pos)}</Text>
+      <Text>TestPosition: needs libraryItemId prop</Text>
     </View>
   );
 };

@@ -3,6 +3,7 @@ import BookSlider from "@/src/components/bookComponents/BookSlider";
 import TestPosition from "@/src/components/bookComponents/TestPosition";
 import { useGetItemDetails } from "@/src/hooks/ABSHooks";
 import { useSmartPosition } from "@/src/hooks/trackPlayerHooks";
+import { useIsBookActive } from "@/src/store/store-playback";
 import { formatSeconds } from "@/src/utils/formatUtils";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { Image } from "expo-image";
@@ -21,7 +22,9 @@ const BookContainer = () => {
   }>();
   const { data, isPending } = useGetItemDetails(bookid);
 
-  const { position, isLoading, error } = useSmartPosition(bookid, title);
+  const isBookActive = useIsBookActive(bookid);
+
+  const { position, isLoading, error } = useSmartPosition(bookid);
 
   const playbackState = usePlaybackState();
   // Check if player is currently playing
@@ -51,7 +54,7 @@ const BookContainer = () => {
           headerTitle: title,
         }}
       />
-      <BookSlider bookId={bookid} title={title} />
+
       <View className="flex-row justify-center border">
         <Image
           source={data?.coverURI || cover}
@@ -70,6 +73,7 @@ const BookContainer = () => {
         <TestPosition />
       </View>
       <BookControls libraryItemId={bookid} />
+      {isBookActive && <BookSlider bookId={bookid} title={title} />}
       {/* <View className="flex-row items-center justify-between px-5">
         <Pressable className="p-3 bg-blue-500 rounded-lg" onPress={sync}>
           <Text className="text-white font-semibold">sync</Text>
@@ -85,9 +89,9 @@ const BookContainer = () => {
         data.media.chapters.map((el) => {
           return (
             <View key={el.id} className="flex-row gap-2">
-              <Text>{el.title}</Text>
-              <Text>{formatSeconds(el.end - el.start, "compact")}</Text>
-              <Text>{el.end}</Text>
+              <Text className="text-foreground">{el.title}</Text>
+              <Text className="text-foreground">{formatSeconds(el.end - el.start, "compact")}</Text>
+              <Text className="text-foreground">{el.end}</Text>
             </View>
           );
         })}

@@ -38,7 +38,6 @@ export type Book = {
 
 **Key Actions:**
 
-- `getSavedBook(bookItem)` - Gets book from cache or creates new entry
 - `getOrFetchBook({ userId, libraryItemId, title })` - **Async** - Gets from cache or fetches from server
 - `updateCurrentPosition(libraryItemId, position, duration)` - Updates position and duration
 - `updatePlaybackSpeed(libraryItemId, speed)` - Updates playback speed

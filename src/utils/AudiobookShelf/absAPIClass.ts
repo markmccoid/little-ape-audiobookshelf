@@ -729,6 +729,8 @@ export class AudiobookshelfAPI {
       console.log("absAPI-getItemsInProgress: Failed to get finishedItems", error);
       throw error;
     }
+    // User data which includes mediaProgress.  But only ids for libraryItems.  Need to join with
+    // items-in-progress API route to get book detail
     const mediaProgress = userData.mediaProgress;
     const continueListeningBooks = progressData.libraryItems;
     const finishedBooks = finishedData.results;
@@ -741,10 +743,10 @@ export class AudiobookshelfAPI {
     for (let mediaMatch of mediaProgress) {
       // const mediaMatch = mediaProgress.find((el) => el.libraryItemId === book.id);
       let book = continueListeningBooks.find((el) => el.id === mediaMatch?.libraryItemId);
-      let finBook;
       if (!book) {
         book = finishedBooks.find((el) => el.id === mediaMatch?.libraryItemId);
       }
+      // Don't think this should ever get triggered
       if (!book) continue;
 
       const coverURL = this.buildCoverURLSync(book.id, token);
@@ -760,7 +762,7 @@ export class AudiobookshelfAPI {
         progressPercent: mediaMatch?.progress,
         duration: mediaMatch?.duration,
         currentTime: mediaMatch?.currentTime,
-        isFinished: mediaMatch?.isFinished ? false : mediaMatch?.isFinished,
+        isFinished: mediaMatch?.isFinished,
         hideFromContinueListening: mediaMatch?.hideFromContinueListening,
         cover: coverURL.coverThumb,
         coverFull: coverURL.coverFull,

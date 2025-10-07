@@ -1,23 +1,29 @@
 import { useBookData, useSmartPosition } from "@/src/hooks/trackPlayerHooks";
 import { usePlaybackActions, usePlaybackDuration } from "@/src/store/store-playback";
 import { formatSeconds } from "@/src/utils/formatUtils";
+import { useThemeColors } from "@/src/utils/theme";
 // import { Host, Slider } from "@expo/ui/swift-ui";
+import { THEME } from "@/src/utils/theme";
 import Slider from "@react-native-community/slider";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Text, View } from "react-native";
-
 interface BookSliderProps {
   bookId: string;
-  title?: string;
+  // this flag tells us when to use the colors for the mainplayer which is always a "dark" like theme.
+  useStaticColors?: boolean;
 }
 
-const BookSlider: React.FC<BookSliderProps> = ({ bookId, title }) => {
-  const { position } = useSmartPosition(bookId, title);
-  const { duration: bookDuration } = useBookData(bookId, title);
+//!!
+//!! Colors on the MainPlayer need to be static (pretty much always dark theme colors)
+//!! Colors on other views can adhere to dark/light theme.
+//!!
+const BookSlider: React.FC<BookSliderProps> = ({ bookId, useStaticColors = false }) => {
+  const { position } = useSmartPosition(bookId);
+  const { duration: bookDuration } = useBookData(bookId);
   // const loaded = usePlaybackStore((state) => state.isLoaded);
   const playbackDuration = usePlaybackDuration();
   const { seekTo } = usePlaybackActions();
-
+  const themeColors = useThemeColors();
   // Use playback duration when available (book is loaded), otherwise use book duration from cache/server
   const duration = playbackDuration || bookDuration || 0;
   const isMountedRef = useRef(true);
@@ -53,7 +59,12 @@ const BookSlider: React.FC<BookSliderProps> = ({ bookId, title }) => {
 
   return (
     <View>
-      <Text>{formatSeconds(sliderDisplayValue || 0)}</Text>
+      <Text
+        className="text-lg "
+        style={{ color: useStaticColors ? THEME.dark.foreground : themeColors.foreground }}
+      >
+        {formatSeconds(sliderDisplayValue || 0)}
+      </Text>
 
       <Slider
         style={{ width: "100%", height: 40 }}
@@ -62,8 +73,8 @@ const BookSlider: React.FC<BookSliderProps> = ({ bookId, title }) => {
         value={sliderDisplayValue}
         step={1}
         tapToSeek
-        minimumTrackTintColor="#FFFFFF"
-        maximumTrackTintColor="#000000"
+        minimumTrackTintColor={useStaticColors ? THEME.dark.accent : themeColors.accent}
+        maximumTrackTintColor={useStaticColors ? THEME.dark.foreground : themeColors.foreground}
         onSlidingStart={() => setIsUserSliding(true)}
         onValueChange={(value) => {
           setLocalSliderValue(value);

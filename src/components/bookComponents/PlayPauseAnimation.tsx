@@ -1,3 +1,4 @@
+import { useThemeColors } from "@/src/utils/theme";
 import { SymbolView } from "expo-symbols";
 import React, { useEffect } from "react";
 import Animated, {
@@ -34,6 +35,7 @@ const PlayPauseAnimation = ({
   // Shared values for pause icon animation (morphing effect)
   const pauseOpacity = useSharedValue(isPlaying ? 1 : 0);
   const pauseScale = useSharedValue(isPlaying ? 1 : 0.5);
+  const themeColors = useThemeColors();
 
   useEffect(() => {
     // Morphing easing curve - creates smooth in-out transition
@@ -97,10 +99,10 @@ const PlayPauseAnimation = ({
   return (
     <Animated.View style={{ width: size, height: size, position: "relative" }}>
       <Animated.View style={playAnimatedStyle}>
-        <SymbolView name={playIconName} size={size} />
+        <SymbolView name={playIconName} size={size} tintColor={themeColors.accent} />
       </Animated.View>
       <Animated.View style={pauseAnimatedStyle}>
-        <SymbolView name={pauseIconName} size={size} />
+        <SymbolView name={pauseIconName} size={size} tintColor={themeColors.accent} />
       </Animated.View>
     </Animated.View>
   );
