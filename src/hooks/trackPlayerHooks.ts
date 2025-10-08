@@ -24,12 +24,12 @@ export const useSmartPosition = (
   const progress = useProgress();
   const playbackPos = usePlaybackPosition();
   const bookActions = useBooksStore((state) => state.actions);
-  const session = usePlaybackStore((s) => s.session); // ✅ Use selector directly
+  // ✅ Select ONLY the libraryItemId to prevent unnecessary re-renders
+  const sessionLibraryItemId = usePlaybackStore((s) => s.session?.libraryItemId);
 
   const [position, setPosition] = useState<number | undefined>();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-
   // Fetch position on mount or when libraryItemId changes
   useEffect(() => {
     let isMounted = true;
@@ -81,19 +81,26 @@ export const useSmartPosition = (
 
   // Update to playback position when available AND it's for THIS book
   useEffect(() => {
-    const loadedBookId = session?.libraryItemId;
-    const isThisBookLoaded = loadedBookId === libraryItemId;
+    const isThisBookLoaded = sessionLibraryItemId === libraryItemId;
 
     // ✅ Only use TrackPlayer position if THIS book is loaded
     if (isThisBookLoaded) {
-      if (progress.position > 0) {
-        setPosition(progress.position);
-      } else if (playbackPos !== undefined) {
-        setPosition(playbackPos);
+      // Round to 1 decimal place to reduce unnecessary re-renders
+      // from floating point precision changes
+      const newPosition =
+        progress.position > 0
+          ? Math.round(progress.position * 10) / 10
+          : playbackPos !== undefined
+          ? Math.round(playbackPos * 10) / 10
+          : undefined;
+
+      // Only update if position actually changed significantly
+      if (newPosition !== undefined && newPosition !== position) {
+        setPosition(newPosition);
       }
     }
     // If different book is loaded, keep showing cached position
-  }, [progress.position, playbackPos, libraryItemId, session?.libraryItemId]);
+  }, [progress.position, playbackPos, libraryItemId, sessionLibraryItemId, position]);
   return { position, isLoading, error };
 };
 
@@ -122,8 +129,8 @@ export const useBookData = (
   const [isLoading, setIsLoading] = useState(false);
   const [isBookActive, setIsBookActive] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const session = usePlaybackStore((s) => s.session); // ✅ Use selector directly
-  console.log("Session Changed in useBookData", session?.libraryItemId);
+  // ✅ Select ONLY the libraryItemId to prevent unnecessary re-renders
+  const sessionLibraryItemId = usePlaybackStore((s) => s.session?.libraryItemId);
   useEffect(() => {
     let isMounted = true;
 
@@ -134,8 +141,7 @@ export const useBookData = (
       const cached = bookDataCache.get(libraryItemId);
       if (cached) {
         setBook(cached);
-        const loadedBookId = session?.libraryItemId;
-        setIsBookActive(loadedBookId === libraryItemId);
+        setIsBookActive(sessionLibraryItemId === libraryItemId);
         return;
       }
 
@@ -169,8 +175,7 @@ export const useBookData = (
         if (isMounted) {
           setIsLoading(false);
         }
-        const loadedBookId = session?.libraryItemId;
-        setIsBookActive(loadedBookId === libraryItemId);
+        setIsBookActive(sessionLibraryItemId === libraryItemId);
       }
     };
 
@@ -179,7 +184,7 @@ export const useBookData = (
     return () => {
       isMounted = false;
     };
-  }, [libraryItemId, session?.libraryItemId]); // ✅ FIXED: Removed bookActions from dependencies
+  }, [libraryItemId, sessionLibraryItemId]); // ✅ FIXED: Only depend on libraryItemId, not entire session
 
   return {
     book,

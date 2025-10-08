@@ -5,8 +5,11 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 // import { useColorScheme } from "nativewind";
+import * as ExpoDevice from "expo-device";
+import * as SecureStore from "expo-secure-store";
 import { useEffect, useRef, useState } from "react";
-import { LogBox, Text, View, useColorScheme } from "react-native";
+import { LogBox, Platform, Text, View, useColorScheme } from "react-native";
+import { useSyncQueriesExternal } from "react-query-external-sync";
 import MiniPlayer from "../components/MiniPlayer";
 import { AuthProvider, useAuth } from "../contexts/AuthContext";
 import "../global.css";
@@ -14,6 +17,7 @@ import "../lib/polyfills";
 import { absInitalize } from "../utils/AudiobookShelf/absInit";
 import { queryClient } from "../utils/queryClient";
 import { trackPlayerInit } from "../utils/rn-trackplayer/rn-trackplayerInit";
+
 SplashScreen.preventAutoHideAsync();
 
 LogBox.ignoreLogs([
@@ -28,6 +32,35 @@ function AppContent() {
   const router = useRouter();
   const { hasStoredCredentials, checkAuthStatus } = useAuth();
   const initializeOnce = useRef(false);
+  //!! DEBUGGER
+  // Set up the sync hook - automatically disabled in production!
+  useSyncQueriesExternal({
+    queryClient,
+    socketURL: "http://localhost:42831", // Default port for React Native DevTools
+    deviceName: Platform?.OS || "web", // Platform detection
+    platform: Platform?.OS || "web", // Use appropriate platform identifier
+    deviceId: Platform?.OS || "web", // Use a PERSISTENT identifier (see note below)
+    isDevice: ExpoDevice.isDevice, // Automatically detects real devices vs emulators
+    extraDeviceInfo: {
+      // Optional additional info about your device
+      appVersion: "1.0.0",
+      // Add any relevant platform info
+    },
+    enableLogs: true,
+    envVariables: {
+      NODE_ENV: process.env.NODE_ENV,
+      // Add any private environment variables you want to monitor
+      // Public environment variables are automatically loaded
+    },
+    // Storage monitoring with CRUD operations
+    // mmkvStorage: storage, // MMKV storage for ['#storage', 'mmkv', 'key'] queries + monitoring
+    secureStorage: SecureStore, // SecureStore for ['#storage', 'secure', 'key'] queries + monitoring
+    secureStorageKeys: [
+      "audiobookshelf_tokens",
+      "audiobookshelf_server_url",
+      "audiobookshelf_user_info",
+    ], // SecureStore keys to monitor
+  });
 
   useEffect(() => {
     // Only initialize once

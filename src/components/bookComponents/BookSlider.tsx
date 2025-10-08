@@ -2,7 +2,6 @@ import { useBookData, useSmartPosition } from "@/src/hooks/trackPlayerHooks";
 import { usePlaybackActions, usePlaybackDuration } from "@/src/store/store-playback";
 import { formatSeconds } from "@/src/utils/formatUtils";
 import { useThemeColors } from "@/src/utils/theme";
-// import { Host, Slider } from "@expo/ui/swift-ui";
 import { THEME } from "@/src/utils/theme";
 import Slider from "@react-native-community/slider";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -45,17 +44,6 @@ const BookSlider: React.FC<BookSliderProps> = ({ bookId, useStaticColors = false
     [isUserSliding, position]
   );
   // const sliderDisplayValue = isUserSliding ? localSliderValue : position || 0;
-  console.log("BOok Slider", position, sliderDisplayValue);
-  // loaded &&
-  //   console.log(
-  //     "SLIDER",
-  //     loaded,
-  //     isUserSliding,
-  //     localSliderValue,
-  //     position,
-  //     sliderDisplayValue,
-  //     duration
-  //   );
 
   return (
     <View>

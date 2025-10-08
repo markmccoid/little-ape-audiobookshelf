@@ -193,6 +193,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
         queue: tracks,
         duration: sessionData.duration ?? get().duration,
         isLoaded: true,
+        isOnBookScreen: false,
       });
 
       console.log(

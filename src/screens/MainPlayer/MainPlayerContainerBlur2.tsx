@@ -14,7 +14,7 @@ import { useProgress } from "react-native-track-player";
 
 /**
  * MainPlayerContainerBlur2 - Uses image-based blur instead of BlurView
- * 
+ *
  * This version applies blur directly to the background image using the
  * blurRadius prop, rather than using expo-blur's BlurView component.
  */
@@ -27,9 +27,7 @@ const MainPlayerContainerBlur2 = () => {
   const { top, bottom } = useSafeAreaInsets();
   const { y, x, height } = useSafeAreaFrame();
   const colorScheme = useColorScheme();
-  
-  console.log("Safe Area", playbackSession?.coverURL);
-  
+
   if (!playbackSession) {
     return (
       <View style={{ paddingTop: top }} className="flex-1 bg-red-500 justify-center items-center ">
@@ -51,19 +49,19 @@ const MainPlayerContainerBlur2 = () => {
             transition={300}
           />
           {/* Semi-transparent overlay for better text readability */}
-          <View 
-            style={StyleSheet.absoluteFillObject} 
+          <View
+            style={StyleSheet.absoluteFillObject}
             className={colorScheme === "dark" ? "bg-black/50" : "bg-black/40"}
           />
         </>
       )}
-      
+
       {/* Content Layer */}
       <View className="flex-1" style={{ paddingTop: top * 0.7 }}>
         <View className="flex-row justify-center">
           <SymbolView name="minus" size={50} tintColor="white" />
         </View>
-        
+
         {/* Cover Image - Sharp version */}
         <View className="items-center mt-8 mb-6">
           <Image
@@ -73,17 +71,15 @@ const MainPlayerContainerBlur2 = () => {
             transition={300}
           />
         </View>
-        
+
         {/* Book Title and Author */}
         <View className="px-6 mb-6">
           <Text className="text-white text-2xl font-bold text-center mb-2">
             {playbackSession.displayTitle}
           </Text>
-          <Text className="text-white/80 text-lg text-center">
-            {playbackSession.displayAuthor}
-          </Text>
+          <Text className="text-white/80 text-lg text-center">{playbackSession.displayAuthor}</Text>
         </View>
-        
+
         <BookControls libraryItemId={playbackSession.libraryItemId} />
       </View>
     </View>

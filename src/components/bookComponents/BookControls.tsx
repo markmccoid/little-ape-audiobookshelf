@@ -17,7 +17,7 @@ const BookControls = ({ libraryItemId }: Props) => {
   const isBookActive = useIsBookActive(libraryItemId);
   const { position } = useSmartPosition(libraryItemId);
   const isPlaying = usePlaybackIsPlaying();
-
+  console.log("BookControls", isPlaying);
   const localTogglePlayPause = async () => {
     if (!isBookActive) {
       await loadBook(libraryItemId);

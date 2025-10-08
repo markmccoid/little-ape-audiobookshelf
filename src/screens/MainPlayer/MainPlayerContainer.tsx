@@ -1,31 +1,41 @@
 import BookControls from "@/src/components/bookComponents/BookControls";
 import BookImage from "@/src/components/bookComponents/BookImage";
 import BookSlider from "@/src/components/bookComponents/BookSlider";
-import {
-  usePlaybackActions,
-  usePlaybackIsPlaying,
-  usePlaybackSession,
-} from "@/src/store/store-playback";
-import { useHeaderHeight } from "@react-navigation/elements";
+import { usePlaybackActions, usePlaybackSession } from "@/src/store/store-playback";
+import { useFocusEffect } from "@react-navigation/native";
 import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
 import { SymbolView } from "expo-symbols";
-import React from "react";
+import React, { useCallback } from "react";
 import { StyleSheet, Text, View, useColorScheme } from "react-native";
 import { useSafeAreaFrame, useSafeAreaInsets } from "react-native-safe-area-context";
-import { useProgress } from "react-native-track-player";
 
 const MainPlayerContainer = () => {
-  const playbackActions = usePlaybackActions();
-  const isPlaying = usePlaybackIsPlaying();
-  const headerHeight = useHeaderHeight();
   const playbackSession = usePlaybackSession();
-  const progress = useProgress();
+  const { setIsOnBookScreen } = usePlaybackActions();
   const { top, bottom } = useSafeAreaInsets();
   const { y, x, height } = useSafeAreaFrame();
   const colorScheme = useColorScheme();
 
-  console.log("Safe Area", playbackSession?.coverURL);
+  // Detect when modal is focused/unfocused (dismissed)
+  useFocusEffect(
+    useCallback(() => {
+      // This runs when the modal is opened/focused
+      setIsOnBookScreen(true);
+      console.log("MainPlayer: Modal opened/focused");
+
+      return () => {
+        // This runs when the modal is dismissed/unfocused
+        setIsOnBookScreen(false);
+        console.log("MainPlayer: Modal dismissed!");
+        // Add your cleanup logic here
+        // Examples:
+        // - Sync playback position
+        // - Save state
+        // - Update analytics
+      };
+    }, [])
+  );
 
   if (!playbackSession) {
     return (

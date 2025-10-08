@@ -1,8 +1,7 @@
 import BookControls from "@/src/components/bookComponents/BookControls";
 import BookSlider from "@/src/components/bookComponents/BookSlider";
-import TestPosition from "@/src/components/bookComponents/TestPosition";
 import { useGetItemDetails } from "@/src/hooks/ABSHooks";
-import { useSmartPosition } from "@/src/hooks/trackPlayerHooks";
+import { useBookData, useSmartPosition } from "@/src/hooks/trackPlayerHooks";
 import { useIsBookActive } from "@/src/store/store-playback";
 import { formatSeconds } from "@/src/utils/formatUtils";
 import { useHeaderHeight } from "@react-navigation/elements";
@@ -25,6 +24,7 @@ const BookContainer = () => {
   const isBookActive = useIsBookActive(bookid);
 
   const { position, isLoading, error } = useSmartPosition(bookid);
+  const { book } = useBookData(bookid);
 
   const playbackState = usePlaybackState();
   // Check if player is currently playing
@@ -62,18 +62,9 @@ const BookContainer = () => {
           transition={200}
         />
       </View>
-      <View>
-        {isLoading ? (
-          <Text>Loading position...</Text>
-        ) : error ? (
-          <Text>Error loading position</Text>
-        ) : (
-          <Text>{formatSeconds(position || 0)}</Text>
-        )}
-        <TestPosition />
-      </View>
+      <Text>{formatSeconds(book?.currentPosition)}</Text>
       <BookControls libraryItemId={bookid} />
-      {isBookActive && <BookSlider bookId={bookid} title={title} />}
+      {isBookActive && <BookSlider bookId={bookid} />}
       {/* <View className="flex-row items-center justify-between px-5">
         <Pressable className="p-3 bg-blue-500 rounded-lg" onPress={sync}>
           <Text className="text-white font-semibold">sync</Text>

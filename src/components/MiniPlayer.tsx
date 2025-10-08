@@ -20,7 +20,7 @@ export default function MiniPlayer() {
   const position = usePlaybackPosition() || 0;
   const duration = usePlaybackDuration();
   const session = usePlaybackSession();
-  const { play, pause, seekTo, closeSession } = usePlaybackActions();
+  const { play, pause, seekTo, closeSession, setIsOnBookScreen } = usePlaybackActions();
 
   // console.log("MiniPlayer", showMini, isBookLoaded, position);
   const seekBackwardSeconds = 15;
@@ -53,6 +53,7 @@ export default function MiniPlayer() {
   return (
     <Link href="/main-player" asChild>
       <Pressable
+        onPress={() => setIsOnBookScreen(true)}
         className="mx-2 px-3 py-2 bg-slate-400 border-t border-slate-700 absolute rounded-lg"
         style={{ bottom: 100 }}
       >
