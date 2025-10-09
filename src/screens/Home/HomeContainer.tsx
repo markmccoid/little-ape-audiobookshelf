@@ -2,29 +2,40 @@ import { useSafeAbsAPI } from "@/src/contexts/AuthContext";
 import { moveBookToTopOfInProgress, useGetBooksInProgress } from "@/src/hooks/ABSHooks";
 import {
   usePlaybackActions,
-  usePlaybackIsPlaying,
   usePlaybackSession,
+  usePlaybackStore,
 } from "@/src/store/store-playback";
 import { useThemeColors } from "@/src/utils/theme";
 import { useHeaderHeight } from "@react-navigation/elements";
+import { useFocusEffect } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import React, { useCallback, useMemo, useReducer, useRef } from "react";
 import { ListRenderItem, Pressable, ScrollView, Text, View } from "react-native";
 import Animated, { LinearTransition } from "react-native-reanimated";
-import { useProgress } from "react-native-track-player";
+import { usePlaybackState, useProgress } from "react-native-track-player";
 import InProgressItem, { EnhancedBookItem } from "./InProgressItem";
 
 const HomeContainer = () => {
   const themeColors = useThemeColors();
-  const { data: booksInProgress, isLoading, isError } = useGetBooksInProgress();
+  const { data: booksInProgress, isLoading, isError, refetch } = useGetBooksInProgress();
   const { togglePlayPause: storeTogglePlayPause, loadBook: handleInitBook } = usePlaybackActions();
-  const isPlaying = usePlaybackIsPlaying();
+
+  // For this isPlaying, we don't care what book is playing since we are checking that
+  // in the render item.
+  const isPlaying = usePlaybackStore((state) => state.isPlaying);
   const session = usePlaybackSession();
   const progress = useProgress();
   const headerHeight = useHeaderHeight();
   const absAPI = useSafeAbsAPI();
   const activeLibraryId = absAPI?.getActiveLibraryId() || null;
   const [showHidden, toggleShowHidden] = useReducer((state) => !state, false);
+  const pbState = usePlaybackState();
+  // Refetch books in progress when home tab gains focus
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [refetch])
+  );
 
   // Cache to store the last known position for each book
   // This persists between loads/unloads without needing React Query invalidation

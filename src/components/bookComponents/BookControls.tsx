@@ -1,9 +1,13 @@
-import { useSmartPosition } from "@/src/hooks/trackPlayerHooks";
 import {
   useIsBookActive,
   usePlaybackActions,
   usePlaybackIsPlaying,
+  usePlaybackStore,
 } from "@/src/store/store-playback";
+import { useSeekBackwardSeconds, useSeekForwardSeconds } from "@/src/store/store-settings";
+import { useThemeColors } from "@/src/utils/theme";
+import { BlurView } from "expo-blur";
+import { SymbolView } from "expo-symbols";
 import React from "react";
 import { Pressable, Text, View } from "react-native";
 import PlayPauseAnimation from "./PlayPauseAnimation";
@@ -12,40 +16,60 @@ type Props = {
   libraryItemId: string;
 };
 const BookControls = ({ libraryItemId }: Props) => {
-  const { play, pause, updatePlaybackSpeed, togglePlayPause, loadBook } = usePlaybackActions();
+  const { jumpForwardSeconds, updatePlaybackSpeed, togglePlayPause, loadBook, loadBookAndPlay } =
+    usePlaybackActions();
+  const themeColors = useThemeColors();
+  const seekForward = useSeekForwardSeconds();
+  const seekBackward = useSeekBackwardSeconds();
 
   const isBookActive = useIsBookActive(libraryItemId);
-  const { position } = useSmartPosition(libraryItemId);
-  const isPlaying = usePlaybackIsPlaying();
-  console.log("BookControls", isPlaying);
+  const isBookLoaded = usePlaybackStore((state) => state.isLoaded);
+  const isPlaying = usePlaybackIsPlaying(libraryItemId);
+
   const localTogglePlayPause = async () => {
     if (!isBookActive) {
-      await loadBook(libraryItemId);
+      await loadBookAndPlay(libraryItemId);
+    } else {
+      await togglePlayPause();
     }
-    await togglePlayPause();
   };
+  console.log("Book Controls", isBookActive, libraryItemId);
+  const showPlayingState = isBookLoaded && isPlaying;
 
-  // Determine if we should show playing state
-  // We don't want to show that the book is playing if it is not the active
-  const showPlayingState = isBookActive && isPlaying;
   return (
-    <View className="flex-row items-center justify-between px-5">
-      <Pressable className="p-3 rounded-lg" onPress={localTogglePlayPause}>
-        <PlayPauseAnimation isPlaying={showPlayingState} size={50} duration={600} />
-      </Pressable>
-      {isBookActive && (
-        <View>
-          <Pressable onPress={() => updatePlaybackSpeed(1)} className="p-2 border bg-slate-300">
-            <Text>1</Text>
-          </Pressable>
-          <Pressable onPress={() => updatePlaybackSpeed(1.5)} className="p-2 border bg-slate-300">
-            <Text>1.5</Text>
-          </Pressable>
-          <Pressable onPress={() => updatePlaybackSpeed(2)} className="p-2 border bg-slate-300">
-            <Text>2</Text>
-          </Pressable>
-        </View>
-      )}
+    <View className="flex-row items-center justify-center px-5">
+      <BlurView intensity={100} tint="extraLight" className="flex-row rounded-2xl overflow-hidden">
+        <Pressable
+          onPress={() => jumpForwardSeconds(seekBackward)}
+          className="flex-row justify-center items-center"
+        >
+          <Text className="absolute mt-1 text-xl font-semibold text-muted">{seekBackward}</Text>
+          <SymbolView
+            name="arrow.trianglehead.counterclockwise"
+            size={50}
+            tintColor={themeColors.accent}
+          />
+        </Pressable>
+        <Pressable className="py-3 px-10 rounded-lg" onPress={localTogglePlayPause}>
+          <PlayPauseAnimation
+            isPlaying={showPlayingState}
+            size={50}
+            duration={600}
+            isBookActive={isBookActive && isBookLoaded}
+          />
+        </Pressable>
+        <Pressable
+          onPress={() => jumpForwardSeconds(seekForward)}
+          className="flex-row justify-center items-center"
+        >
+          <Text className="absolute mt-1 text-xl font-semibold text-muted">{seekForward}</Text>
+          <SymbolView
+            name="arrow.trianglehead.clockwise"
+            size={50}
+            tintColor={themeColors.accent}
+          />
+        </Pressable>
+      </BlurView>
     </View>
   );
 };

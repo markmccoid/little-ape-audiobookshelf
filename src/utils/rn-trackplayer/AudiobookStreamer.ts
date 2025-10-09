@@ -52,6 +52,11 @@ export default class AudiobookStreamer {
   private syncTimer: NodeJS.Timeout | null = null;
   private syncIntervalSeconds: number = 5; // Default, will be updated from settings
 
+  // Books store update throttling
+  private lastBookStoreUpdate: number = 0;
+  private bookStoreUpdateIntervalMs: number = 30000; // Update books store every 30s
+  private forceBooksStoreUpdate: boolean = false; // Force update on pause/stop
+
   private constructor(
     private serverUrl: string,
     private apiClient: AudiobookshelfAPI, // Your ABS API class instance
@@ -160,6 +165,9 @@ export default class AudiobookStreamer {
    */
   private async handlePlaybackStateChange(state: { state: State }) {
     if (state.state === State.Playing) {
+      // Disable forced books store updates while playing
+      this.forceBooksStoreUpdate = false;
+
       // Start the timer ONLY if it's not already running
       if (this.session && !this.lastSyncTime) {
         // console.log("Playback started, starting sync timer.");
@@ -168,6 +176,9 @@ export default class AudiobookStreamer {
         this.startRealTimeSyncTimer();
       }
     } else if (state.state === State.Paused || state.state === State.Stopped) {
+      // Enable forced books store update on pause/stop
+      this.forceBooksStoreUpdate = true;
+
       // Always perform final sync when playback stops
       if (this.lastSyncTime) {
         // console.log("Playback paused/stopped, performing final sync.");
@@ -303,19 +314,54 @@ export default class AudiobookStreamer {
         );
 
         // ✅ Update books store with confirmed position (server accepted our sync)
-        if (syncResult.success && this.session) {
-          const { useBooksStore } = require("../../store/store-books");
-          const bookActions = useBooksStore.getState().actions;
-          console.log(`[AudiobookStreamer] Updating books store with:`, {
-            libraryItemId: this.session.libraryItemId,
-            currentTime: syncResult.currentTime,
-            duration: this.session.duration,
-          });
-          bookActions.updateCurrentPosition(
-            this.session.libraryItemId,
-            syncResult.currentTime,
-            this.session.duration
-          );
+        // Throttled to reduce re-renders: only update every 30s or when forced (pause/stop)
+        if (syncResult.success) {
+          // ✅ Get libraryItemId from active track to prevent cross-session contamination
+          const activeLibraryItemId = await this.getActiveLibraryItemId();
+
+          if (activeLibraryItemId) {
+            const now = Date.now();
+            const timeSinceLastUpdate = now - this.lastBookStoreUpdate;
+            const shouldUpdate =
+              this.forceBooksStoreUpdate || // Force on pause/stop
+              this.lastBookStoreUpdate === 0 || // First sync
+              timeSinceLastUpdate >= this.bookStoreUpdateIntervalMs; // Every 30s
+
+            if (shouldUpdate) {
+              const { useBooksStore } = require("../../store/store-books");
+              const bookActions = useBooksStore.getState().actions;
+
+              // Get duration from active track or fall back to this.session
+              const activeTrack = await TrackPlayer.getActiveTrack();
+              const activeDuration = activeTrack?.duration || this.session?.duration;
+
+              // console.log(`[AudiobookStreamer] Updating books store with:`, {
+              //   libraryItemId: activeLibraryItemId,
+              //   currentTime: syncResult.currentTime,
+              //   duration: activeDuration,
+              //   reason: this.forceBooksStoreUpdate ? "forced (pause/stop)" : "throttled interval",
+              // });
+              bookActions.updateCurrentPosition(
+                activeLibraryItemId,
+                syncResult.currentTime,
+                activeDuration
+              );
+              this.lastBookStoreUpdate = now;
+
+              // Reset force flag after update
+              if (this.forceBooksStoreUpdate) {
+                this.forceBooksStoreUpdate = false;
+              }
+            } else {
+              // console.log(
+              //   `[AudiobookStreamer] Skipping books store update (throttled) - ${Math.floor(
+              //     timeSinceLastUpdate / 1000
+              //   )}s since last update`
+              // );
+            }
+          } else {
+            console.warn("Could not get active libraryItemId, skipping books store update");
+          }
         }
 
         // Process any queued syncs after successful sync
@@ -403,15 +449,20 @@ export default class AudiobookStreamer {
 
       const syncResult = await this.apiClient.syncProgressToServer(activeSessionId, syncData);
 
-      // ✅ Update books store with confirmed position
-      if (syncResult.success && this.session) {
-        const { useBooksStore } = require("../../store/store-books");
-        const bookActions = useBooksStore.getState().actions;
-        bookActions.updateCurrentPosition(
-          this.session.libraryItemId,
-          syncResult.currentTime,
-          this.session.duration
-        );
+      // ✅ Update books store with confirmed position using active track to prevent cross-book contamination
+      if (syncResult.success) {
+        const activeLibraryItemId = await this.getActiveLibraryItemId();
+        if (activeLibraryItemId) {
+          const { useBooksStore } = require("../../store/store-books");
+          const bookActions = useBooksStore.getState().actions;
+          const activeTrack = await TrackPlayer.getActiveTrack();
+          const activeDuration = activeTrack?.duration || this.session?.duration;
+          bookActions.updateCurrentPosition(
+            activeLibraryItemId,
+            syncResult.currentTime,
+            activeDuration
+          );
+        }
       }
       // console.log(`Position synced to session ${activeSessionId} - position: ${position}s`);
     } catch (error) {
@@ -435,8 +486,12 @@ export default class AudiobookStreamer {
     if (!this.session && !this.pendingSessionClose) return;
     console.log("Close Session");
 
-    // ✅ Prevent any further sync attempts
-    this.sessionClosed = true;
+    // Stop the real-time sync timer first
+    this.stopRealTimeSyncTimer();
+
+    // ✅ Force books store update on session close
+    this.forceBooksStoreUpdate = true;
+
     try {
       // Get sessionId from the currently active track to prevent cross-session contamination
       const activeSessionId = await this.getActiveSessionId();
@@ -446,38 +501,70 @@ export default class AudiobookStreamer {
         // Still clean up local state even if we can't close on server
         this.session = null;
         this.lastSyncTime = null;
+        this.sessionClosed = true;
         return;
       }
 
+      let finalPosition: number;
+      let finalTimeListened: number;
+
       if (this.pendingSessionClose && this.pendingSessionClose.sessionId === sessionId) {
+        finalPosition = this.pendingSessionClose.position;
+        finalTimeListened = this.pendingSessionClose.timeListened;
         console.log(
-          `Closing session ${sessionId} with pending data at position: ${this.pendingSessionClose.position}s, listened: ${this.pendingSessionClose.timeListened}s`
+          `Closing session ${sessionId} with pending data at position: ${finalPosition}s, listened: ${finalTimeListened}s`
         );
         await this.apiClient.closeSession(sessionId, {
-          currentTime: this.pendingSessionClose.position,
-          timeListened: this.pendingSessionClose.timeListened,
+          currentTime: finalPosition,
+          timeListened: finalTimeListened,
         });
         this.pendingSessionClose = null;
       } else {
         const { position } = await TrackPlayer.getProgress();
-        const timeListened = this.lastSyncTime
+        finalPosition = position;
+        finalTimeListened = this.lastSyncTime
           ? Math.floor((Date.now() - this.lastSyncTime) / 1000)
           : 0;
 
         console.log(
-          `Closing session ${sessionId} at position: ${position}s, listened: ${timeListened}s`
+          `Closing session ${sessionId} at position: ${finalPosition}s, listened: ${finalTimeListened}s`
         );
 
         await this.apiClient.closeSession(sessionId, {
-          currentTime: position,
-          timeListened,
+          currentTime: finalPosition,
+          timeListened: finalTimeListened,
         });
       }
 
+      // ✅ Update books store with final position BEFORE clearing session
+      if (this.session) {
+        const { useBooksStore } = require("../../store/store-books");
+        const bookActions = useBooksStore.getState().actions;
+        // console.log(`[AudiobookStreamer] Updating books store on session close with:`, {
+        //   libraryItemId: this.session.libraryItemId,
+        //   currentTime: finalPosition,
+        //   duration: this.session.duration,
+        // });
+        bookActions.updateCurrentPosition(
+          this.session.libraryItemId,
+          finalPosition,
+          this.session.duration
+        );
+        this.lastBookStoreUpdate = Date.now();
+      }
+
+      // ✅ Prevent any further sync attempts AFTER we've done final update
+      this.sessionClosed = true;
       this.session = null;
       this.lastSyncTime = null;
+      this.forceBooksStoreUpdate = false;
     } catch (error) {
       console.error("Failed to close session:", error);
+      // Still mark as closed and clean up even on error
+      this.sessionClosed = true;
+      this.session = null;
+      this.lastSyncTime = null;
+      this.forceBooksStoreUpdate = false;
     }
   }
 
@@ -542,6 +629,40 @@ export default class AudiobookStreamer {
     } catch (error) {
       console.warn("Failed to get active track, falling back to this.session.id:", error);
       return this.session?.id || null;
+    }
+  }
+
+  /**
+   * Gets the libraryItemId from the currently active track to prevent cross-session contamination
+   * during book switches. This ensures books store updates target the correct book even if
+   * this.session has already been updated to a new book.
+   */
+  private async getActiveLibraryItemId(): Promise<string | null> {
+    try {
+      const activeTrack = await TrackPlayer.getActiveTrack();
+      if (activeTrack && "libraryItemId" in activeTrack) {
+        const activeLibraryItemId = activeTrack.libraryItemId as string;
+        const currentLibraryItemId = this.session?.libraryItemId;
+
+        // Log if there's a mismatch to help debug cross-session issues
+        if (currentLibraryItemId && activeLibraryItemId !== currentLibraryItemId) {
+          console.warn(
+            `Library Item ID mismatch - Active track: ${activeLibraryItemId}, Current session: ${currentLibraryItemId}. ` +
+              `Using active track to prevent cross-book contamination.`
+          );
+        }
+
+        return activeLibraryItemId;
+      }
+
+      // Fallback: if no active track or no libraryItemId, use this.session
+      return this.session?.libraryItemId || null;
+    } catch (error) {
+      console.warn(
+        "Failed to get active track, falling back to this.session.libraryItemId:",
+        error
+      );
+      return this.session?.libraryItemId || null;
     }
   }
 

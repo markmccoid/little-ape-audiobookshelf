@@ -5,6 +5,7 @@ import AudiobookStreamer from "@/src/utils/rn-trackplayer/AudiobookStreamer";
 import { trackPlayerInit } from "@/src/utils/rn-trackplayer/rn-trackplayerInit";
 import TrackPlayer, { Event, State, Track } from "react-native-track-player";
 import { create } from "zustand";
+import { moveBookToTopOfInProgress } from "../hooks/ABSHooks";
 import { useBooksStore } from "./store-books";
 
 // Extend Track to reflect extra fields we attach from ABS
@@ -46,11 +47,16 @@ interface PlaybackActions {
 
   // Controls
   loadBook: (itemId: string) => Promise<void>;
+  loadBookAndPlay: (itemId: string) => Promise<void>;
   play: () => Promise<void>;
   pause: () => Promise<void>;
   updatePlaybackSpeed: (newSpeed: number) => Promise<void>;
   togglePlayPause: () => Promise<"playing" | "paused">;
   seekTo: (pos: number) => Promise<void>;
+  jumpForwardSeconds: (forwardSeconds: number) => Promise<void>;
+  jumpBackwardSeconds: (backwardSeconds: number) => Promise<void>;
+  next: () => Promise<void>;
+  prev: () => Promise<void>;
   closeSession: () => Promise<void>;
   destroy: () => Promise<void>;
 
@@ -176,7 +182,6 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
         userId: userId,
         libraryItemId: sessionData.libraryItemId,
       });
-      console.log("playback-savedbook", savedBook);
       const savedPlaybackSpeed = savedBook?.playbackSpeed || 1;
       //~
       await TrackPlayer.reset();
@@ -186,6 +191,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       const startTime = sessionData.startTime || 0;
       await TrackPlayer.seekTo(startTime);
       await TrackPlayer.setRate(savedPlaybackSpeed);
+
       set({ position: startTime });
 
       set({
@@ -195,13 +201,118 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
         isLoaded: true,
         isOnBookScreen: false,
       });
-
+      // move this book to the front of the list (Continue Listening)
+      moveBookToTopOfInProgress(sessionData?.libraryItemId);
       console.log(
         "BOOK LOADED START TIME",
         get().position,
         get().session?.displayTitle,
         get().session?.startTime
       );
+    },
+
+    /**
+     * Loads a book and starts playback, deferring isLoaded state until playback actually starts.
+     * This provides better UX by showing loading state until audio is truly ready.
+     *
+     * @param itemId - The library item ID to load and play
+     */
+    loadBookAndPlay: async (itemId: string) => {
+      const absAuth = getAbsAuth();
+      const userId = absAuth.userId;
+      if (!userId) return;
+
+      // Ensure events are bound before loading
+      get().actions.bindEvents();
+
+      // Check if this book is already loaded
+      const currentSession = get().session;
+      if (currentSession?.libraryItemId === itemId) {
+        // Book already loaded, just start playing
+        console.log(`PlaybackStore: Book ${itemId} already loaded. Starting playback.`);
+        await get().actions.play();
+        return;
+      }
+
+      // Set loading state
+      set({ isLoaded: false });
+
+      let streamer: AudiobookStreamer;
+      try {
+        streamer = AudiobookStreamer.getInstance();
+      } catch {
+        await get().actions.initFromABS();
+        streamer = AudiobookStreamer.getInstance();
+      }
+
+      if (!streamer.isReady()) {
+        throw new Error("Playback not initialized. Call actions.init/initFromABS first.");
+      }
+
+      // Setup audio playback
+      const { tracks, sessionData } = await streamer.setupAudioPlayback(itemId);
+      const playbackSessionData: PlaybackAudioBookSession = { ...sessionData };
+
+      // Get saved book data
+      const bookActions = useBooksStore.getState().actions;
+      const savedBook = await bookActions.getOrFetchBook({
+        userId,
+        libraryItemId: sessionData.libraryItemId,
+      });
+      const savedPlaybackSpeed = savedBook?.playbackSpeed || 1;
+
+      // Setup TrackPlayer
+      await TrackPlayer.reset();
+      await TrackPlayer.add(tracks);
+
+      const startTime = sessionData.startTime || 0;
+      await TrackPlayer.seekTo(startTime);
+      await TrackPlayer.setRate(savedPlaybackSpeed);
+
+      // Set initial state (WITHOUT isLoaded: true)
+      set({
+        session: playbackSessionData,
+        queue: tracks,
+        duration: sessionData.duration ?? get().duration,
+        position: startTime,
+        isOnBookScreen: false,
+        // isLoaded stays false until playback starts
+      });
+
+      // Move book to top of continue listening
+      moveBookToTopOfInProgress(sessionData?.libraryItemId);
+
+      console.log(
+        "BOOK LOADED (waiting for playback to start)",
+        startTime,
+        sessionData.displayTitle
+      );
+
+      // Start playback
+      await TrackPlayer.play();
+
+      // Wait for playback to actually start before setting isLoaded
+      // This creates a Promise that resolves when playback state becomes Playing
+      return new Promise<void>((resolve) => {
+        // Set a timeout as fallback (in case event doesn't fire)
+        const timeout = setTimeout(() => {
+          console.log("Playback state timeout - setting isLoaded anyway");
+          set({ isLoaded: true });
+          listener?.remove();
+          resolve();
+        }, 3000); // 3 second timeout
+
+        // Listen for playback state change
+        const listener = TrackPlayer.addEventListener(Event.PlaybackState, (event) => {
+          if (event.state === State.Playing) {
+            console.log("Playback started - setting isLoaded: true");
+            set({ isLoaded: true });
+            clearTimeout(timeout);
+            listener.remove();
+            resolve();
+          }
+        });
+      });
     },
 
     play: async () => {
@@ -252,6 +363,89 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       } catch (error) {
         // Log but don't throw on sync errors to avoid disrupting playback
         console.warn("Could not sync position after seek:", error);
+      }
+    },
+
+    jumpForwardSeconds: async (forwardSeconds: number) => {
+      const { position: currPos, duration: currDuration } = await TrackPlayer.getProgress();
+      // const currDuration = await TrackPlayer.getDuration();
+      const trackIndex = await TrackPlayer.getActiveTrackIndex();
+      const qLength = get().queue.length;
+      const newPos = currPos + forwardSeconds;
+      console.log("[jumpForward]", trackIndex, qLength);
+      // console.log("[jumpForward]", currPos, forwardSeconds, currDuration, newPos);
+      if (newPos > currDuration) {
+        // go to next track.   calculate how much "seekTo" is in
+        // currtrack and how much in next track.
+        // currPos = 25 currDuration = 30, seekTo = 10
+        // We go to next track and start 5 seconds in next track
+        await get().actions.next();
+
+        if (trackIndex !== qLength - 1) {
+          await TrackPlayer.seekTo(forwardSeconds - (currDuration - currPos));
+        }
+      } else {
+        await TrackPlayer.seekTo(newPos);
+      }
+    },
+
+    jumpBackwardSeconds: async (forwardSeconds: number) => {},
+
+    next: async () => {
+      const trackIndex = await TrackPlayer.getActiveTrackIndex();
+      const queue = await TrackPlayer.getQueue();
+      // const { currentTrack, currentChapterIndex } = get();
+      //! NO CHAPTERS YET Need to determine if we are moving to the next track or the next chapter
+      //! the Queue has tracks in it and each track may or may NOT have chapters.
+      // let moveToAction = "track";
+      // let nextChapter = {} as Chapter;
+
+      // if (currentTrack?.chapters?.length > 0) {
+      //   if (currentTrack?.chapters?.length - 1 !== currentChapterIndex) {
+      //     moveToAction = "chapter";
+      //     nextChapter = currentTrack.chapters[currentChapterIndex + 1];
+      //   }
+      // }
+      // // console.log("NEXT Chapt", nextChapter);
+      // // console.log("movetoaction", moveToAction, currentTrack?.chapters?.length, currentChapterIndex);
+      // if (moveToAction === "chapter") {
+      //   await TrackPlayer.seekTo(nextChapter.startSeconds);
+      //   return;
+      // }
+      if (queue.length - 1 === trackIndex) {
+        await TrackPlayer.skip(0);
+        await TrackPlayer.pause();
+      } else {
+        await TrackPlayer.skipToNext();
+      }
+      // console.log("chapt", chapt, chaptIndex, currTrack?.chapters);
+    },
+    prev: async () => {
+      const trackIndex = await TrackPlayer.getActiveTrackIndex();
+      const queue = await TrackPlayer.getQueue();
+      // const { currentTrack, currentChapterIndex } = get();
+      //!! NO CHAPTERS YET Need to determine if we are moving to the next track or the next chapter
+      // the Queue has tracks in it and each track may or may NOT have chapters.
+      let moveToAction = "track";
+      // let prevChapter = {} as Chapter;
+
+      // if (currentTrack?.chapters?.length > 0) {
+      //   if (currentChapterIndex !== 0) {
+      //     moveToAction = "chapter";
+      //     prevChapter = currentTrack.chapters[currentChapterIndex - 1];
+      //   }
+      // }
+      // console.log("PREV Chapt", prevChapter);
+
+      // if (moveToAction === "chapter") {
+      //   await TrackPlayer.seekTo(prevChapter.startSeconds);
+      //   return;
+      // }
+
+      if (trackIndex === 0) {
+        await TrackPlayer.seekTo(0);
+      } else {
+        await TrackPlayer.skipToPrevious();
       }
     },
 
@@ -321,10 +515,21 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
 
 // ---- Selectors (atomic)
 export const usePlaybackSession = () => usePlaybackStore((s) => s.session);
-export const usePlaybackIsPlaying = () => usePlaybackStore((s) => s.isPlaying);
-export const usePlaybackDuration = () => usePlaybackStore((s) => s.duration);
+export const usePlaybackIsPlaying = (libraryItemId: string) =>
+  usePlaybackStore((s) => {
+    if (s.session?.libraryItemId === libraryItemId) {
+      return s.isPlaying;
+    }
+    return false;
+  });
+export const usePlaybackDuration = (libraryItemId: string) =>
+  usePlaybackStore((s) => {
+    if (s.session?.libraryItemId === libraryItemId) {
+      return s.duration;
+    }
+    return false;
+  });
 export const usePlaybackQueue = () => usePlaybackStore((s) => s.queue);
-export const useIsOnBookScreen = () => usePlaybackStore((s) => s.isOnBookScreen);
 export const usePlaybackActions = () => usePlaybackStore((s) => s.actions);
 
 export const usePlaybackPosition = () =>

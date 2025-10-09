@@ -125,23 +125,33 @@ export const useBookData = (
   isBookActive: boolean;
 } => {
   const bookActions = useBooksStore((state) => state.actions);
-  const [book, setBook] = useState<Book | null>(null);
+  // ✅ Subscribe to the SPECIFIC book from Zustand - will re-render when it updates
+  const bookFromStore = useBooksStore((state) => 
+    state.books.find((b) => b.libraryItemId === libraryItemId)
+  );
   const [isLoading, setIsLoading] = useState(false);
-  const [isBookActive, setIsBookActive] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   // ✅ Select ONLY the libraryItemId to prevent unnecessary re-renders
   const sessionLibraryItemId = usePlaybackStore((s) => s.session?.libraryItemId);
+  const isBookActive = sessionLibraryItemId === libraryItemId;
+
+  // Fetch book on mount if not in store
   useEffect(() => {
     let isMounted = true;
 
     const fetchBook = async () => {
       if (!libraryItemId) return;
 
+      // If already in store, no need to fetch
+      if (bookFromStore) {
+        return;
+      }
+
       // Check cache first (may have been populated by useSmartPosition)
       const cached = bookDataCache.get(libraryItemId);
       if (cached) {
-        setBook(cached);
-        setIsBookActive(sessionLibraryItemId === libraryItemId);
+        // Cache exists but not in store - this shouldn't happen often
+        // but we'll handle it by trusting the store will be updated soon
         return;
       }
 
@@ -163,10 +173,6 @@ export const useBookData = (
 
         // Update cache for other hooks
         bookDataCache.set(libraryItemId, fetchedBook);
-
-        if (isMounted) {
-          setBook(fetchedBook);
-        }
       } catch (err) {
         if (isMounted) {
           setError(err instanceof Error ? err : new Error("Failed to fetch book"));
@@ -175,7 +181,6 @@ export const useBookData = (
         if (isMounted) {
           setIsLoading(false);
         }
-        setIsBookActive(sessionLibraryItemId === libraryItemId);
       }
     };
 
@@ -184,12 +189,12 @@ export const useBookData = (
     return () => {
       isMounted = false;
     };
-  }, [libraryItemId, sessionLibraryItemId]); // ✅ FIXED: Only depend on libraryItemId, not entire session
+  }, [libraryItemId, bookFromStore, bookActions]); // Run when libraryItemId changes or when book appears in store
 
   return {
-    book,
-    duration: book?.duration,
-    playbackSpeed: book?.playbackSpeed ?? 1,
+    book: bookFromStore ?? null,
+    duration: bookFromStore?.duration,
+    playbackSpeed: bookFromStore?.playbackSpeed ?? 1,
     isLoading,
     error,
     isBookActive,

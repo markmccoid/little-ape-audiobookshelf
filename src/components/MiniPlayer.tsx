@@ -15,11 +15,12 @@ const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(ma
 
 export default function MiniPlayer() {
   const showMini = useShowMiniPlayer();
-  const isPlaying = usePlaybackIsPlaying();
   const isBookLoaded = usePlaybackStore((state) => state.isLoaded);
   const position = usePlaybackPosition() || 0;
-  const duration = usePlaybackDuration();
   const session = usePlaybackSession();
+  const isPlaying = usePlaybackIsPlaying(session?.libraryItemId || "");
+  const duration = usePlaybackDuration(session?.libraryItemId || "");
+
   const { play, pause, seekTo, closeSession, setIsOnBookScreen } = usePlaybackActions();
 
   // console.log("MiniPlayer", showMini, isBookLoaded, position);

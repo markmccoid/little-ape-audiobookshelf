@@ -9,7 +9,7 @@ import {
   ABSGetLibraryItem,
   ABSGetLibraryItems,
 } from "../utils/AudiobookShelf/absAPIClass";
-import { useAbsAPI } from "../utils/AudiobookShelf/absInit";
+import { getAbsAPI, useAbsAPI } from "../utils/AudiobookShelf/absInit";
 import { queryClient } from "../utils/queryClient";
 
 //# ----------------------------------------------
@@ -173,6 +173,7 @@ export const useGetBooksInProgress = () => {
       return absAPI?.getItemsInProgress();
     },
     enabled: !!absAPI && !!activeLibraryId,
+    staleTime: 0,
     // refetchOnWindowFocus: false, // Prevent 404s during navigation
     // refetchOnReconnect: false, // Prevent unnecessary refetches
     // retry: (failureCount, error) => {
@@ -198,8 +199,12 @@ export const useGetBooksInProgress = () => {
  * @param bookId - The ID of the book that started playing
  * @param activeLibraryId - The active library ID (for cache key)
  */
-export const moveBookToTopOfInProgress = (bookId: string, activeLibraryId: string | null) => {
-  if (!activeLibraryId) return;
+export const moveBookToTopOfInProgress = (bookId: string, activeLibraryId?: string | null) => {
+  const absAPI = getAbsAPI();
+  // Always get the library ID, even if null
+  if (!activeLibraryId) {
+    activeLibraryId = absAPI?.getActiveLibraryId() || null;
+  }
 
   const queryKey = ["booksInProgress", activeLibraryId];
 

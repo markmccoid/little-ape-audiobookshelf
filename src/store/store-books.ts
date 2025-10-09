@@ -22,10 +22,7 @@ interface BooksState {
 // Define the actions interface
 interface BooksActions {
   setBooks: (books: Book[]) => void;
-  getOrFetchBook: (params: {
-    userId: string;
-    libraryItemId: string;
-  }) => Promise<Book>;
+  getOrFetchBook: (params: { userId: string; libraryItemId: string }) => Promise<Book>;
   updateBook: (libraryItemId: string, updates: Partial<Omit<Book, "libraryItemId">>) => void;
   removeBook: (libraryItemId: string) => void;
   clearBooks: () => void;
@@ -89,7 +86,7 @@ export const useBooksStore = create<BooksStore>()(
           })),
 
         getOrFetchBook: async ({ userId, libraryItemId }) => {
-          console.log(`[BooksStore] getOrFetchBook called for: ${libraryItemId}`);
+          // console.log(`[BooksStore] getOrFetchBook called for: ${libraryItemId}`);
 
           // Check cache first
           const existingBook = get().books.find(
@@ -130,7 +127,7 @@ export const useBooksStore = create<BooksStore>()(
               lastUpdated: Date.now(),
             };
 
-            console.log(`[BooksStore] Saving new book:`, newBook);
+            // console.log(`[BooksStore] Saving new book:`, newBook);
 
             set((state) => ({
               books: [...state.books, newBook],
@@ -161,11 +158,11 @@ export const useBooksStore = create<BooksStore>()(
         },
 
         updateCurrentPosition: (libraryItemId, position, duration) => {
-          console.log(`[BooksStore] updateCurrentPosition called:`, {
-            libraryItemId,
-            position,
-            duration,
-          });
+          // console.log(`[BooksStore] updateCurrentPosition called:`, {
+          //   libraryItemId,
+          //   position,
+          //   duration,
+          // });
 
           set((state) => ({
             books: state.books.map((book) =>
@@ -182,11 +179,6 @@ export const useBooksStore = create<BooksStore>()(
 
           // Log the updated book
           const updatedBook = get().books.find((b) => b.libraryItemId === libraryItemId);
-          console.log(`[BooksStore] Book after update:`, {
-            title: updatedBook?.title,
-            currentPosition: updatedBook?.currentPosition,
-            duration: updatedBook?.duration,
-          });
         },
       },
     }),

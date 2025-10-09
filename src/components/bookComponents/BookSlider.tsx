@@ -1,57 +1,152 @@
 import { useBookData, useSmartPosition } from "@/src/hooks/trackPlayerHooks";
-import { usePlaybackActions, usePlaybackDuration } from "@/src/store/store-playback";
+import {
+  useIsBookActive,
+  usePlaybackActions,
+  usePlaybackDuration,
+} from "@/src/store/store-playback";
 import { formatSeconds } from "@/src/utils/formatUtils";
-import { useThemeColors } from "@/src/utils/theme";
-import { THEME } from "@/src/utils/theme";
+import { THEME, useThemeColors } from "@/src/utils/theme";
 import Slider from "@react-native-community/slider";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Text, View } from "react-native";
+import Animated, {
+  interpolate,
+  ReduceMotion,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from "react-native-reanimated";
 interface BookSliderProps {
   bookId: string;
-  // this flag tells us when to use the colors for the mainplayer which is always a "dark" like theme.
   useStaticColors?: boolean;
 }
 
-//!!
-//!! Colors on the MainPlayer need to be static (pretty much always dark theme colors)
-//!! Colors on other views can adhere to dark/light theme.
-//!!
 const BookSlider: React.FC<BookSliderProps> = ({ bookId, useStaticColors = false }) => {
   const { position } = useSmartPosition(bookId);
   const { duration: bookDuration } = useBookData(bookId);
-  // const loaded = usePlaybackStore((state) => state.isLoaded);
-  const playbackDuration = usePlaybackDuration();
+  const isBookActive = useIsBookActive(bookId);
+  const playbackDuration = usePlaybackDuration(bookId);
   const { seekTo } = usePlaybackActions();
   const themeColors = useThemeColors();
-  // Use playback duration when available (book is loaded), otherwise use book duration from cache/server
+
+  const animatePosition = useSharedValue(0);
+
   const duration = playbackDuration || bookDuration || 0;
-  const isMountedRef = useRef(true);
 
   // Track if user is actively sliding
   const [isUserSliding, setIsUserSliding] = useState(false);
   // Local slider value when user is actively sliding
   const [localSliderValue, setLocalSliderValue] = useState(0);
 
+  // Ref to track the last seek time to prevent race conditions
+  const lastSeekTimeRef = useRef<number>(0);
+  const seekTimeoutRef = useRef<ReturnType<typeof setTimeout>>(null);
+
+  // Update local value when position changes (only if not sliding)
+  useEffect(() => {
+    if (!isUserSliding && position !== undefined) {
+      setLocalSliderValue(position);
+    }
+  }, [position, isUserSliding]);
+
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      isMountedRef.current = false;
+      if (seekTimeoutRef.current) {
+        clearTimeout(seekTimeoutRef.current);
+      }
     };
   }, []);
 
   // Calculate the display value for the slider
-  const sliderDisplayValue = useMemo(
-    () => (isUserSliding ? localSliderValue : position || 0),
-    [isUserSliding, position]
-  );
-  // const sliderDisplayValue = isUserSliding ? localSliderValue : position || 0;
+  const sliderDisplayValue = isUserSliding ? localSliderValue : position || 0;
 
+  const handleSlidingStart = () => {
+    // Clear any pending timeout from previous slide
+    // This prevents the old timeout from setting isUserSliding to false
+    // if user starts sliding again before it completes
+    if (seekTimeoutRef.current) {
+      clearTimeout(seekTimeoutRef.current);
+      seekTimeoutRef.current = null;
+    }
+    animatePosition.value = withSpring(1, {
+      duration: 1250,
+      dampingRatio: 0.5,
+      mass: 20,
+      overshootClamping: false,
+      energyThreshold: 6e-9,
+      reduceMotion: ReduceMotion.System,
+    });
+
+    // animatePosition.value = withTiming(1, { duration: 1000 });
+    setIsUserSliding(true);
+  };
+
+  const handleValueChange = (value: number) => {
+    if (isUserSliding) {
+      setLocalSliderValue(value);
+    }
+  };
+
+  const handleSlidingComplete = async (value: number) => {
+    animatePosition.value = withSpring(0, {
+      duration: 1250,
+      dampingRatio: 0.5,
+      mass: 9,
+      overshootClamping: false,
+      energyThreshold: 6e-9,
+      reduceMotion: ReduceMotion.System,
+    });
+    // animatePosition.value = withTiming(0, { duration: 500 });
+    // Clear any pending seek timeout (defensive programming)
+    if (seekTimeoutRef.current) {
+      clearTimeout(seekTimeoutRef.current);
+      seekTimeoutRef.current = null;
+    }
+
+    // Record the seek time
+    lastSeekTimeRef.current = Date.now();
+
+    try {
+      // Perform the seek
+      await seekTo(value);
+
+      // Delay before allowing position updates again
+      // This prevents the old position from overwriting our seek
+      // The timeout will be cleared if user starts sliding again
+      seekTimeoutRef.current = setTimeout(() => {
+        setIsUserSliding(false);
+        seekTimeoutRef.current = null; // Clean up ref
+      }, 1000);
+    } catch (error) {
+      console.error("Seek error:", error);
+      setIsUserSliding(false);
+      seekTimeoutRef.current = null;
+    }
+  };
+
+  const animStyle = useAnimatedStyle(() => {
+    const scale = interpolate(animatePosition.value, [0, 1], [0.5, 2]);
+    const translateY = interpolate(animatePosition.value, [0, 1], [0, -150]);
+    return {
+      opacity: interpolate(animatePosition.value, [0, 1], [0, 1]),
+      // display: animatePosition.value == 0 ? "none" : "contents",
+      transform: [{ translateY }, { scale }],
+    };
+  });
   return (
-    <View>
+    <View className="flex-col justify-center items-center mx-3">
+      <Animated.View
+        style={[animStyle, { borderRadius: 10, position: "absolute" }]}
+        className="px-2 py-1 bg-accent w-[100] justify-center flex-row"
+      >
+        <Text className="text-lg text-white">{formatSeconds(sliderDisplayValue)}</Text>
+      </Animated.View>
       <Text
-        className="text-lg "
+        className="text-lg"
         style={{ color: useStaticColors ? THEME.dark.foreground : themeColors.foreground }}
       >
-        {formatSeconds(sliderDisplayValue || 0)}
+        {formatSeconds(sliderDisplayValue)} of {formatSeconds(duration)}
       </Text>
 
       <Slider
@@ -59,41 +154,14 @@ const BookSlider: React.FC<BookSliderProps> = ({ bookId, useStaticColors = false
         minimumValue={0}
         maximumValue={duration}
         value={sliderDisplayValue}
-        step={1}
+        step={60}
         tapToSeek
+        disabled={!isBookActive}
         minimumTrackTintColor={useStaticColors ? THEME.dark.accent : themeColors.accent}
         maximumTrackTintColor={useStaticColors ? THEME.dark.foreground : themeColors.foreground}
-        onSlidingStart={() => setIsUserSliding(true)}
-        onValueChange={(value) => {
-          setLocalSliderValue(value);
-        }}
-        onSlidingComplete={async (value) => {
-          // Don't execute seek operations if component is unmounted
-          if (!isMountedRef.current) {
-            console.log("BookSlider: Skipping seekTo - component unmounted");
-            return;
-          }
-          try {
-            await seekTo(value);
-            // Only update state if still mounted
-            if (isMountedRef.current) {
-              setLocalSliderValue(value);
-              // setIsUserSliding(false);
-              setTimeout(() => {
-                if (isMountedRef.current) {
-                  setIsUserSliding(false);
-                }
-              }, 1000);
-            }
-          } catch (error) {
-            console.warn("BookSlider: seekTo failed:", error);
-            // Still reset sliding state even on error
-            if (isMountedRef.current) {
-              setIsUserSliding(false);
-            }
-          }
-        }}
-        // thumbTintColor="red"
+        onSlidingStart={handleSlidingStart}
+        onValueChange={handleValueChange}
+        onSlidingComplete={handleSlidingComplete}
       />
     </View>
   );

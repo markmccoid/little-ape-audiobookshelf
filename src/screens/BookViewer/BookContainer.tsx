@@ -1,12 +1,11 @@
 import BookControls from "@/src/components/bookComponents/BookControls";
 import BookSlider from "@/src/components/bookComponents/BookSlider";
 import { useGetItemDetails } from "@/src/hooks/ABSHooks";
-import { useBookData, useSmartPosition } from "@/src/hooks/trackPlayerHooks";
 import { useIsBookActive } from "@/src/store/store-playback";
 import { formatSeconds } from "@/src/utils/formatUtils";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { Image } from "expo-image";
-import { Stack, useGlobalSearchParams } from "expo-router";
+import { Stack, useLocalSearchParams } from "expo-router";
 import React from "react";
 import { ScrollView, Text, View } from "react-native";
 import { State, usePlaybackState } from "react-native-track-player";
@@ -14,7 +13,7 @@ import { State, usePlaybackState } from "react-native-track-player";
 const BookContainer = () => {
   const headerHeight = useHeaderHeight();
 
-  const { bookid, cover, title } = useGlobalSearchParams<{
+  const { bookid, cover, title } = useLocalSearchParams<{
     bookid: string;
     cover: string;
     title: string;
@@ -23,8 +22,7 @@ const BookContainer = () => {
 
   const isBookActive = useIsBookActive(bookid);
 
-  const { position, isLoading, error } = useSmartPosition(bookid);
-  const { book } = useBookData(bookid);
+  // const { position, isLoading, error } = useSmartPosition(bookid);
 
   const playbackState = usePlaybackState();
   // Check if player is currently playing
@@ -62,9 +60,9 @@ const BookContainer = () => {
           transition={200}
         />
       </View>
-      <Text>{formatSeconds(book?.currentPosition)}</Text>
+
       <BookControls libraryItemId={bookid} />
-      {isBookActive && <BookSlider bookId={bookid} />}
+      <BookSlider bookId={bookid} />
       {/* <View className="flex-row items-center justify-between px-5">
         <Pressable className="p-3 bg-blue-500 rounded-lg" onPress={sync}>
           <Text className="text-white font-semibold">sync</Text>

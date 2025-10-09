@@ -3,17 +3,21 @@ import { Link, Stack, useRouter } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import React from "react";
 
-const LibraryLayout = () => {
+const HomeLayout = () => {
   const router = useRouter();
   return (
-    <Stack>
+    <Stack
+      screenOptions={{
+        headerTransparent: true,
+        headerBlurEffect: "light",
+        headerShadowVisible: true,
+      }}
+    >
       <Stack.Screen
         name="index"
         options={{
           title: "Home",
-          headerTransparent: true,
-          headerBlurEffect: "light",
-          headerShadowVisible: true,
+
           headerLeft: () => {
             return (
               <Link href={{ pathname: "/settings" }} asChild>
@@ -25,8 +29,9 @@ const LibraryLayout = () => {
           },
         }}
       />
+      <Stack.Screen name="[bookid]" options={{ title: "Book" }} />
     </Stack>
   );
 };
 
-export default LibraryLayout;
+export default HomeLayout;
