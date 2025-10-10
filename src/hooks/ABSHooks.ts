@@ -341,11 +341,16 @@ export const useInvalidateQueries = () => {
   const absAPI = useSafeAbsAPI();
   // Always get the library ID, even if null
   const activeLibraryId = absAPI?.getActiveLibraryId();
-  return (queryIdentifier: "booksInProgress") => {
+  return (queryIdentifier: "booksInProgress" | "books") => {
     switch (queryIdentifier) {
       case "booksInProgress":
-        console.log("Invalidating");
+        console.log("Invalidating booksInProgress");
         queryClient.invalidateQueries({ queryKey: ["booksInProgress", activeLibraryId] });
+
+        break;
+      case "books":
+        console.log("Invalidating books");
+        queryClient.invalidateQueries({ queryKey: ["books", activeLibraryId] });
 
         break;
 

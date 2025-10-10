@@ -8,7 +8,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { NativeSyntheticEvent, Pressable, Text, View } from "react-native";
 import LibraryRenderItem from "./LibraryRenderItem";
 // import { LegendList } from "@legendapp/list";
-import { useSafeGetBooks } from "@/src/hooks/ABSHooks";
+import { useInvalidateQueries, useSafeGetBooks } from "@/src/hooks/ABSHooks";
 import { FlashList, FlashListRef } from "@shopify/flash-list";
 import LoadingAnimation from "../../components/common/LoadingAnimation";
 // import { FlashList, FlashListRef } from "@shopify/flash-list";
@@ -17,6 +17,8 @@ const LibraryMain = () => {
   const { isAuthenticated, hasStoredCredentials } = useAuth();
   const router = useRouter();
   const navigation = useNavigation();
+  // I
+  const invalidateQuery = useInvalidateQueries();
   // Get store values and actions
   const storeSearchValue = useSearchValue();
   const sortedBy = useSortedBy();
@@ -155,6 +157,10 @@ const LibraryMain = () => {
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={true}
+        onRefresh={() => invalidateQuery("books")}
+        // when set to true, the spinning activity rings stays up until done
+        // not sure how we could use this.
+        refreshing={false}
         // Add onLayout to ensure list is ready
         onLayout={() => {
           console.log("FlashList laid out");

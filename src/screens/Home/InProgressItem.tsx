@@ -86,6 +86,7 @@ const InProgressItem = React.memo<InProgressItemProps>(
               contentFit="cover"
             />
           </Link.Trigger>
+
           <Link.Menu>
             <Link.MenuAction
               title={item.isPlaying ? "Pause" : "Play"}
@@ -97,7 +98,6 @@ const InProgressItem = React.memo<InProgressItemProps>(
               onPress={() => absAPI?.hideFromContinueListening(item.progressId || "")}
               icon="eye.slash"
             />
-
             <Link.MenuAction
               title="Mark as Finished"
               onPress={() => absAPI?.setBookFinished(item.bookId, true)}

@@ -129,7 +129,10 @@ const HomeContainer = () => {
   }
 
   return (
-    <ScrollView className="flex-1 px-2">
+    <ScrollView 
+      className="flex-1 px-2"
+      contentInsetAdjustmentBehavior="automatic"
+    >
       <View className="mt-2">
         <View className="flex-row gap-2">
           <Text className="text-lg font-bold text-accent">Continue Listening</Text>
