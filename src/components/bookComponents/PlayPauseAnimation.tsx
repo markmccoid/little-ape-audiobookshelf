@@ -32,7 +32,6 @@ const PlayPauseAnimation = ({
 }: PlayPauseAnimationProps) => {
   const resumeIconName = "livephoto.play"; //memories
   const themeColors = useThemeColors();
-
   // Determine initial state based on props
   const getInitialOpacity = (icon: "resume" | "play" | "pause") => {
     if (!isBookActive) return icon === "resume" ? 1 : 0;

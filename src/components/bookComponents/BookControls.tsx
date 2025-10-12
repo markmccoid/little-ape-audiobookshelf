@@ -21,7 +21,6 @@ const BookControls = ({ libraryItemId }: Props) => {
     jumpBackwardSeconds,
     updatePlaybackSpeed,
     togglePlayPause,
-    loadBook,
     loadBookAndPlay,
   } = usePlaybackActions();
   const themeColors = useThemeColors();
@@ -39,7 +38,7 @@ const BookControls = ({ libraryItemId }: Props) => {
       await togglePlayPause();
     }
   };
-  // console.log("Book Controls", isBookActive, libraryItemId);
+  // console.log("Book Controls", isBookLoaded, isPlaying, isBookActive);
   const showPlayingState = isBookLoaded && isPlaying;
 
   return (

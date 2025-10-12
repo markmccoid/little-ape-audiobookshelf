@@ -86,7 +86,7 @@ export const useBooksStore = create<BooksStore>()(
           })),
 
         getOrFetchBook: async ({ userId, libraryItemId }) => {
-          // console.log(`[BooksStore] getOrFetchBook called for: ${libraryItemId}`);
+          console.log(`[BooksStore] getOrFetchBook called for: ${libraryItemId}--${userId}`);
 
           // Check cache first
           const existingBook = get().books.find(

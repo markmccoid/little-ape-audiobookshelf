@@ -770,6 +770,11 @@ export class AudiobookshelfAPI {
         lastUpdate: mediaMatch?.lastUpdate || 0,
       });
     }
+
+    console.log(
+      "ITEMS IN PROGRESS",
+      reverse(sortBy(itemsInProgress, ["lastUpdate"])).map((el) => `${el.bookId}-${el.title}`)
+    );
     // for (let book of continueListeningBooks) {
     //   const mediaMatch = mediaProgress.find((el) => el.libraryItemId === book.id);
 

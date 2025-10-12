@@ -48,6 +48,7 @@ const InProgressItem = React.memo<InProgressItemProps>(
     // console.log("ProgressItem", item.title, item.progressId, item.hideFromContinueListening);
     const absAPI = useSafeAbsAPI();
     const themeColors = useThemeColors();
+    console.log("BOOKS", item.title, item.bookId);
     return (
       <Animated.View
         className="flex-col w-[200] p-2 justify-center items-center rounded-lg"

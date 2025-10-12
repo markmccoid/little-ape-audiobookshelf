@@ -192,7 +192,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
 
       // If no previous start time default to zero
       const startTime = sessionData.startTime || 0;
-      //!!
+      //!! ---------------------------------------
       const chapterInfo = getCurrentChapter({
         chapters: sessionData.chapters,
         position: startTime,
@@ -208,7 +208,6 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
         session: playbackSessionData,
         queue: tracks,
         duration: sessionData.duration ?? get().duration,
-        isLoaded: true,
         isOnBookScreen: false,
       });
       // move this book to the front of the list (Continue Listening)
@@ -228,76 +227,12 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
      * @param itemId - The library item ID to load and play
      */
     loadBookAndPlay: async (itemId: string) => {
-      const absAuth = getAbsAuth();
-      const userId = absAuth.userId;
-      if (!userId) return;
-
-      // Ensure events are bound before loading
-      get().actions.bindEvents();
-
-      // Check if this book is already loaded
-      const currentSession = get().session;
-      if (currentSession?.libraryItemId === itemId) {
-        // Book already loaded, just start playing
-        console.log(`PlaybackStore: Book ${itemId} already loaded. Starting playback.`);
-        await get().actions.play();
-        return;
-      }
-
-      // Set loading state
-      set({ isLoaded: false });
-
-      let streamer: AudiobookStreamer;
-      try {
-        streamer = AudiobookStreamer.getInstance();
-      } catch {
-        await get().actions.initFromABS();
-        streamer = AudiobookStreamer.getInstance();
-      }
-
-      if (!streamer.isReady()) {
-        throw new Error("Playback not initialized. Call actions.init/initFromABS first.");
-      }
-
-      // Setup audio playback
-      const { tracks, sessionData } = await streamer.setupAudioPlayback(itemId);
-      const playbackSessionData: PlaybackAudioBookSession = { ...sessionData };
-
-      // Get saved book data
-      const bookActions = useBooksStore.getState().actions;
-      const savedBook = await bookActions.getOrFetchBook({
-        userId,
-        libraryItemId: sessionData.libraryItemId,
-      });
-      const savedPlaybackSpeed = savedBook?.playbackSpeed || 1;
-
-      // Setup TrackPlayer
-      await TrackPlayer.reset();
-      await TrackPlayer.add(tracks);
-
-      const startTime = sessionData.startTime || 0;
-      await TrackPlayer.seekTo(startTime);
-      await TrackPlayer.setRate(savedPlaybackSpeed);
-
-      // Set initial state (WITHOUT isLoaded: true)
-      set({
-        session: playbackSessionData,
-        queue: tracks,
-        duration: sessionData.duration ?? get().duration,
-        position: startTime,
-        isOnBookScreen: false,
-        // isLoaded stays false until playback starts
-      });
-
-      // Move book to top of continue listening
-      moveBookToTopOfInProgress(sessionData?.libraryItemId);
-
-      console.log(
-        "BOOK LOADED (waiting for playback to start)",
-        startTime,
-        sessionData.displayTitle
-      );
-
+      //!! There may be a better way to name the isLoaded and isPlaying
+      //!! Need to determine what we are using them for.  DO we really need isPlaying
+      //!! or is this gotten through TrackPlayer.
+      //!! isLoaded tells us that the book is loaded AND has started playing, but is this accurate
+      //!!  I'm using this so that as a book loads the Resume icon stays until playing starts so we don't see the play icon first.
+      await get().actions.loadBook(itemId);
       // Start playback
       await TrackPlayer.play();
 

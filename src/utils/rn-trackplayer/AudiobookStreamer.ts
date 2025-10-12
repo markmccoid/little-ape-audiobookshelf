@@ -31,6 +31,8 @@ export default class AudiobookStreamer {
   private playbackStateListener: any = null;
   private isInitialized: boolean = false;
 
+  // Store Track and Chapter offsets
+  private trackOffsets: number[] = [];
   // Race condition prevention
   private isSyncing: boolean = false;
   private sessionClosed: boolean = false;
@@ -232,6 +234,9 @@ export default class AudiobookStreamer {
       );
     }
 
+    // Setup Track and Chapter offsets, etc
+    this.trackOffsets = response.audioTracks.map((el) => el.startOffset) || [];
+
     // Use the real progress, not the session's startTime
     const actualStartTime = currentProgress?.currentTime || response.startTime || 0;
     const coverURL = await this.apiClient.buildCoverURL(itemId);
@@ -292,23 +297,18 @@ export default class AudiobookStreamer {
         return;
       }
 
-      const prevTracksProgress = await this.getPreviousTrackDuration();
-      console.log("Previous Track Progress", prevTracksProgress);
-      let position = currentPosition;
-      if (!currentPosition) {
-        const progress = await TrackPlayer.getProgress();
-        position = progress.position + prevTracksProgress;
-      }
+      const globalPosition = await this.getGlobalPosition(currentPosition);
+
       const now = Date.now();
 
-      console.log(
-        `IN SYNC PROGRESS - Session: ${activeSessionId}, Position: ${position}, LastSync: ${this.lastSyncTime}`
-      );
+      // console.log(
+      //   `IN SYNC PROGRESS - Session: ${activeSessionId}, Position: ${position}, LastSync: ${this.lastSyncTime}`
+      // );
       const timeListened = this.lastSyncTime ? Math.floor((now - this.lastSyncTime) / 1000) : 0;
 
       const syncData: SyncData = {
         timeListened: timeListened,
-        currentTime: position as number,
+        currentTime: globalPosition as number,
       };
 
       try {
@@ -582,24 +582,35 @@ export default class AudiobookStreamer {
     return this.session;
   }
 
-  private async getPreviousTrackDuration(): Promise<number> {
-    // used is calculating progress across all tracks in playlist
-    // If we are on the zero(th) track, the 0 will be returned.
-    const queue = await TrackPlayer.getQueue();
+  //# Returns the global position in seconds.
+  private async getGlobalPosition(cachedPosition?: number): Promise<number> {
     const activeTrackIndex = (await TrackPlayer.getActiveTrackIndex()) || 0;
-    let final = 0;
-    let index = 0;
+    const currentProgress = await TrackPlayer.getProgress();
+    const finalPos = cachedPosition || currentProgress.position;
+    return this.trackOffsets[activeTrackIndex] + finalPos;
+  }
 
-    for (let el of queue) {
-      if (index >= activeTrackIndex) {
-        break;
-      }
-      // console.log("getPrev", index, get().currentTrackIndex, final, el.duration);
-      final += el.duration || 0;
-      index++;
-    }
+  //# Returns the global offset i.e. all previous tracks durations summed
+  private async getPreviousTrackDuration(): Promise<number> {
+    const activeTrackIndex = (await TrackPlayer.getActiveTrackIndex()) || 0;
+    return this.trackOffsets[activeTrackIndex];
+    // // used is calculating progress across all tracks in playlist
+    // // If we are on the zero(th) track, the 0 will be returned.
+    // const queue = await TrackPlayer.getQueue();
+    // const activeTrackIndex = (await TrackPlayer.getActiveTrackIndex()) || 0;
+    // let final = 0;
+    // let index = 0;
 
-    return final;
+    // for (let el of queue) {
+    //   if (index >= activeTrackIndex) {
+    //     break;
+    //   }
+    //   // console.log("getPrev", index, get().currentTrackIndex, final, el.duration);
+    //   final += el.duration || 0;
+    //   index++;
+    // }
+
+    // return final;
   }
   /**
    * Captures current session state before a session switch to ensure proper final sync
@@ -611,14 +622,15 @@ export default class AudiobookStreamer {
     }
 
     try {
-      const { position } = await TrackPlayer.getProgress();
+      // const { position } = await TrackPlayer.getProgress();
+      // const prevTrackDuration = await this.getPreviousTrackDuration();
+      const globalPosition = await this.getGlobalPosition();
       const timeListened = Math.floor((Date.now() - this.lastSyncTime) / 1000);
-      const prevTrackDuration = await this.getPreviousTrackDuration();
 
       // Store the data for final sync after TrackPlayer events settle
       this.pendingSessionClose = {
         sessionId: this.session.id,
-        position: position + prevTrackDuration,
+        position: globalPosition,
         timeListened: timeListened,
       };
 
