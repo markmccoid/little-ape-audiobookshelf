@@ -43,6 +43,8 @@ export default class AudiobookStreamer {
   } | null = null;
   private lastSyncAttempt: number = 0;
   private syncDebounceMs: number = 1000; // Minimum time between sync attempts
+  private lastPauseTime: number = 0;
+  private pauseDebounceMs: number = 500; // 500ms debounce for pause events
 
   // Offline sync properties
   private isOfflineMode: boolean = false;
@@ -146,7 +148,7 @@ export default class AudiobookStreamer {
       if (this.session && this.lastSyncTime) {
         this.syncProgress();
       }
-    }, syncIntervalMs);
+    }, syncIntervalMs) as unknown as NodeJS.Timeout;
 
     // console.log(`Started real-time sync timer with ${this.syncIntervalSeconds}s interval`);
   }
@@ -178,6 +180,14 @@ export default class AudiobookStreamer {
         this.startRealTimeSyncTimer();
       }
     } else if (state.state === State.Paused || state.state === State.Stopped) {
+      // Add debounce mechanism for pause events
+      const now = Date.now();
+      if (now - this.lastPauseTime < this.pauseDebounceMs) {
+        console.log("Pause event debounced, ignoring");
+        return;
+      }
+      this.lastPauseTime = now;
+
       // Enable forced books store update on pause/stop
       this.forceBooksStoreUpdate = true;
 
@@ -188,7 +198,10 @@ export default class AudiobookStreamer {
         // Stop the real-time sync timer
         this.stopRealTimeSyncTimer();
 
-        // Don't sync if we already have a pending session close (avoids race condition)
+        // Add a small delay to ensure all pending operations complete
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        // Check again after the delay to ensure no pending session close was created
         if (!this.pendingSessionClose && !this.isSyncing) {
           await this.syncProgress();
         } else {
@@ -271,18 +284,24 @@ export default class AudiobookStreamer {
       return;
     }
 
+    // Add unique ID for tracking this sync operation
+    const syncId = Math.random().toString(36).substring(7);
+    console.log(`[SYNC-${syncId}] Starting sync progress`);
+
     this.isSyncing = true;
 
     try {
       // Handle pending session close first if it exists
       if (this.pendingSessionClose) {
-        // console.log(`Processing pending session close for ${this.pendingSessionClose.sessionId}`);
+        console.log(
+          `[SYNC-${syncId}] Processing pending session close for ${this.pendingSessionClose.sessionId}`
+        );
         await this.apiClient.syncProgressToServer(this.pendingSessionClose.sessionId, {
           timeListened: this.pendingSessionClose.timeListened,
           currentTime: this.pendingSessionClose.position,
         });
         console.log(
-          `Final sync completed for session ${this.pendingSessionClose.sessionId} - position: ${this.pendingSessionClose.position}s - listened: ${this.pendingSessionClose.timeListened}`
+          `[SYNC-${syncId}] Final sync completed for session ${this.pendingSessionClose.sessionId} - position: ${this.pendingSessionClose.position}s - listened: ${this.pendingSessionClose.timeListened}`
         );
         this.pendingSessionClose = null;
         return;
@@ -293,7 +312,7 @@ export default class AudiobookStreamer {
       // Get sessionId from the currently active track to prevent cross-session contamination
       const activeSessionId = await this.getActiveSessionId();
       if (!activeSessionId) {
-        console.warn("No active session ID found, skipping sync");
+        console.warn(`[SYNC-${syncId}] No active session ID found, skipping sync`);
         return;
       }
 
@@ -316,9 +335,9 @@ export default class AudiobookStreamer {
 
         this.lastSyncTime = now;
 
-        // console.log(
-        //   `Synced to session ${activeSessionId} - listened: ${timeListened}s, position: ${position}s`
-        // );
+        console.log(
+          `[SYNC-${syncId}] Synced to session ${activeSessionId} - listened: ${timeListened}s, position: ${globalPosition}s`
+        );
 
         // ✅ Update books store with confirmed position (server accepted our sync)
         // Throttled to reduce re-renders: only update every 30s or when forced (pause/stop)
@@ -408,6 +427,7 @@ export default class AudiobookStreamer {
       }
     } finally {
       this.isSyncing = false;
+      console.log(`[SYNC-${syncId}] Sync finished`);
     }
   }
 
@@ -587,6 +607,21 @@ export default class AudiobookStreamer {
     const activeTrackIndex = (await TrackPlayer.getActiveTrackIndex()) || 0;
     const currentProgress = await TrackPlayer.getProgress();
     const finalPos = cachedPosition || currentProgress.position;
+
+    // Ensure we have valid track offsets
+    if (!this.trackOffsets || this.trackOffsets.length === 0) {
+      console.warn("No track offsets available, returning raw position");
+      return finalPos;
+    }
+
+    // Ensure the active track index is within bounds
+    if (activeTrackIndex >= this.trackOffsets.length) {
+      console.warn(
+        `Active track index ${activeTrackIndex} exceeds track offsets length ${this.trackOffsets.length}, using last offset`
+      );
+      return (this.trackOffsets[this.trackOffsets.length - 1] || 0) + finalPos;
+    }
+
     return this.trackOffsets[activeTrackIndex] + finalPos;
   }
 
@@ -634,9 +669,11 @@ export default class AudiobookStreamer {
         timeListened: timeListened,
       };
 
-      console.log(`Captured session ${this.session.id} at position ${position}s for final sync`);
-      // Flush pending immediately to avoid waiting for next progress event
-      await this.syncProgress();
+      console.log(
+        `Captured session ${this.session.id} at position ${globalPosition}s for final sync`
+      );
+      // Don't immediately sync here - let the regular sync process handle it
+      // This prevents duplicate syncs
     } catch (error) {
       console.error("Failed to capture current session state:", error);
     }
@@ -815,6 +852,7 @@ export default class AudiobookStreamer {
     this.sessionClosed = false;
     this.pendingSessionClose = null;
     this.lastSyncAttempt = 0; // Reset debounce timer
+    this.lastPauseTime = 0; // Reset pause debounce timer
 
     // Clear queued syncs on cleanup
     this.queuedSyncs = [];
