@@ -5,7 +5,7 @@ import {
   usePlaybackStore,
 } from "@/src/store/store-playback";
 import { useSeekBackwardSeconds, useSeekForwardSeconds } from "@/src/store/store-settings";
-import { useThemeColors } from "@/src/utils/theme";
+import { THEME, useThemeColors } from "@/src/utils/theme";
 import { BlurView } from "expo-blur";
 import { SymbolView } from "expo-symbols";
 import React from "react";
@@ -16,8 +16,14 @@ type Props = {
   libraryItemId: string;
 };
 const BookControls = ({ libraryItemId }: Props) => {
-  const { jumpForwardSeconds, updatePlaybackSpeed, togglePlayPause, loadBook, loadBookAndPlay } =
-    usePlaybackActions();
+  const {
+    jumpForwardSeconds,
+    jumpBackwardSeconds,
+    updatePlaybackSpeed,
+    togglePlayPause,
+    loadBook,
+    loadBookAndPlay,
+  } = usePlaybackActions();
   const themeColors = useThemeColors();
   const seekForward = useSeekForwardSeconds();
   const seekBackward = useSeekBackwardSeconds();
@@ -33,21 +39,27 @@ const BookControls = ({ libraryItemId }: Props) => {
       await togglePlayPause();
     }
   };
-  console.log("Book Controls", isBookActive, libraryItemId);
+  // console.log("Book Controls", isBookActive, libraryItemId);
   const showPlayingState = isBookLoaded && isPlaying;
 
   return (
     <View className="flex-row items-center justify-center px-5">
       <BlurView intensity={100} tint="extraLight" className="flex-row rounded-2xl overflow-hidden">
         <Pressable
-          onPress={() => jumpForwardSeconds(seekBackward)}
+          onPress={() => jumpBackwardSeconds(seekBackward)}
           className="flex-row justify-center items-center"
         >
-          <Text className="absolute mt-1 text-xl font-semibold text-muted">{seekBackward}</Text>
+          <Text
+            className="absolute mt-1 text-xl font-semibold"
+            style={{ color: THEME.light.muted }}
+          >
+            {seekBackward}
+          </Text>
           <SymbolView
             name="arrow.trianglehead.counterclockwise"
             size={50}
-            tintColor={themeColors.accent}
+            tintColor={THEME.light.accent}
+            // tintColor={themeColors.accent}
           />
         </Pressable>
         <Pressable className="py-3 px-10 rounded-lg" onPress={localTogglePlayPause}>
@@ -62,11 +74,16 @@ const BookControls = ({ libraryItemId }: Props) => {
           onPress={() => jumpForwardSeconds(seekForward)}
           className="flex-row justify-center items-center"
         >
-          <Text className="absolute mt-1 text-xl font-semibold text-muted">{seekForward}</Text>
+          <Text
+            className="absolute mt-1 text-xl font-semibold "
+            style={{ color: THEME.light.muted }}
+          >
+            {seekForward}
+          </Text>
           <SymbolView
             name="arrow.trianglehead.clockwise"
             size={50}
-            tintColor={themeColors.accent}
+            tintColor={THEME.light.accent}
           />
         </Pressable>
       </BlurView>

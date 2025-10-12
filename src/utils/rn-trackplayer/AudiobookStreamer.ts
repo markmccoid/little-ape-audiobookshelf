@@ -146,7 +146,7 @@ export default class AudiobookStreamer {
       }
     }, syncIntervalMs);
 
-    console.log(`Started real-time sync timer with ${this.syncIntervalSeconds}s interval`);
+    // console.log(`Started real-time sync timer with ${this.syncIntervalSeconds}s interval`);
   }
 
   /**
@@ -156,7 +156,7 @@ export default class AudiobookStreamer {
     if (this.syncTimer) {
       clearInterval(this.syncTimer);
       this.syncTimer = null;
-      console.log("Stopped real-time sync timer");
+      // console.log("Stopped real-time sync timer");
     }
   }
 
@@ -259,6 +259,7 @@ export default class AudiobookStreamer {
   }
 
   async syncProgress(currentPosition?: number): Promise<void> {
+    // const playbackActions = usePlaybackStore.getState().actions;
     // Prevent concurrent sync operations or syncing to closed sessions
     if (this.isSyncing || this.sessionClosed) {
       // console.log("Sync already in progress or session closed, skipping...");
@@ -291,17 +292,23 @@ export default class AudiobookStreamer {
         return;
       }
 
-      const position = currentPosition ?? (await TrackPlayer.getProgress()).position;
+      const prevTracksProgress = await this.getPreviousTrackDuration();
+      console.log("Previous Track Progress", prevTracksProgress);
+      let position = currentPosition;
+      if (!currentPosition) {
+        const progress = await TrackPlayer.getProgress();
+        position = progress.position + prevTracksProgress;
+      }
       const now = Date.now();
 
-      // console.log(
-      //   `IN SYNC PROGRESS - Session: ${activeSessionId}, Position: ${position}, LastSync: ${this.lastSyncTime}`
-      // );
+      console.log(
+        `IN SYNC PROGRESS - Session: ${activeSessionId}, Position: ${position}, LastSync: ${this.lastSyncTime}`
+      );
       const timeListened = this.lastSyncTime ? Math.floor((now - this.lastSyncTime) / 1000) : 0;
 
       const syncData: SyncData = {
         timeListened: timeListened,
-        currentTime: position,
+        currentTime: position as number,
       };
 
       try {
@@ -309,9 +316,9 @@ export default class AudiobookStreamer {
 
         this.lastSyncTime = now;
 
-        console.log(
-          `Synced to session ${activeSessionId} - listened: ${timeListened}s, position: ${position}s`
-        );
+        // console.log(
+        //   `Synced to session ${activeSessionId} - listened: ${timeListened}s, position: ${position}s`
+        // );
 
         // ✅ Update books store with confirmed position (server accepted our sync)
         // Throttled to reduce re-renders: only update every 30s or when forced (pause/stop)
@@ -440,11 +447,12 @@ export default class AudiobookStreamer {
         console.warn("No active session ID found, skipping position sync");
         return;
       }
+      const prevTrackDuration = await this.getPreviousTrackDuration();
 
       // For seek operations, we don't accumulate timeListened - just sync the new position
       const syncData: SyncData = {
         timeListened: 0,
-        currentTime: position,
+        currentTime: position + prevTrackDuration,
       };
 
       const syncResult = await this.apiClient.syncProgressToServer(activeSessionId, syncData);
@@ -521,7 +529,8 @@ export default class AudiobookStreamer {
         this.pendingSessionClose = null;
       } else {
         const { position } = await TrackPlayer.getProgress();
-        finalPosition = position;
+        const prevTrackDuration = this.getQueuedSyncCount();
+        finalPosition = position + prevTrackDuration;
         finalTimeListened = this.lastSyncTime
           ? Math.floor((Date.now() - this.lastSyncTime) / 1000)
           : 0;
@@ -573,6 +582,25 @@ export default class AudiobookStreamer {
     return this.session;
   }
 
+  private async getPreviousTrackDuration(): Promise<number> {
+    // used is calculating progress across all tracks in playlist
+    // If we are on the zero(th) track, the 0 will be returned.
+    const queue = await TrackPlayer.getQueue();
+    const activeTrackIndex = (await TrackPlayer.getActiveTrackIndex()) || 0;
+    let final = 0;
+    let index = 0;
+
+    for (let el of queue) {
+      if (index >= activeTrackIndex) {
+        break;
+      }
+      // console.log("getPrev", index, get().currentTrackIndex, final, el.duration);
+      final += el.duration || 0;
+      index++;
+    }
+
+    return final;
+  }
   /**
    * Captures current session state before a session switch to ensure proper final sync
    * This prevents race conditions where TrackPlayer gets reset before we can sync the old session
@@ -585,11 +613,12 @@ export default class AudiobookStreamer {
     try {
       const { position } = await TrackPlayer.getProgress();
       const timeListened = Math.floor((Date.now() - this.lastSyncTime) / 1000);
+      const prevTrackDuration = await this.getPreviousTrackDuration();
 
       // Store the data for final sync after TrackPlayer events settle
       this.pendingSessionClose = {
         sessionId: this.session.id,
-        position: position,
+        position: position + prevTrackDuration,
         timeListened: timeListened,
       };
 

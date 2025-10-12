@@ -4,11 +4,12 @@ import { PortalHost } from "@rn-primitives/portal";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-// import { useColorScheme } from "nativewind";
+
 import * as ExpoDevice from "expo-device";
 import * as SecureStore from "expo-secure-store";
+import { useColorScheme } from "nativewind";
 import { useEffect, useRef, useState } from "react";
-import { LogBox, Platform, Text, View, useColorScheme } from "react-native";
+import { LogBox, Platform, Text, View } from "react-native";
 import { useSyncQueriesExternal } from "react-query-external-sync";
 import MiniPlayer from "../components/MiniPlayer";
 import { AuthProvider, useAuth } from "../contexts/AuthContext";
@@ -127,8 +128,10 @@ function AppContent() {
 }
 
 export default function RootLayout() {
-  // const { colorScheme, setColorScheme } = useColorScheme();
-  const colorScheme = useColorScheme();
+  const { colorScheme, setColorScheme } = useColorScheme();
+
+  // const colorScheme = useColorScheme();
+
   // useEffect(() => {
   //   Appearance.setColorScheme("light");
   // }, [colorScheme]);

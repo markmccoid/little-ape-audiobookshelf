@@ -73,7 +73,8 @@ const BookContainer = () => {
           <Text className="text-white font-semibold">START PLAYBACK</Text>
         </Pressable>
       </View> */}
-      <Text>BookIdRoute -- {bookid}</Text>
+      <Text className="text-foreground ">BookIdRoute -- {bookid}</Text>
+      <Text className="text-foreground ">FOREGROUND</Text>
       {data &&
         data.media.chapters.map((el) => {
           return (

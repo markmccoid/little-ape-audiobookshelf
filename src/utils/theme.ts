@@ -21,6 +21,7 @@ const THEME = {
     // Accent color for interactive elements
     accent: "#41751C", // green accent
     accentForeground: "#FFFFFF",
+    accentMuted: "#3D4D1A",
 
     // Status colors
     destructive: "#EF4444",
@@ -45,6 +46,7 @@ const THEME = {
     // Accent color for interactive elements
     accent: "#84CC16", // Lighter green for dark mode
     accentForeground: "#09090B",
+    accentMuted: "#6B7F35",
 
     // Status colors
     destructive: "#F87171",
@@ -84,7 +86,7 @@ export { THEME };
 
 // Helper hook for accessing theme colors in components
 export const useThemeColors = () => {
-  const colorScheme = useColorScheme();
+  const colorScheme = useColorScheme() || "light";
   return THEME[colorScheme];
 };
 

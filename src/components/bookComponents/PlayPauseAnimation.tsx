@@ -1,6 +1,6 @@
-import { useThemeColors } from "@/src/utils/theme";
+import { THEME, useThemeColors } from "@/src/utils/theme";
 import { SymbolView } from "expo-symbols";
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -61,7 +61,6 @@ const PlayPauseAnimation = ({
   useEffect(() => {
     // Morphing easing curve - creates smooth in-out transition
     const morphEasing = Easing.bezier(0.4, 0.0, 0.2, 1);
-    console.log("PLAYANIM", isBookActive);
     if (!isBookActive) {
       // State 1: Book is NOT active - show resume icon
       // Hide play and pause icons, show resume icon
@@ -187,15 +186,15 @@ const PlayPauseAnimation = ({
     <Animated.View style={{ width: size, height: size, position: "relative" }}>
       {/* Resume icon - shown when book is not active */}
       <Animated.View style={resumeAnimatedStyle}>
-        <SymbolView name={resumeIconName} size={size} tintColor={themeColors.accent} />
+        <SymbolView name={resumeIconName} size={size} tintColor={THEME.light.accent} />
       </Animated.View>
       {/* Play icon - shown when book is active but paused */}
       <Animated.View style={playAnimatedStyle}>
-        <SymbolView name={playIconName} size={size} tintColor={themeColors.accent} />
+        <SymbolView name={playIconName} size={size} tintColor={THEME.light.accent} />
       </Animated.View>
       {/* Pause icon - shown when book is active and playing */}
       <Animated.View style={pauseAnimatedStyle}>
-        <SymbolView name={pauseIconName} size={size} tintColor={themeColors.accent} />
+        <SymbolView name={pauseIconName} size={size} tintColor={THEME.light.accent} />
       </Animated.View>
     </Animated.View>
   );

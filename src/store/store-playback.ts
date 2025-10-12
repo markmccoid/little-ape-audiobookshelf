@@ -6,6 +6,7 @@ import { trackPlayerInit } from "@/src/utils/rn-trackplayer/rn-trackplayerInit";
 import TrackPlayer, { Event, State, Track } from "react-native-track-player";
 import { create } from "zustand";
 import { moveBookToTopOfInProgress } from "../hooks/ABSHooks";
+import { getCurrentChapter } from "../utils/rn-trackplayer/trackPlayerUtils";
 import { useBooksStore } from "./store-books";
 
 // Extend Track to reflect extra fields we attach from ABS
@@ -50,6 +51,7 @@ interface PlaybackActions {
   loadBookAndPlay: (itemId: string) => Promise<void>;
   play: () => Promise<void>;
   pause: () => Promise<void>;
+  getPrevTrackDuration: () => Promise<number>;
   updatePlaybackSpeed: (newSpeed: number) => Promise<void>;
   togglePlayPause: () => Promise<"playing" | "paused">;
   seekTo: (pos: number) => Promise<void>;
@@ -121,6 +123,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       // set in setup track player.
       const l1 = TrackPlayer.addEventListener(Event.PlaybackProgressUpdated, (e) => {
         const position = e.position;
+        console.log("ProgressUpdated Track", e.track);
         const duration = typeof e.duration === "number" ? e.duration : get().duration;
 
         set({ position, duration });
@@ -189,6 +192,13 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
 
       // If no previous start time default to zero
       const startTime = sessionData.startTime || 0;
+      //!!
+      const chapterInfo = getCurrentChapter({
+        chapters: sessionData.chapters,
+        position: startTime,
+      });
+      console.log("Chapter Info", chapterInfo);
+      //!!
       await TrackPlayer.seekTo(startTime);
       await TrackPlayer.setRate(savedPlaybackSpeed);
 
@@ -326,6 +336,25 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       // AudiobookStreamer handles immediate sync on pause via its own event listener
     },
 
+    getPrevTrackDuration: async () => {
+      // used is calculating progress across all tracks in playlist
+      // If we are on the zero(th) track, the 0 will be returned.
+      const queue = await TrackPlayer.getQueue();
+      const activeTrackIndex = (await TrackPlayer.getActiveTrackIndex()) || 0;
+      let final = 0;
+      let index = 0;
+
+      for (let el of queue) {
+        if (index >= activeTrackIndex) {
+          break;
+        }
+        // console.log("getPrev", index, get().currentTrackIndex, final, el.duration);
+        final += el.duration || 0;
+        index++;
+      }
+
+      return final;
+    },
     updatePlaybackSpeed: async (newSpeed) => {
       const bookActions = useBooksStore.getState().actions;
       await TrackPlayer.setRate(newSpeed);
@@ -389,7 +418,30 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       }
     },
 
-    jumpBackwardSeconds: async (forwardSeconds: number) => {},
+    jumpBackwardSeconds: async (backwardSeconds: number) => {
+      const { position: currPos, duration: currDuration } = await TrackPlayer.getProgress();
+      const newPos = currPos - backwardSeconds;
+      if (newPos < 0) {
+        // go to prev track.  You could get crazy and calculate how much "seekBack" is in
+        // currtrack and how much in prev track.
+        // currPos = 25 currDuration = 30, seekTo = 10
+        // We go to prev track and start 5 seconds in prev track
+        //!  IMPLEMENTED Below
+
+        const trackIndex = await TrackPlayer.getActiveTrackIndex();
+        await get().actions.prev();
+
+        console.log("TrackIndex", trackIndex, currDuration, currPos, newPos);
+        if (trackIndex !== 0) {
+          const { duration } = await TrackPlayer.getActiveTrack();
+          const { duration: progDur } = await TrackPlayer.getProgress();
+          console.log("TrackIndex>0", trackIndex, progDur, duration, currPos, newPos);
+          await TrackPlayer.seekTo(duration + newPos);
+        }
+      } else {
+        await TrackPlayer.seekTo(newPos);
+      }
+    },
 
     next: async () => {
       const trackIndex = await TrackPlayer.getActiveTrackIndex();
@@ -412,6 +464,9 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       //   await TrackPlayer.seekTo(nextChapter.startSeconds);
       //   return;
       // }
+      // Check if we are on the last track of the queue
+      // If so, go to first track and pause
+      //!! If only one track we should give option to go to next or at least don't do anything.
       if (queue.length - 1 === trackIndex) {
         await TrackPlayer.skip(0);
         await TrackPlayer.pause();

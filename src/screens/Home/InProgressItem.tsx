@@ -51,7 +51,9 @@ const InProgressItem = React.memo<InProgressItemProps>(
     return (
       <Animated.View
         className="flex-col w-[200] p-2 justify-center items-center rounded-lg"
-        style={{ backgroundColor: item.isCurrentlyLoaded ? "#ecce67aa" : "transparent" }}
+        // style={{
+        //   backgroundColor: item.isCurrentlyLoaded ? themeColors.accentMuted : "transparent",
+        // }}
       >
         {(item.isFinished || item.hideFromContinueListening) && (
           <View className="absolute top-0 border-hairline rounded-full z-10 left-0 bg-gray-300">
@@ -61,59 +63,66 @@ const InProgressItem = React.memo<InProgressItemProps>(
             {item.isFinished && <SymbolView name="checkmark" tintColor={themeColors.warning} />}
           </View>
         )}
-        <Link
-          href={{
-            pathname: `/(tabs)/(home)/[bookid]`,
-            params: {
-              bookid: item.bookId,
-              cover: item.coverFull,
-              title: item.title,
-            },
+        <View
+          className="p-2"
+          style={{
+            backgroundColor: item.isCurrentlyLoaded ? themeColors.accent : "transparent",
+            borderRadius: 10,
           }}
         >
-          <Link.Trigger>
-            {/* <SwiftImage systemName="line.3.horizontal.decrease.circle" size={24} /> */}
+          <Link
+            href={{
+              pathname: `/(tabs)/(home)/[bookid]`,
+              params: {
+                bookid: item.bookId,
+                cover: item.coverFull,
+                title: item.title,
+              },
+            }}
+          >
+            <Link.Trigger>
+              {/* <SwiftImage systemName="line.3.horizontal.decrease.circle" size={24} /> */}
 
-            <Image
-              source={item.cover}
-              style={{
-                width: 175,
-                height: 175,
-                borderRadius: 10,
-                borderWidth: StyleSheet.hairlineWidth,
-              }}
-              className="border-hairline"
-              contentFit="cover"
-            />
-          </Link.Trigger>
+              <Image
+                source={item.cover}
+                style={{
+                  width: 175,
+                  height: 175,
+                  borderRadius: 10,
+                  borderWidth: StyleSheet.hairlineWidth,
+                }}
+                className="border-hairline"
+                contentFit="cover"
+              />
+            </Link.Trigger>
 
-          <Link.Menu>
-            <Link.MenuAction
-              title={item.isPlaying ? "Pause" : "Play"}
-              onPress={playPause}
-              icon={item.isPlaying ? "pause" : "play"}
-            />
-            <Link.MenuAction
-              title="Hide"
-              onPress={() => absAPI?.hideFromContinueListening(item.progressId || "")}
-              icon="eye.slash"
-            />
-            <Link.MenuAction
-              title="Mark as Finished"
-              onPress={() => absAPI?.setBookFinished(item.bookId, true)}
-              icon="flag"
-            />
-            <Link.MenuAction
-              title="Mark as Unfinished"
-              onPress={() => absAPI?.setBookFinished(item.bookId, false)}
-              icon="flag.slash"
-            />
-          </Link.Menu>
-        </Link>
-
+            <Link.Menu>
+              <Link.MenuAction
+                title={item.isPlaying ? "Pause" : "Play"}
+                onPress={playPause}
+                icon={item.isPlaying ? "pause" : "play"}
+              />
+              <Link.MenuAction
+                title="Hide"
+                onPress={() => absAPI?.hideFromContinueListening(item.progressId || "")}
+                icon="eye.slash"
+              />
+              <Link.MenuAction
+                title="Mark as Finished"
+                onPress={() => absAPI?.setBookFinished(item.bookId, true)}
+                icon="flag"
+              />
+              <Link.MenuAction
+                title="Mark as Unfinished"
+                onPress={() => absAPI?.setBookFinished(item.bookId, false)}
+                icon="flag.slash"
+              />
+            </Link.Menu>
+          </Link>
+        </View>
         <View className="flex-col mt-2 items-center w-full">
           <Text
-            className="font-semibold text-sm text-accent"
+            className="font-semibold text-sm text-foreground"
             numberOfLines={1}
             lineBreakMode="tail"
           >

@@ -108,6 +108,7 @@ export const useBooksStore = create<BooksStore>()(
           try {
             const { getAbsAPI } = require("@/src/utils/AudiobookShelf/absInit");
             const absAPI = getAbsAPI();
+            //~NOTE: the getBookProgress call has duration of the whole book
             const progress = await absAPI.getBookProgress(libraryItemId);
 
             // console.log(`[BooksStore] Server progress response:`, {
@@ -158,11 +159,11 @@ export const useBooksStore = create<BooksStore>()(
         },
 
         updateCurrentPosition: (libraryItemId, position, duration) => {
-          // console.log(`[BooksStore] updateCurrentPosition called:`, {
-          //   libraryItemId,
-          //   position,
-          //   duration,
-          // });
+          console.log(`[BooksStore] updateCurrentPosition called:`, {
+            libraryItemId,
+            position,
+            duration,
+          });
 
           set((state) => ({
             books: state.books.map((book) =>

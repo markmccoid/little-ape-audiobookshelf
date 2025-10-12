@@ -165,9 +165,10 @@ export class AudiobookshelfAPI {
   // ## Session and Streaming
   // ## ===============================================================
   //## -------------------------------------
-  //## getPlayInfo
+  //## getPlayInfo - itemId is the Library Item Id
   //## -------------------------------------
   async getPlayInfo(itemId: string) {
+    // console.log("***getPlayInfo--", itemId);
     const response: AudiobookSession = await this.makeAuthenticatedRequest(
       `/api/items/${itemId}/play`,
       {

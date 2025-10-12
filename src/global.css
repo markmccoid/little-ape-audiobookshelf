@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
  
-@layer base {
+
 :root {
   --background: #ffffff;
   --foreground: #09090b;
@@ -22,12 +22,11 @@
   --foreground: #fafafa;
   --card: #18181b;
   --muted: #a1a1aa;
-  --border: #27272a;
+  --border: #070708;
   --primary: #fafafa;
   --accent: #84CC16;
   --accent-foreground: #09090b;
   --destructive: #f87171;
   --success: #4ade80;
   --warning: #fb923c;
-}
 }
