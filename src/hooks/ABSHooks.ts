@@ -159,9 +159,30 @@ export const useGetBooks = (searchValue?: string) => {
 };
 
 //# ----------------------------------------------
+//# useGetBookShelves
+//# ----------------------------------------------
+export const useGetBookShelves = () => {
+  const absAPI = useSafeAbsAPI();
+  // Always get the library ID, even if null
+  const activeLibraryId = absAPI?.getActiveLibraryId() || null;
+
+  const { data, isError, ...rest } = useQuery({
+    queryKey: ["bookShelves", activeLibraryId],
+    queryFn: async () => {
+      if (!absAPI) throw new Error("Not authenticated");
+      return absAPI?.getBookShelves();
+    },
+    enabled: !!absAPI && !!activeLibraryId,
+    staleTime: 10000,
+  });
+
+  return { data, isError, ...rest };
+};
+
+//# ----------------------------------------------
 //# useGetBooksInProgress
 //# ----------------------------------------------
-export const useGetBooksInProgress = () => {
+export const useGetBooksInProgress = (enabled = true) => {
   const absAPI = useSafeAbsAPI();
   // Always get the library ID, even if null
   const activeLibraryId = absAPI?.getActiveLibraryId() || null;
@@ -170,9 +191,10 @@ export const useGetBooksInProgress = () => {
     queryKey: ["booksInProgress", activeLibraryId],
     queryFn: async () => {
       if (!absAPI) throw new Error("Not authenticated");
+      const r = await absAPI?.getBookShelves();
       return absAPI?.getItemsInProgress();
     },
-    enabled: !!absAPI && !!activeLibraryId,
+    enabled: enabled && !!absAPI && !!activeLibraryId,
     staleTime: 0,
     // refetchOnWindowFocus: false, // Prevent 404s during navigation
     // refetchOnReconnect: false, // Prevent unnecessary refetches
@@ -341,7 +363,7 @@ export const useInvalidateQueries = () => {
   const absAPI = useSafeAbsAPI();
   // Always get the library ID, even if null
   const activeLibraryId = absAPI?.getActiveLibraryId();
-  return (queryIdentifier: "booksInProgress" | "books") => {
+  return (queryIdentifier: "booksInProgress" | "books" | "bookshelves") => {
     switch (queryIdentifier) {
       case "booksInProgress":
         console.log("Invalidating booksInProgress");
@@ -351,6 +373,11 @@ export const useInvalidateQueries = () => {
       case "books":
         console.log("Invalidating books");
         queryClient.invalidateQueries({ queryKey: ["books", activeLibraryId] });
+
+        break;
+      case "bookshelves":
+        console.log("Invalidating books");
+        queryClient.invalidateQueries({ queryKey: ["bookShelves", activeLibraryId] });
 
         break;
 

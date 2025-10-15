@@ -73,7 +73,9 @@ function AppContent() {
 
       // Always attempt to initialize ABS - it will handle the credential check internally
       const initSuccess = await absInitalize(queryClient);
-
+      if (!initSuccess) {
+        console.log("NO SUCCESS FOR YOU");
+      }
       // Refresh auth status after initialization attempt
       await checkAuthStatus();
       setIsReady(true);

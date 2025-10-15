@@ -2,16 +2,16 @@ import { useSafeAbsAPI } from "@/src/contexts/AuthContext";
 import { formatSeconds } from "@/src/utils/formatUtils";
 import { useThemeColors } from "@/src/utils/theme";
 import { Image } from "expo-image";
-import { Link, useRouter } from "expo-router";
+import { Link } from "expo-router";
 import React, { useCallback } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
-import { EnhancedBookItem } from "./HomeContainer";
+import { EnhancedBookItem } from "./BookShelfContainer";
 
 // Enhanced book item type with playback state
 
-// Props interface for InProgressItem
-interface InProgressItemProps {
+// Props interface for BookShelfItem
+interface BookShelfItemProps {
   item: EnhancedBookItem;
   onInitBook: (itemId: string) => Promise<void>;
   togglePlayPause: () => Promise<"paused" | "playing">;
@@ -21,10 +21,8 @@ interface InProgressItemProps {
  * Individual book item in the "In Progress" list
  * Shows book cover, metadata, progress, and play/pause button
  */
-const InProgressItem = React.memo<InProgressItemProps>(
+const BookShelfItem = React.memo<BookShelfItemProps>(
   ({ item, onInitBook, togglePlayPause }) => {
-    item.isPlaying && console.log("ITEM IS PLAYING", `${item.title} -- ${item.isPlaying}`);
-    const router = useRouter();
     const playPause = useCallback(async () => {
       if (item.isCurrentlyLoaded) {
         await togglePlayPause();
@@ -124,9 +122,11 @@ const InProgressItem = React.memo<InProgressItemProps>(
             {item.title}
           </Text>
 
-          <Text className="text-xs text-muted mt-1">
-            {formatSeconds(item.currentTime)} / {formatSeconds(item.duration || 0)}
-          </Text>
+          {item.shelfId === "continue-listening" && (
+            <Text className="text-xs text-muted mt-1">
+              {formatSeconds(item.currentTime)} / {formatSeconds(item.duration || 0)}
+            </Text>
+          )}
 
           {/* <View className="flex-row w-full justify-center">
             <Pressable
@@ -165,6 +165,6 @@ const InProgressItem = React.memo<InProgressItemProps>(
   }
 );
 
-InProgressItem.displayName = "InProgressItem";
+BookShelfItem.displayName = "BookShelfItem";
 
-export default InProgressItem;
+export default BookShelfItem;

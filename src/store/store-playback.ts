@@ -123,7 +123,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       // set in setup track player.
       const l1 = TrackPlayer.addEventListener(Event.PlaybackProgressUpdated, (e) => {
         const position = e.position;
-        console.log("ProgressUpdated Track", e.track);
+
         const duration = typeof e.duration === "number" ? e.duration : get().duration;
 
         set({ position, duration });

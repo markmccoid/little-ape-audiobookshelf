@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { PersonalizedShelf } from "../utils/AudiobookShelf/abstypes";
 import { mmkvStorage } from "./mmkv-storage";
 
 // Define the book object type
@@ -12,6 +13,8 @@ export type Book = {
   currentPosition: number;
   duration?: number;
   lastUpdated?: number;
+  //continue-listening, discover, etc
+  bookShelfType?: PersonalizedShelf["id"];
 };
 
 // Define the state interface

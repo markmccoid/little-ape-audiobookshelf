@@ -1,5 +1,10 @@
 import { reverse, sortBy } from "lodash";
-import { MediaProgress } from "./abstypes";
+import {
+  BookPersonalizedView,
+  MediaProgress,
+  PersonalizedViewsResponse,
+  SeriesPersonalizedView,
+} from "./abstypes";
 // services/AudiobookshelfAPI.ts
 import axios, { AxiosRequestConfig } from "axios";
 import * as FileSystem from "expo-file-system";
@@ -26,6 +31,7 @@ import {
   NetworkError,
   User,
 } from "./abstypes";
+import { buildBookShelf, buildCoverURLSync } from "./absUtils";
 
 // Types
 export type FilterType = "genres" | "tags" | "authors" | "series" | "progress";
@@ -374,16 +380,16 @@ export class AudiobookshelfAPI {
     return { coverThumb, coverFull };
   }
 
-  //## -------------------------------------
-  //## buildCoverURLSync
-  //## -------------------------------------
-  buildCoverURLSync(itemId: string, token: string, format: "webp" | "jpeg" = "webp") {
-    // const auth = await AudiobookshelfAuth.create();
-    const serverUrl = this.auth.absURL;
-    const coverThumb = `${serverUrl}/api/items/${itemId}/cover?format=${format}&width=240&token=${token}`;
-    const coverFull = `${serverUrl}/api/items/${itemId}/cover?format=${format}&token=${token}`;
-    return { coverThumb, coverFull };
-  }
+  // //## -------------------------------------
+  // //## buildCoverURLSync
+  // //## -------------------------------------
+  // buildCoverURLSync(itemId: string, token: string, serverUrl: string, format: "webp" | "jpeg" = "webp") {
+  //   // const auth = await AudiobookshelfAuth.create();
+  //   // const serverUrl = this.auth.absURL;
+  //   const coverThumb = `${serverUrl}/api/items/${itemId}/cover?format=${format}&width=240&token=${token}`;
+  //   const coverFull = `${serverUrl}/api/items/${itemId}/cover?format=${format}&token=${token}`;
+  //   return { coverThumb, coverFull };
+  // }
 
   //## -------------------------------------
   //## getFavoritedAndFinishedItems
@@ -416,12 +422,13 @@ export class AudiobookshelfAPI {
       type: ("isFavorite" | "isRead")[];
     };
     const token = await this.auth.getValidAccessToken();
+
     if (!token) throw new Error("No ABS Token found");
 
     const readResults: ItemInfo[] =
       (await Promise.all(
         progressData?.results?.map((el: LibraryItem) => {
-          const coverURL = this.buildCoverURLSync(el.id, token);
+          const coverURL = buildCoverURLSync(el.id, token, this.auth.absURL);
           // this is the base64 Image
           // const coverURI = (await getCoverURI(coverURL)).coverURL;
           return {
@@ -437,7 +444,8 @@ export class AudiobookshelfAPI {
     const favResults: ItemInfo[] =
       (await Promise.all(
         favData?.results?.map(async (el: LibraryItem) => {
-          const coverURL = this.buildCoverURLSync(el.id, token);
+          const coverURL = buildCoverURLSync(el.id, token, this.auth.absURL);
+          // const coverURL = this.buildCoverURLSync(el.id, token);
           // const coverURI = (await getCoverURI(coverURL)).coverURL;
           return {
             itemId: el.id,
@@ -671,7 +679,7 @@ export class AudiobookshelfAPI {
     // If not token, should probably throw error.
     if (!token) return [];
     const booksMin = libraryItems.map((item) => {
-      const coverURL = this.buildCoverURLSync(item.id, token);
+      const coverURL = buildCoverURLSync(item.id, token, this.auth.absURL);
 
       return {
         id: item.id,
@@ -702,7 +710,59 @@ export class AudiobookshelfAPI {
   }
 
   //## -------------------------------------
-  //##  getItemsInProgress / Continue Listening
+  //##  Book Shelves
+  //## -------------------------------------
+  async getBookShelves() {
+    const personalizedURL = `/api/libraries/${this.activeLibraryId}/personalized?limit=16`;
+    let resp: PersonalizedViewsResponse;
+
+    try {
+      resp = await this.makeAuthenticatedRequest(personalizedURL);
+    } catch (e) {
+      console.log("Error getting book shelves", e);
+      return null;
+    }
+
+    const token = await this.auth.getValidAccessToken();
+    if (!token) return;
+
+    //~ Continue Listening Shelf
+    //~ Continue Listening Shelf
+    const continueListeningShelf = resp.find(
+      (el): el is BookPersonalizedView => el.id === "continue-listening"
+    );
+    if (!continueListeningShelf) return;
+    const continueListening = buildBookShelf<BookPersonalizedView>(
+      continueListeningShelf,
+      token,
+      this.auth.absURL
+    );
+
+    //~ Recently Added Shelf
+    const recentlyAddedShelf = resp.find(
+      (el): el is BookPersonalizedView => el.id === "recently-added"
+    );
+    if (!recentlyAddedShelf) return;
+    const recentlyAdded = buildBookShelf<BookPersonalizedView>(
+      recentlyAddedShelf,
+      token,
+      this.auth.absURL
+    );
+
+    //~ Recently Added Shelf
+    const discoverShelf = resp.find((el): el is BookPersonalizedView => el.id === "discover");
+    if (!discoverShelf) return;
+    const discover = buildBookShelf<BookPersonalizedView>(discoverShelf, token, this.auth.absURL);
+
+    const recentSeries = resp.find((el): el is SeriesPersonalizedView => el.id === "recent-series");
+    const listenAgain = resp.find((el): el is BookPersonalizedView => el.id === "listen-again");
+    // const recommended = resp.find((el) => el.id === "recommended");
+
+    return { continueListening, recentSeries, recentlyAdded, discover, listenAgain };
+  }
+
+  //## -------------------------------------
+  //##  getItemsInProgress
   //## -------------------------------------
   async getItemsInProgress(): Promise<ABSGetItemsInProgress> {
     const progressURL = `/api/me/items-in-progress`;
@@ -750,7 +810,7 @@ export class AudiobookshelfAPI {
       // Don't think this should ever get triggered
       if (!book) continue;
 
-      const coverURL = this.buildCoverURLSync(book.id, token);
+      const coverURL = buildCoverURLSync(book.id, token, this.auth.absURL);
 
       if (book.libraryId !== this.activeLibraryId) continue;
       //!! NEED TO CHECK TO SEE WHY ISFINISHED BOOKS STILL SHOWING
@@ -770,34 +830,6 @@ export class AudiobookshelfAPI {
         lastUpdate: mediaMatch?.lastUpdate || 0,
       });
     }
-
-    console.log(
-      "ITEMS IN PROGRESS",
-      reverse(sortBy(itemsInProgress, ["lastUpdate"])).map((el) => `${el.bookId}-${el.title}`)
-    );
-    // for (let book of continueListeningBooks) {
-    //   const mediaMatch = mediaProgress.find((el) => el.libraryItemId === book.id);
-
-    //   const coverURL = this.buildCoverURLSync(book.id, token);
-
-    //   if (book.libraryId !== this.activeLibraryId) continue;
-
-    //   itemsInProgress.push({
-    //     progressId: mediaMatch?.id,
-    //     bookId: book.id,
-    //     title: book.media.metadata.title,
-    //     author: book.media.metadata.authorName || "",
-    //     narrator: book.media.metadata.narratorName || "",
-    //     progressPercent: mediaMatch?.progress,
-    //     duration: mediaMatch?.duration,
-    //     currentTime: mediaMatch?.currentTime,
-    //     isFinished: mediaMatch?.isFinished ? false : mediaMatch?.isFinished,
-    //     hideFromContinueListening: mediaMatch?.hideFromContinueListening,
-    //     cover: coverURL.coverThumb,
-    //     coverFull: coverURL.coverFull,
-    //     lastUpdate: mediaMatch?.lastUpdate || 0,
-    //   });
-    // }
 
     // Keep sorted in last time position was updated in descending order
     return reverse(sortBy(itemsInProgress, ["lastUpdate"]));

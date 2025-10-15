@@ -4,6 +4,7 @@ import { QueryClient } from "@tanstack/react-query";
 import { AudiobookshelfAPI } from "./absAPIClass";
 import { AudiobookshelfAuth } from "./absAuthClass";
 
+import { Alert } from "react-native";
 import "react-native-random-uuid";
 
 let absAuth: AudiobookshelfAuth | undefined;
@@ -24,7 +25,7 @@ export const absInitalize = async (queryClient?: QueryClient) => {
   // If tokens and URL stored in secure storage we are good to go
   const hasStoredCredentials = await AudiobookshelfAuth.hasStoredCredentials();
   if (!hasStoredCredentials) {
-    console.log('No stored credentials found, skipping ABS initialization');
+    console.log("No stored credentials found, skipping ABS initialization");
     return false;
   }
 
@@ -33,13 +34,13 @@ export const absInitalize = async (queryClient?: QueryClient) => {
     absAuth = undefined;
     apiInstance = undefined;
     absAPIProxy = undefined;
-    
+
     // Create fresh instances
     absAuth = await AudiobookshelfAuth.create();
     // Creates the instance with absAuth
     apiInstance = await AudiobookshelfAPI.create();
   } catch (error) {
-    console.error('Failed to initialize ABS:', error);
+    console.error("Failed to initialize ABS:", error);
     return false;
   }
 
@@ -61,6 +62,7 @@ export const absInitalize = async (queryClient?: QueryClient) => {
           const isAuthed = AudiobookshelfAuth.isAssumedAuthedGlobal;
           if (!isAuthed) {
             console.log("Not authenticated. Please login first.");
+            Alert.alert("Not Authenticated. Please login");
           }
 
           // Call the original method
@@ -79,7 +81,7 @@ export const absInitalize = async (queryClient?: QueryClient) => {
       console.log("PREWARM Book Cache Error", e);
     }
   }
-  
+
   return true;
 };
 
@@ -119,5 +121,5 @@ export const cleanupAbsInstances = () => {
   absAuth = undefined;
   apiInstance = undefined;
   absAPIProxy = undefined;
-  console.log('ABS instances cleaned up');
+  console.log("ABS instances cleaned up");
 };

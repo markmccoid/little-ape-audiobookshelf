@@ -1,14 +1,20 @@
 import { useSafeAbsAPI } from "@/src/contexts/AuthContext";
+import { ABSGetItemInProgress } from "@/src/utils/AudiobookShelf/absAPIClass";
 import { formatSeconds } from "@/src/utils/formatUtils";
 import { useThemeColors } from "@/src/utils/theme";
 import { Image } from "expo-image";
 import { Link, useRouter } from "expo-router";
+import { SymbolView } from "expo-symbols";
 import React, { useCallback } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
-import { EnhancedBookItem } from "./HomeContainer";
 
 // Enhanced book item type with playback state
+export type EnhancedBookItem = ABSGetItemInProgress & {
+  isCurrentlyLoaded: boolean;
+  isPlaying: boolean;
+  currentTime: number;
+};
 
 // Props interface for InProgressItem
 interface InProgressItemProps {
@@ -23,26 +29,26 @@ interface InProgressItemProps {
  */
 const InProgressItem = React.memo<InProgressItemProps>(
   ({ item, onInitBook, togglePlayPause }) => {
-    item.isPlaying && console.log("ITEM IS PLAYING", `${item.title} -- ${item.isPlaying}`);
     const router = useRouter();
     const playPause = useCallback(async () => {
       if (item.isCurrentlyLoaded) {
         await togglePlayPause();
       } else {
-        await onInitBook(item.libraryItemId);
+        await onInitBook(item.bookId);
         await togglePlayPause();
       }
     }, [item.isCurrentlyLoaded]);
     // console.log(
     //   "ProgressItem",
     //   item.title,
-    //   item.libraryItemId,
+    //   item.bookId,
     //   item.hideFromContinueListening,
     //   item.isFinished
     // );
     // console.log("ProgressItem", item.title, item.progressId, item.hideFromContinueListening);
     const absAPI = useSafeAbsAPI();
     const themeColors = useThemeColors();
+    console.log("BOOKS", item.title, item.bookId);
     return (
       <Animated.View
         className="flex-col w-[200] p-2 justify-center items-center rounded-lg"
@@ -50,14 +56,14 @@ const InProgressItem = React.memo<InProgressItemProps>(
         //   backgroundColor: item.isCurrentlyLoaded ? themeColors.accentMuted : "transparent",
         // }}
       >
-        {/* {(item.isFinished || item.hideFromContinueListening) && (
+        {(item.isFinished || item.hideFromContinueListening) && (
           <View className="absolute top-0 border-hairline rounded-full z-10 left-0 bg-gray-300">
             {item.hideFromContinueListening && (
               <SymbolView name="eye.slash.circle.fill" tintColor={themeColors.warning} />
             )}
             {item.isFinished && <SymbolView name="checkmark" tintColor={themeColors.warning} />}
           </View>
-        )} */}
+        )}
         <View
           className="p-2"
           style={{
@@ -69,8 +75,8 @@ const InProgressItem = React.memo<InProgressItemProps>(
             href={{
               pathname: `/(tabs)/(home)/[bookid]`,
               params: {
-                bookid: item.libraryItemId,
-                cover: item.coverURL,
+                bookid: item.bookId,
+                cover: item.coverFull,
                 title: item.title,
               },
             }}
@@ -79,7 +85,7 @@ const InProgressItem = React.memo<InProgressItemProps>(
               {/* <SwiftImage systemName="line.3.horizontal.decrease.circle" size={24} /> */}
 
               <Image
-                source={item.coverURL}
+                source={item.cover}
                 style={{
                   width: 175,
                   height: 175,
@@ -97,19 +103,19 @@ const InProgressItem = React.memo<InProgressItemProps>(
                 onPress={playPause}
                 icon={item.isPlaying ? "pause" : "play"}
               />
-              {/* <Link.MenuAction
+              <Link.MenuAction
                 title="Hide"
                 onPress={() => absAPI?.hideFromContinueListening(item.progressId || "")}
                 icon="eye.slash"
-              /> */}
+              />
               <Link.MenuAction
                 title="Mark as Finished"
-                onPress={() => absAPI?.setBookFinished(item.libraryItemId, true)}
+                onPress={() => absAPI?.setBookFinished(item.bookId, true)}
                 icon="flag"
               />
               <Link.MenuAction
                 title="Mark as Unfinished"
-                onPress={() => absAPI?.setBookFinished(item.libraryItemId, false)}
+                onPress={() => absAPI?.setBookFinished(item.bookId, false)}
                 icon="flag.slash"
               />
             </Link.Menu>
@@ -134,7 +140,6 @@ const InProgressItem = React.memo<InProgressItemProps>(
                 if (item.isCurrentlyLoaded) {
                   await togglePlayPause();
                 } else {
-                  
                   await onInitBook(item.id);
                   await togglePlayPause();
                 }
@@ -156,7 +161,7 @@ const InProgressItem = React.memo<InProgressItemProps>(
   // Optimized comparison - only re-render when critical props change
   (prevProps, nextProps) => {
     const same =
-      prevProps.item.libraryItemId === nextProps.item.libraryItemId &&
+      prevProps.item.id === nextProps.item.id &&
       prevProps.item.isPlaying === nextProps.item.isPlaying &&
       prevProps.item.isCurrentlyLoaded === nextProps.item.isCurrentlyLoaded &&
       Math.floor(prevProps.item.currentTime) === Math.floor(nextProps.item.currentTime);
