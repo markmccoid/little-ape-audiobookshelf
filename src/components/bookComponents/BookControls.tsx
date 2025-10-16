@@ -6,10 +6,10 @@ import {
 } from "@/src/store/store-playback";
 import { useSeekBackwardSeconds, useSeekForwardSeconds } from "@/src/store/store-settings";
 import { THEME, useThemeColors } from "@/src/utils/theme";
-import { BlurView } from "expo-blur";
 import { SymbolView } from "expo-symbols";
 import React from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, Text } from "react-native";
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import PlayPauseAnimation from "./PlayPauseAnimation";
 
 type Props = {
@@ -38,12 +38,45 @@ const BookControls = ({ libraryItemId }: Props) => {
       await togglePlayPause();
     }
   };
-  // console.log("Book Controls", isBookLoaded, isPlaying, isBookActive);
-  const showPlayingState = isBookLoaded && isPlaying;
+  console.log("Book Controls", isBookLoaded, isPlaying, isBookActive, Date.now());
 
+  // determines if this book is the current book and if it is playing (or paused)
+  const showPlayingState = isBookActive && isPlaying;
+  const growVal = useSharedValue(100);
+  const opacityVal = useSharedValue(0);
+  const animStyle = useAnimatedStyle(() => {
+    if (isBookActive && isBookLoaded) {
+      growVal.value = withTiming(250, { duration: 500 });
+    } else {
+      growVal.value = withTiming(100, { duration: 600 });
+    }
+    return { width: growVal.value };
+  }, [isBookActive, isBookLoaded]);
+  const opacityAnim = useAnimatedStyle(() => {
+    if (isBookActive && isBookLoaded) {
+      opacityVal.value = withTiming(1, { duration: 1000 });
+    } else {
+      opacityVal.value = withTiming(0, { duration: 500 });
+    }
+    const display = opacityVal.value === 0 ? "none" : "flex";
+    return {
+      opacity: opacityVal.value,
+      display,
+    };
+  }, [isBookActive, isBookLoaded]);
   return (
-    <View className="flex-row items-center justify-center px-5">
-      <BlurView intensity={100} tint="extraLight" className="flex-row rounded-2xl overflow-hidden">
+    <Animated.View
+      className="flex-row items-center justify-center px-5 border border-red-600 rounded-2xl  bg-slate-300"
+      style={[animStyle]}
+    >
+      {/* <AnimatedBlurView
+        intensity={100}
+        tint="extraLight"
+        className="flex-row rounded-2xl overflow-hidden justify-center"
+        // style={{ width: 200 }}
+      > */}
+
+      <Animated.View style={[opacityAnim]}>
         <Pressable
           onPress={() => jumpBackwardSeconds(seekBackward)}
           className="flex-row justify-center items-center"
@@ -61,14 +94,18 @@ const BookControls = ({ libraryItemId }: Props) => {
             // tintColor={themeColors.accent}
           />
         </Pressable>
-        <Pressable className="py-3 px-10 rounded-lg" onPress={localTogglePlayPause}>
-          <PlayPauseAnimation
-            isPlaying={showPlayingState}
-            size={50}
-            duration={600}
-            isBookActive={isBookActive && isBookLoaded}
-          />
-        </Pressable>
+      </Animated.View>
+
+      <Pressable className="py-3 px-10 rounded-lg" onPress={localTogglePlayPause}>
+        <PlayPauseAnimation
+          isPlaying={showPlayingState}
+          size={50}
+          duration={600}
+          isBookActive={isBookActive && isBookLoaded}
+        />
+      </Pressable>
+
+      <Animated.View style={[opacityAnim]}>
         <Pressable
           onPress={() => jumpForwardSeconds(seekForward)}
           className="flex-row justify-center items-center"
@@ -85,8 +122,10 @@ const BookControls = ({ libraryItemId }: Props) => {
             tintColor={THEME.light.accent}
           />
         </Pressable>
-      </BlurView>
-    </View>
+      </Animated.View>
+
+      {/* </AnimatedBlurView> */}
+    </Animated.View>
   );
 };
 

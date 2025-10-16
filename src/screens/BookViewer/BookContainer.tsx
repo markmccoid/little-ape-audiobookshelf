@@ -60,8 +60,12 @@ const BookContainer = () => {
           transition={200}
         />
       </View>
-
-      <BookControls libraryItemId={bookid} />
+      <View className="bg-white ">
+        <Text>FULL WIDTH</Text>
+      </View>
+      <View className="flex-row w-full justify-center">
+        <BookControls libraryItemId={bookid} />
+      </View>
       <BookSlider bookId={bookid} />
       {/* <View className="flex-row items-center justify-between px-5">
         <Pressable className="p-3 bg-blue-500 rounded-lg" onPress={sync}>

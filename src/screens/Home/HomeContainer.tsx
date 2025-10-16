@@ -35,6 +35,7 @@ const HomeContainer = () => {
       ...shelf,
       currentTime: booksInProgress.find((p) => p.bookId === shelf.libraryItemId)?.currentTime || 0,
     }));
+
     return {
       ...bookShelves.continueListening,
       books: augmentedBooks,

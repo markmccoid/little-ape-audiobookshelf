@@ -8,7 +8,7 @@ import {
 import { BookShelfItemType } from "@/src/utils/AudiobookShelf/absUtils";
 import { useThemeColors } from "@/src/utils/theme";
 import { SymbolView } from "expo-symbols";
-import React, { useCallback, useMemo, useReducer, useRef } from "react";
+import React, { useCallback, useMemo, useReducer } from "react";
 import { ListRenderItem, Pressable, ScrollView, Text, View } from "react-native";
 import Animated, { LinearTransition } from "react-native-reanimated";
 import { useProgress } from "react-native-track-player";
@@ -27,7 +27,8 @@ type Props = {
 };
 const BookShelfContainer = ({ shelfData, isLoading, isError }: Props) => {
   const themeColors = useThemeColors();
-  const { togglePlayPause: storeTogglePlayPause, loadBook: handleInitBook } = usePlaybackActions();
+  const { togglePlayPause: storeTogglePlayPause, loadBookAndPlay: handleInitBook } =
+    usePlaybackActions();
   const invalidateQuery = useInvalidateQueries();
   // For this isPlaying, we don't care what book is playing since we are checking that
   // in the render item.
@@ -39,10 +40,6 @@ const BookShelfContainer = ({ shelfData, isLoading, isError }: Props) => {
   //!! Does nothing here --- Take out and use in full list of IN PROGRESS
   const [showHidden, toggleShowHidden] = useReducer((state) => !state, false);
   // Refetch books in progress when home tab gains focus
-
-  // Cache to store the last known position for each book
-  // This persists between loads/unloads without needing React Query invalidation
-  const positionCacheRef = useRef<Record<string, number>>({});
 
   //# Wrapper function that loads book and optimistically updates cache
   // This function is passed to each render item (book) and then the render item
@@ -87,16 +84,8 @@ const BookShelfContainer = ({ shelfData, isLoading, isError }: Props) => {
           // Need to fallback to book.currentTime if progress.position is zero
           // it isn't
           currentTime = progress.position;
-          positionCacheRef.current[book.libraryItemId] = currentTime;
-        } else if (positionCacheRef.current[book.libraryItemId] != null) {
-          // Book is unloaded but we have cached position: use cache
-          currentTime = positionCacheRef.current[book.libraryItemId];
         } else {
-          // No cache yet: use server data
-          // currentTime = book.currentTime || 0;
           currentTime = book.currentTime || 0;
-          // Initialize cache with server data
-          positionCacheRef.current[book.libraryItemId] = currentTime;
         }
 
         const bookIsPlaying = isCurrentlyLoaded ? isPlaying : false;

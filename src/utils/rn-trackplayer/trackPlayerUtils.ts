@@ -1,3 +1,5 @@
+import TrackPlayer, { State } from "react-native-track-player";
+
 export type Chapter = {
   id: number;
   title: string;
@@ -40,4 +42,30 @@ export const getCurrentChapter = ({ chapters = [], position }: Params) => {
     chapterProgressOffset: 0,
     nextChapterExists: false,
   };
+};
+
+//~ ------------------------------------------
+//~ waitForReadyState
+//~ When loading a book for the first time, this will let
+//~ us know when the book is fully loaded and ready to be played.
+//~ ------------------------------------------
+export const waitForReadyState = (timeout = 5000) => {
+  return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new Error("Playback timeout"));
+    }, timeout);
+
+    const checkState = async () => {
+      const state = await TrackPlayer.getPlaybackState();
+      if (state.state === State.Ready) {
+        // if (state.state === State.Playing) {
+        clearTimeout(timeoutId);
+        resolve(true);
+      } else {
+        setTimeout(checkState, 100);
+      }
+    };
+
+    checkState();
+  });
 };

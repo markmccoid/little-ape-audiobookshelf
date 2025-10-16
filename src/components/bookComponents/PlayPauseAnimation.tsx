@@ -1,3 +1,4 @@
+import { usePlaybackStore } from "@/src/store/store-playback";
 import { THEME, useThemeColors } from "@/src/utils/theme";
 import { SymbolView } from "expo-symbols";
 import { useEffect } from "react";
@@ -32,6 +33,8 @@ const PlayPauseAnimation = ({
 }: PlayPauseAnimationProps) => {
   const resumeIconName = "livephoto.play"; //memories
   const themeColors = useThemeColors();
+  const playbackState = usePlaybackStore((state) => state.playbackState);
+
   // Determine initial state based on props
   const getInitialOpacity = (icon: "resume" | "play" | "pause") => {
     if (!isBookActive) return icon === "resume" ? 1 : 0;

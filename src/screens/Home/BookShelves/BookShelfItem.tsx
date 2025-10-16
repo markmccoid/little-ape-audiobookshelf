@@ -27,8 +27,8 @@ const BookShelfItem = React.memo<BookShelfItemProps>(
       if (item.isCurrentlyLoaded) {
         await togglePlayPause();
       } else {
+        //Will automatically start playing
         await onInitBook(item.libraryItemId);
-        await togglePlayPause();
       }
     }, [item.isCurrentlyLoaded]);
     // console.log(

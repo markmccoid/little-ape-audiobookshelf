@@ -5,8 +5,7 @@ import AudiobookStreamer from "@/src/utils/rn-trackplayer/AudiobookStreamer";
 import { trackPlayerInit } from "@/src/utils/rn-trackplayer/rn-trackplayerInit";
 import TrackPlayer, { Event, State, Track } from "react-native-track-player";
 import { create } from "zustand";
-import { moveBookToTopOfInProgress } from "../hooks/ABSHooks";
-import { getCurrentChapter } from "../utils/rn-trackplayer/trackPlayerUtils";
+import { getCurrentChapter, waitForReadyState } from "../utils/rn-trackplayer/trackPlayerUtils";
 import { useBooksStore } from "./store-books";
 
 // Extend Track to reflect extra fields we attach from ABS
@@ -33,7 +32,11 @@ interface PlaybackState {
   session: PlaybackAudioBookSession | null;
   queue: ABSQueuedTrack[];
   isPlaying: boolean;
+  //! Only will be true once book has been loaded and playing has started
+  //! isBookActive function returns as SOON as book session has been loaded
+  //! However, it takes Track Player about 1 second to finish init as start playing.
   isLoaded: boolean;
+  playbackState: State;
   position: number;
   duration: number;
   isOnBookScreen: boolean;
@@ -79,6 +82,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
   queue: [],
   isPlaying: false,
   isLoaded: false,
+  playbackState: State.None,
   position: 0,
   duration: 0,
   isOnBookScreen: false,
@@ -136,7 +140,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
 
       // Mirror playback state into store for UI
       const l2 = TrackPlayer.addEventListener(Event.PlaybackState, (e) => {
-        set({ isPlaying: e.state === State.Playing });
+        set({ isPlaying: e.state === State.Playing, playbackState: e.state });
       });
 
       listeners.push(l1 as any, l2 as any);
@@ -210,8 +214,12 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
         duration: sessionData.duration ?? get().duration,
         isOnBookScreen: false,
       });
+      // wait for book to be fully loaded
+      await waitForReadyState();
+      set({ isLoaded: true });
+
       // move this book to the front of the list (Continue Listening)
-      moveBookToTopOfInProgress(sessionData?.libraryItemId);
+      // moveBookToTopOfInProgress(sessionData?.libraryItemId);
       console.log(
         "BOOK LOADED START TIME",
         get().position,
@@ -233,41 +241,42 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       //!! isLoaded tells us that the book is loaded AND has started playing, but is this accurate
       //!!  I'm using this so that as a book loads the Resume icon stays until playing starts so we don't see the play icon first.
       await get().actions.loadBook(itemId);
+
       // Start playback
       await TrackPlayer.play();
 
       // Wait for playback to actually start before setting isLoaded
       // This creates a Promise that resolves when playback state becomes Playing
-      return new Promise<void>((resolve) => {
-        // Set a timeout as fallback (in case event doesn't fire)
-        const timeout = setTimeout(() => {
-          console.log("Playback state timeout - setting isLoaded anyway");
-          set({ isLoaded: true });
-          listener?.remove();
-          resolve();
-        }, 3000); // 3 second timeout
+      // return new Promise<void>((resolve) => {
+      //   // Set a timeout as fallback (in case event doesn't fire)
+      //   const timeout = setTimeout(() => {
+      //     console.log("Playback state timeout - setting isLoaded anyway");
+      //     set({ isLoaded: true });
+      //     listener?.remove();
+      //     resolve();
+      //   }, 3000); // 3 second timeout
 
-        // Listen for playback state change
-        const listener = TrackPlayer.addEventListener(Event.PlaybackState, (event) => {
-          if (event.state === State.Playing) {
-            console.log("Playback started - setting isLoaded: true");
-            set({ isLoaded: true });
-            clearTimeout(timeout);
-            listener.remove();
-            resolve();
-          }
-        });
-      });
+      //   // Listen for playback state change
+      //   const listener = TrackPlayer.addEventListener(Event.PlaybackState, (event) => {
+      //     if (event.state === State.Playing) {
+      //       console.log("Playback started - setting isLoaded: true");
+      //       set({ isLoaded: true });
+      //       clearTimeout(timeout);
+      //       listener.remove();
+      //       resolve();
+      //     }
+      //   });
+      // });
     },
 
     play: async () => {
       await TrackPlayer.play();
-      set({ isPlaying: true });
+      // isPlaying flag set in BindEvents listeners
     },
 
     pause: async () => {
       await TrackPlayer.pause();
-      set({ isPlaying: false });
+      // isPlaying flag set in BindEvents listeners
       // AudiobookStreamer handles immediate sync on pause via its own event listener
     },
 
