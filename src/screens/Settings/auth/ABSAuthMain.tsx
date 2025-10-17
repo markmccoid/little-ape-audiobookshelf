@@ -13,7 +13,7 @@ export default function ABSAuthMain() {
 
   // Always call hooks at the top level, regardless of conditional rendering
   const absAPI = useSafeAbsAPI();
-
+  console.log("ABSAuthMain.tsx", authInfo);
   const debugAbsAPI = async () => {
     if (!absAPI) {
       console.log("ABS API not available");

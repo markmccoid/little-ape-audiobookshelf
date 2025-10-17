@@ -7,7 +7,7 @@ import {
 import { useSeekBackwardSeconds, useSeekForwardSeconds } from "@/src/store/store-settings";
 import { THEME, useThemeColors } from "@/src/utils/theme";
 import { SymbolView } from "expo-symbols";
-import React from "react";
+import React, { useRef } from "react";
 import { Pressable, Text } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import PlayPauseAnimation from "./PlayPauseAnimation";
@@ -31,6 +31,14 @@ const BookControls = ({ libraryItemId }: Props) => {
   const isBookLoaded = usePlaybackStore((state) => state.isLoaded);
   const isPlaying = usePlaybackIsPlaying(libraryItemId);
 
+  const showPlayingState = isBookActive && isPlaying;
+  const opacityVal = useSharedValue(0);
+  const [collapsedWidth, setCollapsedWidth] = React.useState(100);
+  const [expandedWidth, setExpandedWidth] = React.useState(250);
+  const growVal = useSharedValue(collapsedWidth);
+  const widthCollCalculated = useRef(false);
+  const widthExpCalculated = useRef(false);
+
   const localTogglePlayPause = async () => {
     if (!isBookActive) {
       await loadBookAndPlay(libraryItemId);
@@ -40,23 +48,49 @@ const BookControls = ({ libraryItemId }: Props) => {
   };
   console.log("Book Controls", isBookLoaded, isPlaying, isBookActive, Date.now());
 
-  // determines if this book is the current book and if it is playing (or paused)
-  const showPlayingState = isBookActive && isPlaying;
-  const growVal = useSharedValue(100);
-  const opacityVal = useSharedValue(0);
-  const animStyle = useAnimatedStyle(() => {
+  //~~ ===== Size Book Control
+  const handleCollapsedLayout = (event) => {
+    if (widthCollCalculated?.current) return;
+    widthCollCalculated.current = true;
+    const { width } = event.nativeEvent.layout;
+    setCollapsedWidth(width);
+  };
+
+  const handleExpandedLayout = (event) => {
+    if (widthExpCalculated?.current) return;
+    widthExpCalculated.current = true;
+    const { width } = event.nativeEvent.layout;
+    console.log("Expanded Width", width);
+    setExpandedWidth(width);
+    // Update animation if currently expanded
     if (isBookActive && isBookLoaded) {
-      growVal.value = withTiming(250, { duration: 500 });
-    } else {
-      growVal.value = withTiming(100, { duration: 600 });
+      growVal.value = width;
     }
+  };
+
+  const animStyle = useAnimatedStyle(() => {
+    const targetWidth = isBookActive && isBookLoaded ? expandedWidth : collapsedWidth;
+
+    growVal.value = withTiming(targetWidth, {
+      duration: isBookActive && isBookLoaded ? 500 : 600,
+    });
     return { width: growVal.value };
-  }, [isBookActive, isBookLoaded]);
+  }, [isBookActive, isBookLoaded, collapsedWidth, expandedWidth]);
+  //~~ ===== Size Book Control END
+  // // determines if this book is the current book and if it is playing (or paused)
+  // const animStyle = useAnimatedStyle(() => {
+  //   if (isBookActive && isBookLoaded) {
+  //     growVal.value = withTiming(250, { duration: 500 });
+  //   } else {
+  //     growVal.value = withTiming(100, { duration: 600 });
+  //   }
+  //   return { width: growVal.value };
+  // }, [isBookActive, isBookLoaded]);
   const opacityAnim = useAnimatedStyle(() => {
     if (isBookActive && isBookLoaded) {
       opacityVal.value = withTiming(1, { duration: 1000 });
     } else {
-      opacityVal.value = withTiming(0, { duration: 500 });
+      opacityVal.value = withTiming(0, { duration: 200 });
     }
     const display = opacityVal.value === 0 ? "none" : "flex";
     return {
@@ -64,6 +98,7 @@ const BookControls = ({ libraryItemId }: Props) => {
       display,
     };
   }, [isBookActive, isBookLoaded]);
+
   return (
     <Animated.View
       className="flex-row items-center justify-center px-5 border border-red-600 rounded-2xl  bg-slate-300"
@@ -76,6 +111,52 @@ const BookControls = ({ libraryItemId }: Props) => {
         // style={{ width: 200 }}
       > */}
 
+      {/* ------------- HIDDEN MEASURE START ------------------ */}
+      <Animated.View style={{ position: "absolute", opacity: 0 }} onLayout={handleCollapsedLayout}>
+        <Pressable className="py-3 px-10 rounded-lg">
+          <PlayPauseAnimation isPlaying={false} size={50} duration={600} isBookActive={false} />
+        </Pressable>
+      </Animated.View>
+
+      <Animated.View
+        style={{ position: "absolute", opacity: 0 }}
+        onLayout={handleExpandedLayout}
+        className="flex-row items-center"
+      >
+        {/* Full expanded content for measurement */}
+        <Pressable className="flex-row justify-center items-center">
+          <Text
+            className="absolute mt-1 text-xl font-semibold"
+            style={{ color: THEME.light.muted }}
+          >
+            {seekBackward}
+          </Text>
+          <SymbolView
+            name="arrow.trianglehead.counterclockwise"
+            size={50}
+            tintColor={THEME.light.accent}
+            // tintColor={themeColors.accent}
+          />
+        </Pressable>
+        <Pressable className="py-3 px-10 rounded-lg">
+          <PlayPauseAnimation isPlaying={false} size={50} duration={600} isBookActive={true} />
+        </Pressable>
+        <Pressable className="flex-row justify-center items-center">
+          <Text
+            className="absolute mt-1 text-xl font-semibold"
+            style={{ color: THEME.light.muted }}
+          >
+            {seekBackward}
+          </Text>
+          <SymbolView
+            name="arrow.trianglehead.counterclockwise"
+            size={50}
+            tintColor={THEME.light.accent}
+            // tintColor={themeColors.accent}
+          />
+        </Pressable>
+      </Animated.View>
+      {/* ------------- HIDDEN MEASURE END ------------------ */}
       <Animated.View style={[opacityAnim]}>
         <Pressable
           onPress={() => jumpBackwardSeconds(seekBackward)}

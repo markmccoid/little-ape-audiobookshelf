@@ -55,7 +55,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       // Check if we have stored credentials
       const hasCredentials = await AudiobookshelfAuth.hasStoredCredentials();
+      const absURL = await AudiobookshelfAuth.getStoredURL();
       setHasStoredCredentials(hasCredentials);
+      setAuthInfo((prev) => ({ ...prev, serverUrl: absURL }));
 
       if (hasCredentials) {
         // Check if currently authenticated (this will be true if auth is initialized and valid)
@@ -67,21 +69,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           await updateAuthInfo();
         } else {
           // Clear auth info if not authenticated
-          setAuthInfo({
-            serverUrl: null,
+          setAuthInfo((prev) => ({
+            ...prev,
             username: null,
             userEmail: null,
             userId: null,
-          });
+          }));
         }
       } else {
         setIsAuthenticated(false);
-        setAuthInfo({
-          serverUrl: null,
+        setAuthInfo((prev) => ({
+          ...prev,
           username: null,
           userEmail: null,
           userId: null,
-        });
+        }));
       }
 
       setIsInitialized(true);
@@ -89,12 +91,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.error("Error checking auth status:", error);
       setIsAuthenticated(false);
       setHasStoredCredentials(false);
-      setAuthInfo({
-        serverUrl: null,
+      setAuthInfo((prev) => ({
+        ...prev,
         username: null,
         userEmail: null,
         userId: null,
-      });
+      }));
       setIsInitialized(true);
     }
   }, []); // Empty dependency array since this function doesn't depend on any state
@@ -111,16 +113,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       });
     } catch (error) {
       console.warn("Could not get auth info:", error);
-      setAuthInfo({
-        serverUrl: null,
+      setAuthInfo((prev) => ({
+        ...prev,
         username: null,
         userEmail: null,
         userId: null,
-      });
+      }));
     }
   }, []);
 
   useEffect(() => {
+    console.log("Checking Auth Context FIRST");
     checkAuthStatus();
   }, []);
 
@@ -178,7 +181,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (authInstance) {
         await authInstance.logout();
       }
-
+      await checkAuthStatus();
       // Finally cleanup ABS instances
       cleanupAbsInstances();
     } catch (error) {
@@ -193,7 +196,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         userEmail: null,
         userId: null,
       });
-
       try {
         cleanupAbsInstances();
       } catch (cleanupError) {

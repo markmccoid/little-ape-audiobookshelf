@@ -78,6 +78,17 @@ export class AudiobookshelfAuth {
       return false;
     }
   }
+  static async getStoredURL(): Promise<string | null> {
+    try {
+      const [storedUrl, storedTokens] = await Promise.all([
+        SecureStore.getItemAsync(this.SERVER_URL_KEY),
+        SecureStore.getItemAsync(this.TOKEN_KEY),
+      ]);
+      return storedUrl;
+    } catch {
+      return "";
+    }
+  }
 
   static reset(): void {
     this.instance = null;
@@ -292,6 +303,7 @@ export class AudiobookshelfAuth {
   }
 
   private async storeServerUrl(): Promise<void> {
+    console.log("Seeting server URL", this.serverUrl);
     await SecureStore.setItemAsync(AudiobookshelfAuth.SERVER_URL_KEY, this.serverUrl);
   }
 
