@@ -286,23 +286,18 @@ export default class AudiobookStreamer {
 
     // Add unique ID for tracking this sync operation
     const syncId = Math.random().toString(36).substring(7);
-    console.log(`[SYNC-${syncId}] Starting sync progress`);
+    // console.log(`[SYNC-${syncId}] Starting sync progress`);
 
     this.isSyncing = true;
 
     try {
       // Handle pending session close first if it exists
       if (this.pendingSessionClose) {
-        console.log(
-          `[SYNC-${syncId}] Processing pending session close for ${this.pendingSessionClose.sessionId}`
-        );
         await this.apiClient.syncProgressToServer(this.pendingSessionClose.sessionId, {
           timeListened: this.pendingSessionClose.timeListened,
           currentTime: this.pendingSessionClose.position,
         });
-        console.log(
-          `[SYNC-${syncId}] Final sync completed for session ${this.pendingSessionClose.sessionId} - position: ${this.pendingSessionClose.position}s - listened: ${this.pendingSessionClose.timeListened}`
-        );
+
         this.pendingSessionClose = null;
         return;
       }
@@ -334,10 +329,6 @@ export default class AudiobookStreamer {
         const syncResult = await this.apiClient.syncProgressToServer(activeSessionId, syncData);
 
         this.lastSyncTime = now;
-
-        console.log(
-          `[SYNC-${syncId}] Synced to session ${activeSessionId} - listened: ${timeListened}s, position: ${globalPosition}s`
-        );
 
         // ✅ Update books store with confirmed position (server accepted our sync)
         // Throttled to reduce re-renders: only update every 30s or when forced (pause/stop)
@@ -427,7 +418,7 @@ export default class AudiobookStreamer {
       }
     } finally {
       this.isSyncing = false;
-      console.log(`[SYNC-${syncId}] Sync finished`);
+      // console.log(`[SYNC-${syncId}] Sync finished`);
     }
   }
 

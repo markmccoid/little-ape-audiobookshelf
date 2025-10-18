@@ -83,7 +83,9 @@ const MainPlayerContainer = () => {
         <View className="px-5">
           <BookSlider bookId={playbackSession.libraryItemId} useStaticColors />
         </View>
-        <BookControls libraryItemId={playbackSession.libraryItemId} />
+        <View className="flex-row w-full justify-center">
+          <BookControls libraryItemId={playbackSession.libraryItemId} />
+        </View>
       </View>
     </View>
   );

@@ -43,7 +43,8 @@ const BookShelfItem = React.memo<BookShelfItemProps>(
     const themeColors = useThemeColors();
     return (
       <Animated.View
-        className="flex-col w-[200] p-2 justify-center items-center rounded-lg"
+        className="flex-col py-2 w-[190] justify-center items-center rounded-lg"
+
         // style={{
         //   backgroundColor: item.isCurrentlyLoaded ? themeColors.accentMuted : "transparent",
         // }}
@@ -57,7 +58,7 @@ const BookShelfItem = React.memo<BookShelfItemProps>(
           </View>
         )} */}
         <View
-          className="p-2"
+          className="mx-2"
           style={{
             backgroundColor: item.isCurrentlyLoaded ? themeColors.accent : "transparent",
             borderRadius: 10,
@@ -113,7 +114,7 @@ const BookShelfItem = React.memo<BookShelfItemProps>(
             </Link.Menu>
           </Link>
         </View>
-        <View className="flex-col mt-2 items-center w-full">
+        <View className="flex-col mt-2 items-center w-full px-2">
           <Text
             className="font-semibold text-sm text-foreground"
             numberOfLines={1}

@@ -101,7 +101,7 @@ const BookControls = ({ libraryItemId }: Props) => {
 
   return (
     <Animated.View
-      className="flex-row items-center justify-center px-5 border border-red-600 rounded-2xl  bg-slate-300"
+      className="flex-row items-center justify-center px-5 border-hairline rounded-2xl  bg-slate-300"
       style={[animStyle]}
     >
       {/* <AnimatedBlurView
@@ -113,7 +113,7 @@ const BookControls = ({ libraryItemId }: Props) => {
 
       {/* ------------- HIDDEN MEASURE START ------------------ */}
       <Animated.View style={{ position: "absolute", opacity: 0 }} onLayout={handleCollapsedLayout}>
-        <Pressable className="py-3 px-10 rounded-lg">
+        <Pressable className="py-3 px-8 rounded-lg">
           <PlayPauseAnimation isPlaying={false} size={50} duration={600} isBookActive={false} />
         </Pressable>
       </Animated.View>
@@ -124,7 +124,7 @@ const BookControls = ({ libraryItemId }: Props) => {
         className="flex-row items-center"
       >
         {/* Full expanded content for measurement */}
-        <Pressable className="flex-row justify-center items-center">
+        <Pressable className="flex-row justify-center items-center pl-2">
           <Text
             className="absolute mt-1 text-xl font-semibold"
             style={{ color: THEME.light.muted }}
@@ -141,7 +141,7 @@ const BookControls = ({ libraryItemId }: Props) => {
         <Pressable className="py-3 px-10 rounded-lg">
           <PlayPauseAnimation isPlaying={false} size={50} duration={600} isBookActive={true} />
         </Pressable>
-        <Pressable className="flex-row justify-center items-center">
+        <Pressable className="flex-row justify-center items-center pr-2">
           <Text
             className="absolute mt-1 text-xl font-semibold"
             style={{ color: THEME.light.muted }}
@@ -160,10 +160,10 @@ const BookControls = ({ libraryItemId }: Props) => {
       <Animated.View style={[opacityAnim]}>
         <Pressable
           onPress={() => jumpBackwardSeconds(seekBackward)}
-          className="flex-row justify-center items-center"
+          className="flex-row justify-center items-center pl-2"
         >
           <Text
-            className="absolute mt-1 text-xl font-semibold"
+            className="absolute mt-1 text-xl font-semibold pl-2"
             style={{ color: THEME.light.muted }}
           >
             {seekBackward}
@@ -189,10 +189,10 @@ const BookControls = ({ libraryItemId }: Props) => {
       <Animated.View style={[opacityAnim]}>
         <Pressable
           onPress={() => jumpForwardSeconds(seekForward)}
-          className="flex-row justify-center items-center"
+          className="flex-row justify-center items-center pr-2"
         >
           <Text
-            className="absolute mt-1 text-xl font-semibold "
+            className="absolute mt-1 text-xl font-semibold pr-2"
             style={{ color: THEME.light.muted }}
           >
             {seekForward}

@@ -52,7 +52,7 @@ const HomeContainer = () => {
   return (
     <View className="flex-1">
       <NotAuthedHeader />
-      <ScrollView className="flex-1 px-2" contentInsetAdjustmentBehavior="automatic">
+      <ScrollView className="flex-1" contentInsetAdjustmentBehavior="automatic">
         <View className="mt-2">
           {bookShelves?.continueListening && (
             <BookShelfContainer shelfData={continueListeningData} />

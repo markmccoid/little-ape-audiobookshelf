@@ -162,11 +162,11 @@ export const useBooksStore = create<BooksStore>()(
         },
 
         updateCurrentPosition: (libraryItemId, position, duration) => {
-          console.log(`[BooksStore] updateCurrentPosition called:`, {
-            libraryItemId,
-            position,
-            duration,
-          });
+          // console.log(`[BooksStore] updateCurrentPosition called:`, {
+          //   libraryItemId,
+          //   position,
+          //   duration,
+          // });
 
           set((state) => ({
             books: state.books.map((book) =>

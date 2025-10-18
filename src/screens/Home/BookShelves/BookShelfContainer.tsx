@@ -141,9 +141,9 @@ const BookShelfContainer = ({ shelfData, isLoading, isError }: Props) => {
 
   return (
     <View className="flex-1">
-      <ScrollView className="flex-1 px-2" contentInsetAdjustmentBehavior="automatic">
+      <ScrollView className="flex-1" contentInsetAdjustmentBehavior="automatic">
         <View className="mt-2">
-          <View className="flex-row gap-2">
+          <View className="flex-row gap-2 px-2">
             <Text className="text-lg font-bold text-accent">{shelfData.shelfLabel}</Text>
             {/* Does nothing here --- Take out and use in full list of IN PROGRESS */}
             {shelfData.shelfId === "continue-listening" && (

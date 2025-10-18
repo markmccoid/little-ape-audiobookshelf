@@ -141,6 +141,10 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       // Mirror playback state into store for UI
       const l2 = TrackPlayer.addEventListener(Event.PlaybackState, (e) => {
         set({ isPlaying: e.state === State.Playing, playbackState: e.state });
+        // This is just a safety if for some reason
+        if (e.state === State.Playing) {
+          set({ isLoaded: true });
+        }
       });
 
       listeners.push(l1 as any, l2 as any);
