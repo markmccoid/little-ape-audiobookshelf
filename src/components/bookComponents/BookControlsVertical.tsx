@@ -9,7 +9,7 @@ import { THEME, useThemeColors } from "@/src/utils/theme";
 import { BlurView } from "expo-blur";
 import { SymbolView } from "expo-symbols";
 import React, { useEffect, useRef } from "react";
-import { Pressable, Text } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import Animated, {
   useAnimatedProps,
   useAnimatedStyle,
@@ -26,7 +26,7 @@ const BookControls = ({ libraryItemId }: Props) => {
   const {
     jumpForwardSeconds,
     jumpBackwardSeconds,
-    updatePlaybackSpeed,
+    updatePlaybackRate: updatePlaybackSpeed,
     togglePlayPause,
     loadBookAndPlay,
   } = usePlaybackActions();
@@ -40,8 +40,8 @@ const BookControls = ({ libraryItemId }: Props) => {
 
   const showPlayingState = isBookActive && isPlaying;
   const opacityVal = useSharedValue(0);
-  const [collapsedHeight, setCollapsedHeight] = React.useState(71);
-  const [expandedHeight, setExpandedHeight] = React.useState(250);
+  const [collapsedHeight, setCollapsedHeight] = React.useState(75);
+  const [expandedHeight, setExpandedHeight] = React.useState(135);
   const growVal = useSharedValue(collapsedHeight);
   const heightCollCalculated = useRef(false);
   const heightExpCalculated = useRef(false);
@@ -58,6 +58,8 @@ const BookControls = ({ libraryItemId }: Props) => {
 
   //~~ ===== Size Book Control
   const handleCollapsedLayout = (event) => {
+    setCollapsedHeight(75);
+    return;
     if (heightCollCalculated?.current) return;
     heightCollCalculated.current = true;
     const { width, height } = event.nativeEvent.layout;
@@ -65,6 +67,8 @@ const BookControls = ({ libraryItemId }: Props) => {
   };
 
   const handleExpandedLayout = (event) => {
+    setExpandedHeight(135);
+    return;
     if (heightExpCalculated?.current) return;
     heightExpCalculated.current = true;
     const { width, height } = event.nativeEvent.layout;
@@ -87,10 +91,10 @@ const BookControls = ({ libraryItemId }: Props) => {
   }, [isBookActive, collapsedHeight]);
   //
   const animStyle = useAnimatedStyle(() => {
-    return { height: growVal.value, width: 85 };
+    return { height: growVal.value };
   }, []);
   const animProps = useAnimatedProps(() => {
-    return { height: growVal.value, width: 85 };
+    return { height: growVal.value };
   });
   //~~ ===== Size Book Control END
 
@@ -104,7 +108,7 @@ const BookControls = ({ libraryItemId }: Props) => {
 
   return (
     <Animated.View
-      className="flex-col  border-hairline rounded-2xl  justify-center items-center"
+      className="border-hairline rounded-2xl ml-2 justify-center items-center"
       style={[animStyle]}
     >
       <BlurView
@@ -113,78 +117,54 @@ const BookControls = ({ libraryItemId }: Props) => {
         tint="extraLight"
         className="h-full w-full rounded-2xl overflow-hidden justify-center items-center"
       >
-        {/* ------------- HIDDEN MEASURE START ------------------ */}
-        <Animated.View
-          style={{ position: "absolute", opacity: 0 }}
-          onLayout={handleCollapsedLayout}
-        >
-          <Pressable className="py-3 px-4 rounded-lg">
-            <PlayPauseAnimation isPlaying={false} size={50} duration={600} isBookActive={false} />
-          </Pressable>
-        </Animated.View>
+        {/* ---- BACKWARD ---- */}
+        <View className="flex-row justify-between w-full absolute top-1 px-1">
+          <Animated.View style={[opacityAnim]} className="mt-1">
+            <Pressable
+              onPress={() => jumpBackwardSeconds(seekBackward)}
+              className="flex-row justify-center items-center"
+            >
+              <Text
+                className="absolute mt-1 text-xl font-semibold"
+                style={{ color: THEME.light.muted }}
+                allowFontScaling={false}
+              >
+                {seekBackward}
+              </Text>
+              <SymbolView
+                name="arrow.trianglehead.counterclockwise"
+                size={50}
+                tintColor={THEME.light.accent}
+                // tintColor={themeColors.accent}
+              />
+            </Pressable>
+          </Animated.View>
+          {/* ---- FORWARD ---- */}
+          <Animated.View style={[opacityAnim]} className="flex-row mb-2 justify-end">
+            <Pressable
+              onPress={() => jumpForwardSeconds(seekForward)}
+              className="flex-row justify-center items-center"
+            >
+              <Text
+                className="absolute mt-1 text-xl font-semibold"
+                style={{ color: THEME.light.muted }}
+                allowFontScaling={false}
+              >
+                {seekForward}
+              </Text>
+              <SymbolView
+                name="arrow.trianglehead.clockwise"
+                size={50}
+                tintColor={THEME.light.accent}
+              />
+            </Pressable>
+          </Animated.View>
+        </View>
 
+        {/* PLAY-PAUSE  */}
         <Animated.View
-          style={{ position: "absolute", opacity: 0 }}
-          onLayout={handleExpandedLayout}
-          className="flex-col  border-hairline rounded-2xl  bg-slate-300 items-center"
-        >
-          {/* Full expanded content for measurement */}
-          <Pressable className="flex-row justify-center items-center pl-2 py-2">
-            <Text
-              className="absolute mt-1 text-xl font-semibold"
-              style={{ color: THEME.light.muted }}
-            >
-              {seekBackward}
-            </Text>
-            <SymbolView
-              name="arrow.trianglehead.counterclockwise"
-              size={50}
-              tintColor={THEME.light.accent}
-              // tintColor={themeColors.accent}
-            />
-          </Pressable>
-          <Pressable className="py-3 px-5 rounded-lg">
-            <PlayPauseAnimation isPlaying={false} size={50} duration={600} isBookActive={true} />
-          </Pressable>
-          <Pressable className="flex-row justify-center items-center pr-2 pb-2">
-            <Text
-              className="absolute mt-1 text-xl font-semibold"
-              style={{ color: THEME.light.muted }}
-            >
-              {seekBackward}
-            </Text>
-            <SymbolView
-              name="arrow.trianglehead.counterclockwise"
-              size={50}
-              tintColor={THEME.light.accent}
-              // tintColor={themeColors.accent}
-            />
-          </Pressable>
-        </Animated.View>
-        {/* ------------- HIDDEN MEASURE END ------------------ */}
-        <Animated.View style={[opacityAnim]} className="absolute top-1 mt-1">
-          <Pressable
-            onPress={() => jumpBackwardSeconds(seekBackward)}
-            className="flex-row justify-center items-center"
-          >
-            <Text
-              className="absolute mt-1 text-xl font-semibold"
-              style={{ color: THEME.light.muted }}
-            >
-              {seekBackward}
-            </Text>
-            <SymbolView
-              name="arrow.trianglehead.counterclockwise"
-              size={50}
-              tintColor={THEME.light.accent}
-              // tintColor={themeColors.accent}
-            />
-          </Pressable>
-        </Animated.View>
-
-        <Animated.View
-          style={{ height: "100%" }}
-          className="py-3 px-10 justify-center items-center"
+          // style={{ height: "100%" }}
+          className="py-3 px-10 justify-center items-center absolute bottom-0"
         >
           <Pressable
             // className="py-3 px-10 justify-center items-center"
@@ -196,28 +176,6 @@ const BookControls = ({ libraryItemId }: Props) => {
               size={50}
               duration={600}
               isBookActive={isBookActive && isBookLoaded}
-            />
-          </Pressable>
-        </Animated.View>
-
-        <Animated.View
-          style={[opacityAnim]}
-          className="flex-row mb-2 justify-end absolute bottom-0"
-        >
-          <Pressable
-            onPress={() => jumpForwardSeconds(seekForward)}
-            className="flex-row justify-center items-center"
-          >
-            <Text
-              className="absolute mt-1 text-xl font-semibold"
-              style={{ color: THEME.light.muted }}
-            >
-              {seekForward}
-            </Text>
-            <SymbolView
-              name="arrow.trianglehead.clockwise"
-              size={50}
-              tintColor={THEME.light.accent}
             />
           </Pressable>
         </Animated.View>

@@ -8,6 +8,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { useColorScheme } from "nativewind";
 import { useEffect, useRef, useState } from "react";
 import { LogBox, Text, View } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import MiniPlayer from "../components/MiniPlayer";
 import { AuthProvider, useAuth } from "../contexts/AuthContext";
 import "../global.css";
@@ -109,15 +110,17 @@ export default function RootLayout() {
 
   return (
     <View style={{ flex: 1 }} className={colorScheme === "dark" ? "dark" : ""}>
-      <ThemeProvider value={colorScheme === "dark" ? NAV_THEME.dark : NAV_THEME.light}>
-        {/* <ThemeProvider value={scheme === "dark" ? DarkTheme : DefaultTheme}> */}
-        <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <AppContent />
-            <PortalHost />
-          </AuthProvider>
-        </QueryClientProvider>
-      </ThemeProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <ThemeProvider value={colorScheme === "dark" ? NAV_THEME.dark : NAV_THEME.light}>
+          {/* <ThemeProvider value={scheme === "dark" ? DarkTheme : DefaultTheme}> */}
+          <QueryClientProvider client={queryClient}>
+            <AuthProvider>
+              <AppContent />
+              <PortalHost />
+            </AuthProvider>
+          </QueryClientProvider>
+        </ThemeProvider>
+      </GestureHandlerRootView>
     </View>
   );
 }

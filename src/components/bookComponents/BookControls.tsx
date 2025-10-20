@@ -19,7 +19,7 @@ const BookControls = ({ libraryItemId }: Props) => {
   const {
     jumpForwardSeconds,
     jumpBackwardSeconds,
-    updatePlaybackSpeed,
+    updatePlaybackRate: updatePlaybackSpeed,
     togglePlayPause,
     loadBookAndPlay,
   } = usePlaybackActions();

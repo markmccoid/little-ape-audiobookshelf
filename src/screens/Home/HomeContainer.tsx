@@ -1,17 +1,10 @@
 import { useGetBookShelves, useGetBooksInProgress } from "@/src/hooks/ABSHooks";
-import { BookShelfItemType } from "@/src/utils/AudiobookShelf/absUtils";
 import { useThemeColors } from "@/src/utils/theme";
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useMemo } from "react";
 import { ScrollView, View } from "react-native";
 import BookShelfContainer from "./BookShelves/BookShelfContainer";
 import NotAuthedHeader from "./NotAuthedHeader";
-
-export type EnhancedBookItem = BookShelfItemType & {
-  isCurrentlyLoaded: boolean;
-  isPlaying: boolean;
-  currentTime: number;
-};
 
 const HomeContainer = () => {
   const themeColors = useThemeColors();

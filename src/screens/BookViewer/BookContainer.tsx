@@ -1,6 +1,9 @@
 import BookControlsVertical from "@/src/components/bookComponents/BookControlsVertical";
 import BookSlider from "@/src/components/bookComponents/BookSlider";
+import RateSetter from "@/src/components/bookComponents/RateSetter";
+import RateViewer from "@/src/components/bookComponents/RateViewer";
 import { useGetItemDetails } from "@/src/hooks/ABSHooks";
+import { useBookData } from "@/src/hooks/trackPlayerHooks";
 import { useIsBookActive, usePlaybackSession, usePlaybackStore } from "@/src/store/store-playback";
 import { formatSeconds } from "@/src/utils/formatUtils";
 import { BlurView } from "expo-blur";
@@ -11,19 +14,20 @@ import { ScrollView, StyleSheet, Text, useColorScheme, View } from "react-native
 import { State, usePlaybackState } from "react-native-track-player";
 
 const BookContainer = () => {
-  const colorScheme = useColorScheme();
-  const playbackSession = usePlaybackSession();
-
   const { bookid, cover, title } = useLocalSearchParams<{
     bookid: string;
     cover: string;
     title: string;
   }>();
-  const { data, isPending } = useGetItemDetails(bookid);
-
+  const colorScheme = useColorScheme();
   const isBookActive = useIsBookActive(bookid);
   const isLoaded = usePlaybackStore((state) => state.isLoaded);
 
+  const playbackSession = usePlaybackSession();
+  const bookData = useBookData(bookid);
+  console.log("BOOK DATA", isBookActive, bookData.book?.title, bookData);
+  const { data, isPending } = useGetItemDetails(bookid);
+  console.log("GET DATA", data?.media?.metadata.authorName);
   // console.log("BOOK ACTIVe", isBookActive, isLoaded);
   // const { position, isLoading, error } = useSmartPosition(bookid);
 
@@ -54,6 +58,11 @@ const BookContainer = () => {
           contentFit="cover"
         />
       )}
+      <Stack.Screen
+        options={{
+          headerTitle: title,
+        }}
+      />
       {/* Native iOS Blur Effect */}
       <BlurView
         intensity={90}
@@ -76,36 +85,26 @@ const BookContainer = () => {
           />
         )} */}
 
-        <Stack.Screen
-          options={{
-            headerTitle: title,
-          }}
-        />
-
         <View className="flex-row mx-2 justify-between items-center pt-10 ">
-          <BookControlsVertical libraryItemId={bookid} />
+          <View className="absolute z-10 left-[-20]">
+            <RateSetter />
+          </View>
           <Image
             source={data?.coverURI || cover}
-            style={{ width: 200, height: 200, borderRadius: 15 }}
+            style={{ width: 250, height: 250, borderRadius: 15 }}
             transition={200}
           />
-          <BookControlsVertical libraryItemId={bookid} />
+          {/* Book Controls */}
+          <View className="flex-1 flex-col h-[250] justify-between gap-2">
+            <View className="flex-1 justify-end">
+              <RateViewer />
+            </View>
+            <BookControlsVertical libraryItemId={bookid} />
+          </View>
         </View>
 
-        {/* <View className="flex-row w-full justify-center">
-        <BookControlsVertical libraryItemId={bookid} />
-      </View> */}
         <BookSlider bookId={bookid} />
-        {/* <View className="flex-row items-center justify-between px-5">
-        <Pressable className="p-3 bg-blue-500 rounded-lg" onPress={sync}>
-          <Text className="text-white font-semibold">sync</Text>
-        </Pressable>
-      </View>
-      <View className="flex-row items-center justify-between px-5">
-        <Pressable className="p-3 bg-blue-500 rounded-lg" onPress={() => setupForPlayback(bookid)}>
-          <Text className="text-white font-semibold">START PLAYBACK</Text>
-        </Pressable>
-      </View> */}
+
         <Text className="text-foreground ">BookIdRoute -- {bookid}</Text>
         <Text className="text-foreground ">FOREGROUND</Text>
         {data &&

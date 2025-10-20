@@ -40,7 +40,7 @@ interface PlaybackState {
   position: number;
   duration: number;
   isOnBookScreen: boolean;
-  playbackSpeed: number;
+  playbackRate: number;
 }
 
 interface PlaybackActions {
@@ -55,7 +55,7 @@ interface PlaybackActions {
   play: () => Promise<void>;
   pause: () => Promise<void>;
   getPrevTrackDuration: () => Promise<number>;
-  updatePlaybackSpeed: (newSpeed: number) => Promise<void>;
+  updatePlaybackRate: (newRate: number) => Promise<void>;
   togglePlayPause: () => Promise<"playing" | "paused">;
   seekTo: (pos: number) => Promise<void>;
   jumpForwardSeconds: (forwardSeconds: number) => Promise<void>;
@@ -86,7 +86,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
   position: 0,
   duration: 0,
   isOnBookScreen: false,
-  playbackSpeed: 1.0,
+  playbackRate: 1.0,
 
   // ---- Actions
   actions: {
@@ -303,12 +303,13 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
 
       return final;
     },
-    updatePlaybackSpeed: async (newSpeed) => {
+    updatePlaybackRate: async (newRate) => {
       const bookActions = useBooksStore.getState().actions;
-      await TrackPlayer.setRate(newSpeed);
+      await TrackPlayer.setRate(newRate);
+      set({ playbackRate: newRate });
       const libraryItemId = get().session?.libraryItemId;
       if (!libraryItemId) return;
-      bookActions.updatePlaybackSpeed(libraryItemId, newSpeed);
+      bookActions.updatePlaybackSpeed(libraryItemId, newRate);
     },
 
     togglePlayPause: async () => {

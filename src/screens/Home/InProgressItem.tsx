@@ -1,4 +1,5 @@
 import { useSafeAbsAPI } from "@/src/contexts/AuthContext";
+import { EnhancedBookItem } from "@/src/screens/Home/BookShelves/BookShelfContainer";
 import { formatSeconds } from "@/src/utils/formatUtils";
 import { useThemeColors } from "@/src/utils/theme";
 import { Image } from "expo-image";
@@ -6,7 +7,6 @@ import { Link, useRouter } from "expo-router";
 import React, { useCallback } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
-import { EnhancedBookItem } from "./HomeContainer";
 
 // Enhanced book item type with playback state
 

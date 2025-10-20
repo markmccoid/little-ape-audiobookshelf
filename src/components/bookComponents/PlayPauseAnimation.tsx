@@ -43,7 +43,7 @@ const PlayPauseAnimation = ({
   };
 
   const getInitialScale = (icon: "resume" | "play" | "pause") => {
-    if (!isBookActive) return icon === "resume" ? 1 : 0.5;
+    if (!isBookActive) return icon === "resume" ? 1.1 : 0.5;
     if (isPlaying) return icon === "pause" ? 1 : 0.5;
     return icon === "play" ? 1 : 0.5;
   };

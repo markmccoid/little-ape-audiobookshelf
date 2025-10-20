@@ -858,7 +858,7 @@ interface AuthorEntity {
 type PersonalizedViewEntity = LibraryItemMinified | SeriesEntity | AuthorEntity;
 
 // Main view type
-interface PersonalizedView {
+export interface PersonalizedView {
   id: string;
   label: string;
   labelStringKey: string;
