@@ -24,8 +24,8 @@ const BookContainer = () => {
   const isLoaded = usePlaybackStore((state) => state.isLoaded);
 
   const playbackSession = usePlaybackSession();
-  const bookData = useBookData(bookid);
-  console.log("BOOK DATA", isBookActive, bookData.book?.title, bookData);
+  const { book, isLoading } = useBookData(bookid);
+  console.log("BOOK DATA", isBookActive, book?.title, book?.genre);
   const { data, isPending } = useGetItemDetails(bookid);
   console.log("GET DATA", data?.media?.metadata.authorName);
   // console.log("BOOK ACTIVe", isBookActive, isLoaded);
@@ -103,7 +103,9 @@ const BookContainer = () => {
           </View>
         </View>
 
-        <BookSlider bookId={bookid} />
+        <View className="flex-1">
+          <BookSlider bookId={bookid} />
+        </View>
 
         <Text className="text-foreground ">BookIdRoute -- {bookid}</Text>
         <Text className="text-foreground ">FOREGROUND</Text>

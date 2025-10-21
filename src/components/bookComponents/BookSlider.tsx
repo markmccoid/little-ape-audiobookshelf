@@ -8,7 +8,7 @@ import { formatSeconds } from "@/src/utils/formatUtils";
 import { THEME, useThemeColors } from "@/src/utils/theme";
 import Slider from "@react-native-community/slider";
 import React, { useEffect, useRef, useState } from "react";
-import { Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import Animated, {
   interpolate,
   ReduceMotion,
@@ -129,18 +129,34 @@ const BookSlider: React.FC<BookSliderProps> = ({ bookId, useStaticColors = false
     const scale = interpolate(animatePosition.value, [0, 1], [0.5, 2]);
     const translateY = interpolate(animatePosition.value, [0, 1], [0, -150]);
     return {
+      transform: [{ translateY }, { scale }],
+
       opacity: interpolate(animatePosition.value, [0, 1], [0, 1]),
       // display: animatePosition.value == 0 ? "none" : "contents",
-      transform: [{ translateY }, { scale }],
     };
   });
   return (
-    <View className="flex-col justify-center items-center mx-3">
+    <View className="flex-col justify-center items-center mx-3 relative">
       <Animated.View
-        style={[animStyle, { borderRadius: 10, position: "absolute" }]}
-        className="px-2 py-1 bg-accent w-[100] justify-center flex-row"
+        style={[
+          animStyle,
+          {
+            // transform: [{ translateY: -150 }],
+            borderRadius: 10,
+            borderWidth: StyleSheet.hairlineWidth,
+            zIndex: 10,
+            position: "absolute",
+            backgroundColor: themeColors.accent,
+            paddingHorizontal: 2,
+            paddingVertical: 1,
+            width: 100,
+            flexDirection: "row",
+            justifyContent: "center",
+          },
+        ]}
+        // className="px-2 py-1 w-[100] justify-center flex-row h-auto"
       >
-        <Text className="text-lg text-white">{formatSeconds(sliderDisplayValue)}</Text>
+        <Text className="text-lg text-accent-foreground">{formatSeconds(sliderDisplayValue)}</Text>
       </Animated.View>
       <Text
         className="text-lg"

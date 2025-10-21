@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { getAbsAPI } from "../utils/AudiobookShelf/absInit";
 import { PersonalizedView } from "../utils/AudiobookShelf/abstypes";
 import { mmkvStorage } from "./mmkv-storage";
 
@@ -8,13 +9,31 @@ export type Book = {
   userId: string;
   libraryItemId: string;
   title?: string;
+  author?: string;
+  narratedBy?: string;
+  genre?: string;
+  description?: string;
+  pictureURI?: string;
+  year?: number;
   playbackSpeed: number;
   isDownloaded: boolean;
   currentPosition: number;
   duration?: number;
   lastUpdated?: number;
   //continue-listening, discover, etc
-  bookShelfType?: PersonalizedView["type"];
+  bookShelfType?: PersonalizedView["type"] | undefined;
+  // bookshelf - see bookShelfType for specific type
+  // downloaded - downloaded book
+  // temporary - a book accessed
+  //!! a book in a bookshelf, can be downloaded.
+  //!! What causes the type to be set?? If added from a bookshelf
+  //!! always set, if downloaded always set
+  //!! if temporary only set if book doesn't exist.  This means that
+  //!! a temporary book with have its type overwritten if it is downloaded or part of a bookshelf
+
+  //!! But what happens when a temporary book is listened to and has its playbackrate changed?
+  //!! I think we still cleanup a temporary book after a month of inactivity
+  type: "bookshelf" | "downloaded" | "temporary";
 };
 
 // Define the state interface
@@ -91,74 +110,62 @@ export const useBooksStore = create<BooksStore>()(
         getOrFetchBook: async ({ userId, libraryItemId }) => {
           console.log(`[BooksStore] getOrFetchBook called for: ${libraryItemId}--${userId}`);
 
-          // Check cache first
-          const existingBook = get().books.find(
+          const { books } = get();
+          const now = Date.now();
+
+          const existingBook = books.find(
             (b) => b.libraryItemId === libraryItemId && b.userId === userId
           );
 
-          if (existingBook) {
-            // console.log(`[BooksStore] Found existing book:`, {
-            //   title: existingBook.title,
-            //   currentPosition: existingBook.currentPosition,
-            //   duration: existingBook.duration,
-            // });
-            return existingBook;
+          const fallback: Book = {
+            userId,
+            libraryItemId,
+            playbackSpeed: 1,
+            isDownloaded: false,
+            currentPosition: 0,
+            duration: 0,
+            lastUpdated: now,
+          };
+
+          const book = existingBook ?? fallback;
+
+          // Return immediately
+          const STALE_AFTER_MS = 5 * 60 * 1000; // 5 min
+          const isStale = !existingBook || now - (existingBook.lastUpdated ?? 0) > STALE_AFTER_MS;
+          // console.log("IS STALE OR NOT EXISTING BOOK", isStale, !existingBook);
+
+          if (isStale) {
+            (async () => {
+              try {
+                // const { getAbsAPI } = require("@/src/utils/AudiobookShelf/absInit");
+                const absAPI = getAbsAPI();
+                // const progress = await absAPI.getBookProgress(libraryItemId);
+                const itemDetails = await absAPI.getItemDetails(libraryItemId);
+
+                const updated: Book = {
+                  ...book,
+                  title: itemDetails?.media?.metadata?.title || "",
+                  author: itemDetails?.media?.metadata?.authorName || "",
+                  description: itemDetails?.media?.metadata?.description || "",
+                  narratedBy: itemDetails?.media?.metadata?.narratorName || "",
+                  genre: itemDetails?.media?.metadata?.genres.join(", "),
+                  currentPosition: itemDetails?.userMediaProgress?.currentTime || 0,
+                  duration: itemDetails?.userMediaProgress?.duration || 0,
+                  lastUpdated: Date.now(),
+                };
+
+                set((s) => ({
+                  books: [...s.books.filter((b) => b.libraryItemId !== libraryItemId), updated],
+                }));
+
+                console.log(`[BooksStore] Background refresh complete: ${libraryItemId}`);
+              } catch (err) {
+                console.warn(`[BooksStore] Background refresh failed: ${libraryItemId}`, err);
+              }
+            })();
           }
 
-          // console.log(`[BooksStore] Book not in cache, fetching from server...`);
-
-          // Fetch from server if not found
-          try {
-            const { getAbsAPI } = require("@/src/utils/AudiobookShelf/absInit");
-            const absAPI = getAbsAPI();
-            //~NOTE: the getBookProgress call has duration of the whole book
-            const progress = await absAPI.getBookProgress(libraryItemId);
-
-            // console.log(`[BooksStore] Server progress response:`, {
-            //   currentTime: progress?.currentTime,
-            //   duration: progress?.duration,
-            //   displayTitle: progress?.displayTitle,
-            // });
-
-            const newBook: Book = {
-              userId,
-              libraryItemId,
-              title: progress?.displayTitle || "",
-              playbackSpeed: 1,
-              isDownloaded: false,
-              currentPosition: progress?.currentTime || 0,
-              duration: progress?.duration || 0,
-              lastUpdated: Date.now(),
-            };
-
-            // console.log(`[BooksStore] Saving new book:`, newBook);
-
-            set((state) => ({
-              books: [...state.books, newBook],
-            }));
-
-            return newBook;
-          } catch (error) {
-            console.error("Failed to fetch book progress:", error);
-
-            // Return default book on error
-            const defaultBook: Book = {
-              userId,
-              libraryItemId,
-              title: "",
-              playbackSpeed: 1,
-              isDownloaded: false,
-              currentPosition: 0,
-              duration: 0,
-              lastUpdated: Date.now(),
-            };
-
-            set((state) => ({
-              books: [...state.books, defaultBook],
-            }));
-
-            return defaultBook;
-          }
+          return book;
         },
 
         updateCurrentPosition: (libraryItemId, position, duration) => {

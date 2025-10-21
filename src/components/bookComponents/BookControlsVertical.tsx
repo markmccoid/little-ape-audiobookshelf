@@ -119,7 +119,7 @@ const BookControls = ({ libraryItemId }: Props) => {
       >
         {/* ---- BACKWARD ---- */}
         <View className="flex-row justify-between w-full absolute top-1 px-1">
-          <Animated.View style={[opacityAnim]} className="mt-1">
+          <Animated.View style={[opacityAnim]} className="mt-1 ">
             <Pressable
               onPress={() => jumpBackwardSeconds(seekBackward)}
               className="flex-row justify-center items-center"
@@ -140,7 +140,11 @@ const BookControls = ({ libraryItemId }: Props) => {
             </Pressable>
           </Animated.View>
           {/* ---- FORWARD ---- */}
-          <Animated.View style={[opacityAnim]} className="flex-row mb-2 justify-end">
+          <Animated.View
+            style={[opacityAnim]}
+            // className="flex-row mb-2 justify-end  "
+            className="mt-1 "
+          >
             <Pressable
               onPress={() => jumpForwardSeconds(seekForward)}
               className="flex-row justify-center items-center"
@@ -164,10 +168,10 @@ const BookControls = ({ libraryItemId }: Props) => {
         {/* PLAY-PAUSE  */}
         <Animated.View
           // style={{ height: "100%" }}
-          className="py-3 px-10 justify-center items-center absolute bottom-0"
+          className="pb-3 flex-row w-full justify-center items-center absolute bottom-0"
         >
           <Pressable
-            // className="py-3 px-10 justify-center items-center"
+            className="w-full justify-center flex-row"
             // style={[heightAnim]}
             onPress={localTogglePlayPause}
           >
