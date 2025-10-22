@@ -17,15 +17,15 @@ import Animated, {
   withSpring,
 } from "react-native-reanimated";
 interface BookSliderProps {
-  bookId: string;
+  libraryItemId: string;
   useStaticColors?: boolean;
 }
 
-const BookSlider: React.FC<BookSliderProps> = ({ bookId, useStaticColors = false }) => {
-  const { position } = useSmartPosition(bookId);
-  const { duration: bookDuration } = useBookData(bookId);
-  const isBookActive = useIsBookActive(bookId);
-  const playbackDuration = usePlaybackDuration(bookId);
+const BookSlider: React.FC<BookSliderProps> = ({ libraryItemId, useStaticColors = false }) => {
+  const { position } = useSmartPosition(libraryItemId);
+  const { duration: bookDuration } = useBookData(libraryItemId);
+  const isBookActive = useIsBookActive(libraryItemId);
+  const playbackDuration = usePlaybackDuration(libraryItemId);
   const { seekTo } = usePlaybackActions();
   const themeColors = useThemeColors();
 

@@ -23,13 +23,8 @@ type Props = {
   libraryItemId: string;
 };
 const BookControls = ({ libraryItemId }: Props) => {
-  const {
-    jumpForwardSeconds,
-    jumpBackwardSeconds,
-    updatePlaybackRate: updatePlaybackSpeed,
-    togglePlayPause,
-    loadBookAndPlay,
-  } = usePlaybackActions();
+  const { jumpForwardSeconds, jumpBackwardSeconds, togglePlayPause, loadBookAndPlay } =
+    usePlaybackActions();
   const themeColors = useThemeColors();
   const seekForward = useSeekForwardSeconds();
   const seekBackward = useSeekBackwardSeconds();
@@ -46,7 +41,6 @@ const BookControls = ({ libraryItemId }: Props) => {
   const heightCollCalculated = useRef(false);
   const heightExpCalculated = useRef(false);
 
-  const AnimatedBlurView = Animated.createAnimatedComponent(BlurView);
   const localTogglePlayPause = async () => {
     if (!isBookActive) {
       await loadBookAndPlay(libraryItemId);

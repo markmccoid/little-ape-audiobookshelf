@@ -55,7 +55,7 @@ interface PlaybackActions {
   play: () => Promise<void>;
   pause: () => Promise<void>;
   getPrevTrackDuration: () => Promise<number>;
-  updatePlaybackRate: (newRate: number) => Promise<void>;
+  updateActivePlaybackRate: (newRate: number) => Promise<void>;
   togglePlayPause: () => Promise<"playing" | "paused">;
   seekTo: (pos: number) => Promise<void>;
   jumpForwardSeconds: (forwardSeconds: number) => Promise<void>;
@@ -193,7 +193,8 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
         userId: userId,
         libraryItemId: sessionData.libraryItemId,
       });
-      const savedPlaybackSpeed = savedBook?.playbackSpeed || 1;
+
+      const savedPlaybackRate = savedBook?.playbackRate || 1;
       //~
       await TrackPlayer.reset();
       await TrackPlayer.add(tracks);
@@ -208,7 +209,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       console.log("Chapter Info", chapterInfo);
       //!!
       await TrackPlayer.seekTo(startTime);
-      await TrackPlayer.setRate(savedPlaybackSpeed);
+      await TrackPlayer.setRate(savedPlaybackRate);
 
       set({ position: startTime });
 
@@ -217,6 +218,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
         queue: tracks,
         duration: sessionData.duration ?? get().duration,
         isOnBookScreen: false,
+        playbackRate: savedPlaybackRate,
       });
       // wait for book to be fully loaded
       await waitForReadyState();
@@ -303,13 +305,10 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
 
       return final;
     },
-    updatePlaybackRate: async (newRate) => {
-      const bookActions = useBooksStore.getState().actions;
+    updateActivePlaybackRate: async (newRate) => {
       await TrackPlayer.setRate(newRate);
+      //!! Not sure if this is ever going to be needed.
       set({ playbackRate: newRate });
-      const libraryItemId = get().session?.libraryItemId;
-      if (!libraryItemId) return;
-      bookActions.updatePlaybackSpeed(libraryItemId, newRate);
     },
 
     togglePlayPause: async () => {
@@ -555,3 +554,18 @@ export const useShowMiniPlayer = () =>
  */
 export const useIsBookActive = (libraryItemId: string) =>
   usePlaybackStore((state) => state.session?.libraryItemId === libraryItemId);
+
+//## ---------------------------------------------------------------
+//## updatePlaybackRate
+//## Checks is book is active and if so runs the playback store's update rate
+//## function which will update TrackPlayer's rate and set the stores rate
+//## Always updates the book stores playback rate for the given book.
+//## ---------------------------------------------------------------
+export const updatePlaybackRate = (libraryItemId: string, newRate: number) => {
+  const activeSession = usePlaybackStore.getState().session;
+  // If this book is the active book update the Trackplayer Rate and current playback store
+  if (activeSession?.libraryItemId && activeSession?.libraryItemId === libraryItemId) {
+    usePlaybackStore.getState().actions.updateActivePlaybackRate(newRate);
+  }
+  useBooksStore.getState().actions.updateBookPlaybackRate(libraryItemId, newRate);
+};

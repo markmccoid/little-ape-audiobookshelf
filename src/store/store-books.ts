@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { getAbsAPI } from "../utils/AudiobookShelf/absInit";
-import { PersonalizedView } from "../utils/AudiobookShelf/abstypes";
+import { Author, Chapter, PersonalizedView } from "../utils/AudiobookShelf/abstypes";
 import { mmkvStorage } from "./mmkv-storage";
 
 // Define the book object type
@@ -10,16 +10,20 @@ export type Book = {
   libraryItemId: string;
   title?: string;
   author?: string;
+  // authors will give you an array of "id", "name", for the authors
+  // will make search for authors more exact, since we will have the id.
+  authors?: Author[];
   narratedBy?: string;
   genre?: string;
   description?: string;
-  pictureURI?: string;
-  year?: number;
-  playbackSpeed: number;
+  coverURI?: string;
+  publishedYear?: string;
+  playbackRate: number;
   isDownloaded: boolean;
   currentPosition: number;
   duration?: number;
   lastUpdated?: number;
+  chapters?: Chapter[];
   //continue-listening, discover, etc
   bookShelfType?: PersonalizedView["type"] | undefined;
   // bookshelf - see bookShelfType for specific type
@@ -49,7 +53,7 @@ interface BooksActions {
   removeBook: (libraryItemId: string) => void;
   clearBooks: () => void;
   getBook: (libraryItemId: string) => Book | undefined;
-  updatePlaybackSpeed: (libraryItemId: string, speed: number) => void;
+  updateBookPlaybackRate: (libraryItemId: string, speed: number) => void;
   updateIsDownloaded: (libraryItemId: string, isDownloaded: boolean) => void;
   updateCurrentPosition: (libraryItemId: string, position: number, duration?: number) => void;
 }
@@ -92,10 +96,11 @@ export const useBooksStore = create<BooksStore>()(
           return state.books.find((book) => book.libraryItemId === libraryItemId);
         },
 
-        updatePlaybackSpeed: (libraryItemId: string, speed: number) => {
+        updateBookPlaybackRate: (libraryItemId: string, speed: number) => {
+          console.log("BOOK updated", speed);
           set((state) => ({
             books: state.books.map((book) =>
-              book.libraryItemId === libraryItemId ? { ...book, playbackSpeed: speed } : book
+              book.libraryItemId === libraryItemId ? { ...book, playbackRate: speed } : book
             ),
           }));
         },
@@ -120,11 +125,12 @@ export const useBooksStore = create<BooksStore>()(
           const fallback: Book = {
             userId,
             libraryItemId,
-            playbackSpeed: 1,
+            playbackRate: 1,
             isDownloaded: false,
             currentPosition: 0,
             duration: 0,
             lastUpdated: now,
+            type: "temporary",
           };
 
           const book = existingBook ?? fallback;
@@ -143,14 +149,18 @@ export const useBooksStore = create<BooksStore>()(
                 const itemDetails = await absAPI.getItemDetails(libraryItemId);
 
                 const updated: Book = {
-                  ...book,
+                  ...book, // If new, the fallback has the libraryItemId & userId in it
                   title: itemDetails?.media?.metadata?.title || "",
                   author: itemDetails?.media?.metadata?.authorName || "",
                   description: itemDetails?.media?.metadata?.description || "",
                   narratedBy: itemDetails?.media?.metadata?.narratorName || "",
                   genre: itemDetails?.media?.metadata?.genres.join(", "),
                   currentPosition: itemDetails?.userMediaProgress?.currentTime || 0,
-                  duration: itemDetails?.userMediaProgress?.duration || 0,
+                  duration: itemDetails?.bookDuration || 0,
+                  coverURI: itemDetails?.coverURI,
+                  publishedYear: itemDetails?.media?.metadata.publishedYear,
+                  chapters: itemDetails?.media?.chapters,
+                  authors: itemDetails?.media?.metadata?.authors,
                   lastUpdated: Date.now(),
                 };
 
@@ -256,5 +266,5 @@ export const useIsBookDownloaded = (libraryItemId: string) =>
 export const useBookPlaybackSpeed = (libraryItemId: string) =>
   useBooksStore((state) => {
     const book = state.books.find((b) => b.libraryItemId === libraryItemId);
-    return book?.playbackSpeed ?? 1.0;
+    return book?.playbackRate ?? 1.0;
   });

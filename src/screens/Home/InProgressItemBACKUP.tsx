@@ -75,7 +75,7 @@ const InProgressItem = React.memo<InProgressItemProps>(
             href={{
               pathname: `/(tabs)/(home)/[bookid]`,
               params: {
-                bookid: item.bookId,
+                libraryItemId: item.bookId,
                 cover: item.coverFull,
                 title: item.title,
               },

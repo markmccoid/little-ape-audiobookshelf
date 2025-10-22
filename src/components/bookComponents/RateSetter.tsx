@@ -1,6 +1,9 @@
-import { usePlaybackActions, usePlaybackStore } from "@/src/store/store-playback";
+import { usePlaybackRate } from "@/src/hooks/trackPlayerHooks";
+import { BookContainerRoute } from "@/src/screens/BookViewer/BookContainer";
+import { updatePlaybackRate } from "@/src/store/store-playback";
 import { useThemeColors } from "@/src/utils/theme";
 import * as Haptics from "expo-haptics";
+import { useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import React, { useEffect } from "react";
 import { Text, View } from "react-native";
@@ -21,9 +24,10 @@ const PIXEL_PER_STEP = 10; // How many pixels to drag for each 0.1 increment
 //!!! -- Need to only show when book is active OR do check to pull proper book information.
 //!!! -- If book in store-books, then we will have rate, otherwise, 1.0
 export default function RateSetter() {
+  const { libraryItemId } = useLocalSearchParams<BookContainerRoute>();
   const themeColors = useThemeColors();
-  const currentRate = usePlaybackStore((state) => state.playbackRate);
-  const { updatePlaybackRate } = usePlaybackActions();
+  const currentRate = usePlaybackRate(libraryItemId);
+
   const value = useSharedValue(currentRate);
   const startValue = useSharedValue(currentRate);
   const [displayValue, setDisplayValue] = React.useState(1.0);
@@ -32,7 +36,6 @@ export default function RateSetter() {
   const offsetY = useSharedValue(0);
   const isPressed = useSharedValue(false);
   const lastHapticValue = useSharedValue(currentRate);
-  console.log("Current", currentRate);
 
   useEffect(() => {
     value.value = currentRate;
@@ -103,7 +106,7 @@ export default function RateSetter() {
     .onEnd((event) => {
       isPressed.value = false;
       // offsetY.value = withSpring(startY.value);
-      runOnJS(updatePlaybackRate)(displayValue);
+      runOnJS(updatePlaybackRate)(libraryItemId, displayValue);
       animatePosition.value = withSpring(0, {
         duration: 1250,
         dampingRatio: 0.5,

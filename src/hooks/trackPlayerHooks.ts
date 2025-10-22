@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useProgress } from "react-native-track-player";
-import { useBooksStore, type Book } from "../store/store-books";
-import { usePlaybackPosition, usePlaybackStore } from "../store/store-playback";
+import { useBookPlaybackSpeed, useBooksStore, type Book } from "../store/store-books";
+import { usePlaybackPosition, usePlaybackSession, usePlaybackStore } from "../store/store-playback";
 import { getAbsAuth } from "../utils/AudiobookShelf/absInit";
 
 // Shared cache to prevent duplicate fetches between hooks
@@ -126,7 +126,7 @@ export const useBookData = (
 } => {
   const bookActions = useBooksStore((state) => state.actions);
   // ✅ Subscribe to the SPECIFIC book from Zustand - will re-render when it updates
-  const bookFromStore = useBooksStore((state) => 
+  const bookFromStore = useBooksStore((state) =>
     state.books.find((b) => b.libraryItemId === libraryItemId)
   );
   const [isLoading, setIsLoading] = useState(false);
@@ -194,7 +194,7 @@ export const useBookData = (
   return {
     book: bookFromStore ?? null,
     duration: bookFromStore?.duration,
-    playbackSpeed: bookFromStore?.playbackSpeed ?? 1,
+    playbackSpeed: bookFromStore?.playbackRate ?? 1,
     isLoading,
     error,
     isBookActive,
@@ -207,4 +207,20 @@ export const useBookData = (
  */
 export const clearBookDataCache = () => {
   bookDataCache.clear();
+};
+
+//## ------------------------------------------------
+//## Checks to see if the book is active (being listened to)
+//## if so returns the active sessionPlayback Rate otherwise
+//## returns the stored book playback rate
+//## ------------------------------------------------
+export const usePlaybackRate = (libraryItemId: string) => {
+  const session = usePlaybackSession();
+  const sessionPlaybackRate = usePlaybackStore((state) => state.playbackRate);
+  const bookPlaybackRate = useBookPlaybackSpeed(libraryItemId);
+
+  if (session?.libraryItemId && session?.libraryItemId === libraryItemId) {
+    return sessionPlaybackRate || 1;
+  }
+  return bookPlaybackRate || 1;
 };

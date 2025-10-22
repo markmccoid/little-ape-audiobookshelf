@@ -1,42 +1,41 @@
-import { usePlaybackActions, usePlaybackStore } from "@/src/store/store-playback";
+import { usePlaybackRate } from "@/src/hooks/trackPlayerHooks";
+import { BookContainerRoute } from "@/src/screens/BookViewer/BookContainer";
+import { updatePlaybackRate } from "@/src/store/store-playback";
 import { useThemeColors } from "@/src/utils/theme";
 import { Button, ContextMenu, Host } from "@expo/ui/swift-ui";
-import { BlurView } from "expo-blur";
+import { useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import React from "react";
 import { Text, View } from "react-native";
+import BookBlurView from "./BookBlurView";
 
 const RateViewer = () => {
-  const playbackRate = usePlaybackStore((state) => state.playbackRate);
+  const { libraryItemId } = useLocalSearchParams<BookContainerRoute>();
+  const playbackRate = usePlaybackRate(libraryItemId);
 
-  const { updatePlaybackRate } = usePlaybackActions();
+  // const { updateActivePlaybackRate: updatePlaybackRate } = usePlaybackActions();
   const themeColors = useThemeColors();
 
   return (
-    <BlurView
-      intensity={100}
-      // tint="systemMaterial"
-      tint="extraLight"
-      className="flex-row rounded-2xl overflow-hidden justify-center items-center ml-2"
-    >
+    <BookBlurView>
       <Host style={{ flex: 1 }}>
         <ContextMenu>
           <ContextMenu.Items>
-            <Button onPress={() => updatePlaybackRate(0.75)}>.75x</Button>
-            <Button onPress={() => updatePlaybackRate(1)}>1x</Button>
-            <Button variant="default" onPress={() => updatePlaybackRate(1.25)}>
+            <Button onPress={() => updatePlaybackRate(libraryItemId, 0.75)}>.75x</Button>
+            <Button onPress={() => updatePlaybackRate(libraryItemId, 1)}>1x</Button>
+            <Button variant="default" onPress={() => updatePlaybackRate(libraryItemId, 1.25)}>
               1.25x
             </Button>
-            <Button variant="bordered" onPress={() => updatePlaybackRate(1.5)}>
+            <Button variant="bordered" onPress={() => updatePlaybackRate(libraryItemId, 1.5)}>
               1.5x
             </Button>
-            <Button variant="bordered" onPress={() => updatePlaybackRate(1.75)}>
+            <Button variant="bordered" onPress={() => updatePlaybackRate(libraryItemId, 1.75)}>
               1.75x
             </Button>
-            <Button variant="bordered" onPress={() => updatePlaybackRate(2)}>
+            <Button variant="bordered" onPress={() => updatePlaybackRate(libraryItemId, 2)}>
               2.0x
             </Button>
-            <Button variant="bordered" onPress={() => updatePlaybackRate(2.25)}>
+            <Button variant="bordered" onPress={() => updatePlaybackRate(libraryItemId, 2.25)}>
               2.25x
             </Button>
           </ContextMenu.Items>
@@ -53,7 +52,7 @@ const RateViewer = () => {
           </ContextMenu.Trigger>
         </ContextMenu>
       </Host>
-    </BlurView>
+    </BookBlurView>
   );
 };
 

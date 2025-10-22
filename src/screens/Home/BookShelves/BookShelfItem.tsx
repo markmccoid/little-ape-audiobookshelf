@@ -42,21 +42,7 @@ const BookShelfItem = React.memo<BookShelfItemProps>(
     const absAPI = useSafeAbsAPI();
     const themeColors = useThemeColors();
     return (
-      <Animated.View
-        className="flex-col py-2 w-[190] justify-center items-center rounded-lg"
-
-        // style={{
-        //   backgroundColor: item.isCurrentlyLoaded ? themeColors.accentMuted : "transparent",
-        // }}
-      >
-        {/* {(item.isFinished || item.hideFromContinueListening) && (
-          <View className="absolute top-0 border-hairline rounded-full z-10 left-0 bg-gray-300">
-            {item.hideFromContinueListening && (
-              <SymbolView name="eye.slash.circle.fill" tintColor={themeColors.warning} />
-            )}
-            {item.isFinished && <SymbolView name="checkmark" tintColor={themeColors.warning} />}
-          </View>
-        )} */}
+      <Animated.View className="flex-col py-2 w-[190] justify-center items-center rounded-lg">
         <View
           className="mx-2"
           style={{
@@ -66,9 +52,9 @@ const BookShelfItem = React.memo<BookShelfItemProps>(
         >
           <Link
             href={{
-              pathname: `/(tabs)/(home)/[bookid]`,
+              pathname: `/(tabs)/(home)/[libraryItemId]`,
               params: {
-                bookid: item.libraryItemId,
+                libraryItemId: item.libraryItemId,
                 cover: item.coverURL,
                 title: item.title,
               },
@@ -89,7 +75,9 @@ const BookShelfItem = React.memo<BookShelfItemProps>(
                 contentFit="cover"
               />
             </Link.Trigger>
-
+            <Link.Preview style={{ width: 250, height: 250 }}>
+              <Image source={item.coverURL} style={{ width: "100%", height: "100%" }} />
+            </Link.Preview>
             <Link.Menu>
               <Link.MenuAction
                 title={item.isPlaying ? "Pause" : "Play"}

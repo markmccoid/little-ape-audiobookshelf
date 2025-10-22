@@ -5,7 +5,6 @@ import { Text, View } from "react-native";
 
 const NotAuthedHeader = () => {
   const { isAuthenticated } = useAuth();
-  console.log("NotAUthHeader isAuthed", isAuthenticated);
   if (isAuthenticated) return null;
 
   return (

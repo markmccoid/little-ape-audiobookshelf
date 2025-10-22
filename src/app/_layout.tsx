@@ -39,10 +39,9 @@ function AppContent() {
 
     const initialize = async () => {
       await trackPlayerInit();
-      console.log("hasStoredCredit from authContext", hasStoredCredentials);
+
       // Always attempt to initialize ABS - it will handle the credential check internally
       const initSuccess = await absInitalize(queryClient);
-      console.log("AFTER absINIT", initSuccess);
       if (!initSuccess) {
         console.log("NO SUCCESS FOR YOU");
       }

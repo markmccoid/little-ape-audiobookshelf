@@ -518,12 +518,12 @@ export class AudiobookshelfAPI {
     for (const audio of libraryItem.media.audioFiles) {
       bookDuration += audio.duration;
     }
-
+    // console.log("In getItemDetails", libraryItem);
     return {
       id: libraryItem.id,
       audioFiles: libraryItem.media.audioFiles,
       media: libraryItem.media,
-      bookDuration,
+      bookDuration: libraryItem.media.duration,
       userMediaProgress: libraryItem?.userMediaProgress,
       coverURI: coverURL.coverFull,
       authorBookCount,

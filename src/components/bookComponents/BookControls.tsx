@@ -16,13 +16,8 @@ type Props = {
   libraryItemId: string;
 };
 const BookControls = ({ libraryItemId }: Props) => {
-  const {
-    jumpForwardSeconds,
-    jumpBackwardSeconds,
-    updatePlaybackRate: updatePlaybackSpeed,
-    togglePlayPause,
-    loadBookAndPlay,
-  } = usePlaybackActions();
+  const { jumpForwardSeconds, jumpBackwardSeconds, togglePlayPause, loadBookAndPlay } =
+    usePlaybackActions();
   const themeColors = useThemeColors();
   const seekForward = useSeekForwardSeconds();
   const seekBackward = useSeekBackwardSeconds();
