@@ -109,7 +109,12 @@ const BookControls = ({ libraryItemId }: Props) => {
       {/* ------------- HIDDEN MEASURE START ------------------ */}
       <Animated.View style={{ position: "absolute", opacity: 0 }} onLayout={handleCollapsedLayout}>
         <Pressable className="py-3 px-8 rounded-lg">
-          <PlayPauseAnimation isPlaying={false} size={50} duration={600} isBookActive={false} />
+          <PlayPauseAnimation
+            isPlaying={false}
+            size={50}
+            duration={600}
+            isBookActiveAndLoaded={false}
+          />
         </Pressable>
       </Animated.View>
 
@@ -134,7 +139,12 @@ const BookControls = ({ libraryItemId }: Props) => {
           />
         </Pressable>
         <Pressable className="py-3 px-10 rounded-lg">
-          <PlayPauseAnimation isPlaying={false} size={50} duration={600} isBookActive={true} />
+          <PlayPauseAnimation
+            isPlaying={false}
+            size={50}
+            duration={600}
+            isBookActiveAndLoaded={true}
+          />
         </Pressable>
         <Pressable className="flex-row justify-center items-center pr-2">
           <Text
@@ -177,7 +187,7 @@ const BookControls = ({ libraryItemId }: Props) => {
           isPlaying={showPlayingState}
           size={50}
           duration={600}
-          isBookActive={isBookActive && isBookLoaded}
+          isBookActiveAndLoaded={isBookActive && isBookLoaded}
         />
       </Pressable>
 

@@ -8,10 +8,9 @@ import { useSeekBackwardSeconds, useSeekForwardSeconds } from "@/src/store/store
 import { THEME, useThemeColors } from "@/src/utils/theme";
 import { BlurView } from "expo-blur";
 import { SymbolView } from "expo-symbols";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect } from "react";
 import { Pressable, Text, View } from "react-native";
 import Animated, {
-  useAnimatedProps,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
@@ -35,11 +34,10 @@ const BookControls = ({ libraryItemId }: Props) => {
 
   const showPlayingState = isBookActive && isPlaying;
   const opacityVal = useSharedValue(0);
-  const [collapsedHeight, setCollapsedHeight] = React.useState(75);
-  const [expandedHeight, setExpandedHeight] = React.useState(135);
+
+  const collapsedHeight = 75;
+  const expandedHeight = 135;
   const growVal = useSharedValue(collapsedHeight);
-  const heightCollCalculated = useRef(false);
-  const heightExpCalculated = useRef(false);
 
   const localTogglePlayPause = async () => {
     if (!isBookActive) {
@@ -49,29 +47,6 @@ const BookControls = ({ libraryItemId }: Props) => {
     }
   };
   // console.log("Book Controls Vert", isBookLoaded, isPlaying, isBookActive, Date.now());
-
-  //~~ ===== Size Book Control
-  const handleCollapsedLayout = (event) => {
-    setCollapsedHeight(75);
-    return;
-    if (heightCollCalculated?.current) return;
-    heightCollCalculated.current = true;
-    const { width, height } = event.nativeEvent.layout;
-    setCollapsedHeight(height);
-  };
-
-  const handleExpandedLayout = (event) => {
-    setExpandedHeight(135);
-    return;
-    if (heightExpCalculated?.current) return;
-    heightExpCalculated.current = true;
-    const { width, height } = event.nativeEvent.layout;
-    setExpandedHeight(height);
-    // Update animation if currently expanded
-    if (isBookActive && isBookLoaded) {
-      growVal.value = height;
-    }
-  };
 
   //~~ ===== Size Book Control START
   useEffect(() => {
@@ -83,15 +58,14 @@ const BookControls = ({ libraryItemId }: Props) => {
       growVal.value = withDelay(200, withTiming(collapsedHeight, { duration: 1500 }));
     }
   }, [isBookActive, collapsedHeight]);
-  //
+  //~ Animated height style
   const animStyle = useAnimatedStyle(() => {
     return { height: growVal.value };
   }, []);
-  const animProps = useAnimatedProps(() => {
-    return { height: growVal.value };
-  });
+
   //~~ ===== Size Book Control END
 
+  //~ Animated opacity style
   const opacityAnim = useAnimatedStyle(() => {
     return {
       opacity: opacityVal.value,
@@ -173,7 +147,8 @@ const BookControls = ({ libraryItemId }: Props) => {
               isPlaying={showPlayingState}
               size={50}
               duration={600}
-              isBookActive={isBookActive && isBookLoaded}
+              isBookActive={isBookActive}
+              isBookLoaded={isBookLoaded}
             />
           </Pressable>
         </Animated.View>

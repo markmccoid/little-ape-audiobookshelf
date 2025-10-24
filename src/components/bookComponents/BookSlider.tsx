@@ -1,9 +1,5 @@
-import { useBookData, useSmartPosition } from "@/src/hooks/trackPlayerHooks";
-import {
-  useIsBookActive,
-  usePlaybackActions,
-  usePlaybackDuration,
-} from "@/src/store/store-playback";
+import { useSmartPosition } from "@/src/hooks/trackPlayerHooks";
+import { useIsBookActive, usePlaybackActions } from "@/src/store/store-playback";
 import { formatSeconds } from "@/src/utils/formatUtils";
 import { THEME, useThemeColors } from "@/src/utils/theme";
 import Slider from "@react-native-community/slider";
@@ -22,22 +18,25 @@ interface BookSliderProps {
 }
 
 const BookSlider: React.FC<BookSliderProps> = ({ libraryItemId, useStaticColors = false }) => {
-  const { position } = useSmartPosition(libraryItemId);
-  const { duration: bookDuration } = useBookData(libraryItemId);
+  const { bookPosition, bookDuration, chapterDuration, chapterPosition, chapterTitle } =
+    useSmartPosition(libraryItemId);
+
+  // const { duration: bookDuration } = useBookData(libraryItemId);
   const isBookActive = useIsBookActive(libraryItemId);
-  const playbackDuration = usePlaybackDuration(libraryItemId);
   const { seekTo } = usePlaybackActions();
   const themeColors = useThemeColors();
 
   const animatePosition = useSharedValue(0);
 
-  const duration = playbackDuration || bookDuration || 0;
+  const position = chapterPosition;
+  const duration = chapterDuration; //playbackDuration || bookDuration || 0;
 
   // Track if user is actively sliding
   const [isUserSliding, setIsUserSliding] = useState(false);
   // Local slider value when user is actively sliding
   const [localSliderValue, setLocalSliderValue] = useState(0);
 
+  const sliderValueStart = useRef<number>(0);
   // Ref to track the last seek time to prevent race conditions
   const lastSeekTimeRef = useRef<number>(0);
   const seekTimeoutRef = useRef<ReturnType<typeof setTimeout>>(null);
@@ -78,7 +77,8 @@ const BookSlider: React.FC<BookSliderProps> = ({ libraryItemId, useStaticColors 
       reduceMotion: ReduceMotion.System,
     });
 
-    // animatePosition.value = withTiming(1, { duration: 1000 });
+    //##
+    sliderValueStart.current = position || 0;
     setIsUserSliding(true);
   };
 
@@ -109,7 +109,8 @@ const BookSlider: React.FC<BookSliderProps> = ({ libraryItemId, useStaticColors 
 
     try {
       // Perform the seek
-      await seekTo(value);
+      console.log("SEEK TO disabled", value, sliderValueStart.current, bookPosition);
+      await seekTo(value - sliderValueStart.current + (bookPosition || 0));
 
       // Delay before allowing position updates again
       // This prevents the old position from overwriting our seek
@@ -158,11 +159,18 @@ const BookSlider: React.FC<BookSliderProps> = ({ libraryItemId, useStaticColors 
       >
         <Text className="text-lg text-accent-foreground">{formatSeconds(sliderDisplayValue)}</Text>
       </Animated.View>
+      <Text className="text-xl text-foreground">{chapterTitle}</Text>
       <Text
         className="text-lg"
         style={{ color: useStaticColors ? THEME.dark.foreground : themeColors.foreground }}
       >
         {formatSeconds(sliderDisplayValue)} of {formatSeconds(duration)}
+      </Text>
+      <Text
+        className="text-lg"
+        style={{ color: useStaticColors ? THEME.dark.foreground : themeColors.foreground }}
+      >
+        {formatSeconds(bookPosition)} of {formatSeconds(bookDuration)}
       </Text>
 
       <Slider
@@ -170,7 +178,7 @@ const BookSlider: React.FC<BookSliderProps> = ({ libraryItemId, useStaticColors 
         minimumValue={0}
         maximumValue={duration}
         value={sliderDisplayValue}
-        step={60}
+        step={1}
         tapToSeek
         disabled={!isBookActive}
         minimumTrackTintColor={useStaticColors ? THEME.dark.accent : themeColors.accent}

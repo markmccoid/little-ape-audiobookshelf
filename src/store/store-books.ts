@@ -1,9 +1,20 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { getAbsAPI } from "../utils/AudiobookShelf/absInit";
-import { Author, Chapter, PersonalizedView } from "../utils/AudiobookShelf/abstypes";
+import { Author, PersonalizedView } from "../utils/AudiobookShelf/abstypes";
+import { formatSeconds } from "../utils/formatUtils";
 import { mmkvStorage } from "./mmkv-storage";
 
+export type EnhancedChapter = {
+  id: number;
+  title: string;
+  startSeconds: number;
+  endSeconds: number;
+  formattedStart: string;
+  formattedEnd: string;
+  chapterDuration: number;
+  formattedChapterDuration: string;
+};
 // Define the book object type
 export type Book = {
   userId: string;
@@ -23,7 +34,7 @@ export type Book = {
   currentPosition: number;
   duration?: number;
   lastUpdated?: number;
-  chapters?: Chapter[];
+  chapters?: EnhancedChapter[];
   //continue-listening, discover, etc
   bookShelfType?: PersonalizedView["type"] | undefined;
   // bookshelf - see bookShelfType for specific type
@@ -136,7 +147,7 @@ export const useBooksStore = create<BooksStore>()(
           const book = existingBook ?? fallback;
 
           // Return immediately
-          const STALE_AFTER_MS = 5 * 60 * 1000; // 5 min
+          const STALE_AFTER_MS = 1 * 6 * 1000; // 5 min
           const isStale = !existingBook || now - (existingBook.lastUpdated ?? 0) > STALE_AFTER_MS;
           // console.log("IS STALE OR NOT EXISTING BOOK", isStale, !existingBook);
 
@@ -147,6 +158,21 @@ export const useBooksStore = create<BooksStore>()(
                 const absAPI = getAbsAPI();
                 // const progress = await absAPI.getBookProgress(libraryItemId);
                 const itemDetails = await absAPI.getItemDetails(libraryItemId);
+                const enhancedChapters = itemDetails?.media?.chapters?.map((book) => {
+                  return {
+                    id: book.id,
+                    title: book.title,
+                    startSeconds: Math.round(book.start),
+                    endSeconds: Math.round(book.end),
+                    formattedStart: formatSeconds(book.start, "compact"),
+                    formattedEnd: formatSeconds(book.end, "compact"),
+                    chapterDuration: Math.round(book.end - book.start),
+                    formattedChapterDuration: formatSeconds(
+                      Math.round(book.end - book.start),
+                      "compact"
+                    ),
+                  } as EnhancedChapter;
+                });
 
                 const updated: Book = {
                   ...book, // If new, the fallback has the libraryItemId & userId in it
@@ -156,10 +182,10 @@ export const useBooksStore = create<BooksStore>()(
                   narratedBy: itemDetails?.media?.metadata?.narratorName || "",
                   genre: itemDetails?.media?.metadata?.genres.join(", "),
                   currentPosition: itemDetails?.userMediaProgress?.currentTime || 0,
-                  duration: itemDetails?.bookDuration || 0,
+                  duration: itemDetails?.media.duration || 0,
                   coverURI: itemDetails?.coverURI,
                   publishedYear: itemDetails?.media?.metadata.publishedYear,
-                  chapters: itemDetails?.media?.chapters,
+                  chapters: enhancedChapters,
                   authors: itemDetails?.media?.metadata?.authors,
                   lastUpdated: Date.now(),
                 };
@@ -178,7 +204,7 @@ export const useBooksStore = create<BooksStore>()(
           return book;
         },
 
-        updateCurrentPosition: (libraryItemId, position, duration) => {
+        updateCurrentPosition: (libraryItemId, position) => {
           // console.log(`[BooksStore] updateCurrentPosition called:`, {
           //   libraryItemId,
           //   position,
@@ -191,7 +217,6 @@ export const useBooksStore = create<BooksStore>()(
                 ? {
                     ...book,
                     currentPosition: position,
-                    duration: duration ?? book.duration,
                     lastUpdated: Date.now(),
                   }
                 : book

@@ -1,11 +1,12 @@
-import { usePlaybackStore } from "@/src/store/store-playback";
-import { THEME, useThemeColors } from "@/src/utils/theme";
+import { THEME } from "@/src/utils/theme";
 import { SymbolView } from "expo-symbols";
 import { useEffect } from "react";
 import Animated, {
+  cancelAnimation,
   Easing,
   useAnimatedStyle,
   useSharedValue,
+  withRepeat,
   withTiming,
 } from "react-native-reanimated";
 
@@ -15,6 +16,7 @@ type PlayPauseAnimationProps = {
   playIconName?: string;
   pauseIconName?: string;
   isBookActive: boolean;
+  isBookLoaded: boolean;
   duration?: number;
 };
 
@@ -29,21 +31,24 @@ const PlayPauseAnimation = ({
   playIconName = "play.fill",
   pauseIconName = "pause.fill",
   isBookActive,
+  isBookLoaded,
   duration = 300,
 }: PlayPauseAnimationProps) => {
   const resumeIconName = "livephoto.play"; //memories
-  const themeColors = useThemeColors();
-  const playbackState = usePlaybackStore((state) => state.playbackState);
+  const isBookActiveAndLoaded = isBookActive && isBookLoaded;
+
+  // Check if we're in the loading state
+  const isLoading = isBookActive && !isBookLoaded;
 
   // Determine initial state based on props
   const getInitialOpacity = (icon: "resume" | "play" | "pause") => {
-    if (!isBookActive) return icon === "resume" ? 1 : 0;
+    if (!isBookActiveAndLoaded) return icon === "resume" ? 1 : 0;
     if (isPlaying) return icon === "pause" ? 1 : 0;
     return icon === "play" ? 1 : 0;
   };
 
   const getInitialScale = (icon: "resume" | "play" | "pause") => {
-    if (!isBookActive) return icon === "resume" ? 1.1 : 0.5;
+    if (!isBookActiveAndLoaded) return icon === "resume" ? 1.1 : 0.5;
     if (isPlaying) return icon === "pause" ? 1 : 0.5;
     return icon === "play" ? 1 : 0.5;
   };
@@ -51,6 +56,7 @@ const PlayPauseAnimation = ({
   // Shared values for resume icon animation (when book is not active)
   const resumeOpacity = useSharedValue(getInitialOpacity("resume"));
   const resumeScale = useSharedValue(getInitialScale("resume"));
+  const resumeRotation = useSharedValue(0);
 
   // Shared values for play icon animation (when book is active but paused)
   const playOpacity = useSharedValue(getInitialOpacity("play"));
@@ -63,9 +69,51 @@ const PlayPauseAnimation = ({
   useEffect(() => {
     // Morphing easing curve - creates smooth in-out transition
     const morphEasing = Easing.bezier(0.4, 0.0, 0.2, 1);
-    if (!isBookActive) {
-      // State 1: Book is NOT active - show resume icon
-      // Hide play and pause icons, show resume icon
+
+    if (isLoading) {
+      // Loading state: Book is active but NOT loaded - show rotating resume icon
+      resumeOpacity.value = withTiming(1, {
+        duration: duration * 0.8,
+        easing: morphEasing,
+      });
+      resumeScale.value = withTiming(1, {
+        duration,
+        easing: morphEasing,
+      });
+      resumeRotation.value = withRepeat(
+        withTiming(360, {
+          duration: 1000,
+          easing: Easing.linear,
+        }),
+        -1,
+        false
+      );
+
+      playOpacity.value = withTiming(0, {
+        duration: duration * 0.6,
+        easing: morphEasing,
+      });
+      playScale.value = withTiming(0.5, {
+        duration,
+        easing: morphEasing,
+      });
+
+      pauseOpacity.value = withTiming(0, {
+        duration: duration * 0.6,
+        easing: morphEasing,
+      });
+      pauseScale.value = withTiming(0.5, {
+        duration,
+        easing: morphEasing,
+      });
+    } else if (!isBookActiveAndLoaded) {
+      // State 1: Book is NOT active - show resume icon (no rotation)
+      cancelAnimation(resumeRotation);
+      resumeRotation.value = withTiming(0, {
+        duration: duration * 0.5,
+        easing: morphEasing,
+      });
+
       resumeOpacity.value = withTiming(1, {
         duration: duration * 0.8,
         easing: morphEasing,
@@ -94,7 +142,12 @@ const PlayPauseAnimation = ({
       });
     } else if (isPlaying) {
       // State 2: Book is active AND playing - show pause icon
-      // Hide resume and play icons, show pause icon
+      cancelAnimation(resumeRotation);
+      resumeRotation.value = withTiming(0, {
+        duration: duration * 0.5,
+        easing: morphEasing,
+      });
+
       resumeOpacity.value = withTiming(0, {
         duration: duration * 0.6,
         easing: morphEasing,
@@ -123,7 +176,12 @@ const PlayPauseAnimation = ({
       });
     } else {
       // State 3: Book is active BUT paused - show play icon
-      // Hide resume and pause icons, show play icon
+      cancelAnimation(resumeRotation);
+      resumeRotation.value = withTiming(0, {
+        duration: duration * 0.5,
+        easing: morphEasing,
+      });
+
       resumeOpacity.value = withTiming(0, {
         duration: duration * 0.6,
         easing: morphEasing,
@@ -152,21 +210,24 @@ const PlayPauseAnimation = ({
       });
     }
   }, [
+    isBookActiveAndLoaded,
     isBookActive,
+    isBookLoaded,
     isPlaying,
     duration,
     resumeOpacity,
     resumeScale,
+    resumeRotation,
     playOpacity,
     playScale,
     pauseOpacity,
     pauseScale,
   ]);
 
-  // Animated styles for resume icon (when not active)
+  // Animated styles for resume icon (when not active or loading)
   const resumeAnimatedStyle = useAnimatedStyle(() => ({
     opacity: resumeOpacity.value,
-    transform: [{ scale: resumeScale.value }],
+    transform: [{ scale: resumeScale.value }, { rotate: `${resumeRotation.value}deg` }],
     position: "absolute",
   }));
 
@@ -186,7 +247,7 @@ const PlayPauseAnimation = ({
 
   return (
     <Animated.View style={{ width: size, height: size, position: "relative" }}>
-      {/* Resume icon - shown when book is not active */}
+      {/* Resume icon - shown when book is not active or loading */}
       <Animated.View style={resumeAnimatedStyle}>
         <SymbolView name={resumeIconName} size={size} tintColor={THEME.light.accent} />
       </Animated.View>

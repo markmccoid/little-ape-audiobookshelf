@@ -1,12 +1,23 @@
 import { useEffect, useState } from "react";
-import { useProgress } from "react-native-track-player";
-import { useBookPlaybackSpeed, useBooksStore, type Book } from "../store/store-books";
-import { usePlaybackPosition, usePlaybackSession, usePlaybackStore } from "../store/store-playback";
+import { useActiveTrack, useProgress } from "react-native-track-player";
+import {
+  EnhancedChapter,
+  useBookPlaybackSpeed,
+  useBooksStore,
+  type Book,
+} from "../store/store-books";
+import {
+  ABSQueuedTrack,
+  useIsBookActive,
+  usePlaybackSession,
+  usePlaybackStore,
+} from "../store/store-playback";
 import { getAbsAuth } from "../utils/AudiobookShelf/absInit";
 
 // Shared cache to prevent duplicate fetches between hooks
 const bookDataCache = new Map<string, Book>();
 
+type ChapterPosInfo = { chapterPosition: number; chapterDuration: number };
 /**
  * Hook for frequently updating position data.
  * Optimized for slider and progress displays that update every ~250ms.
@@ -14,94 +25,113 @@ const bookDataCache = new Map<string, Book>();
  * @param libraryItemId - The book's library item ID
  * @returns Object with position, loading state, and error
  */
+
 export const useSmartPosition = (
   libraryItemId: string
 ): {
-  position: number | undefined;
-  isLoading: boolean;
+  bookPosition: number | undefined;
+  bookDuration: number | undefined;
+  chapterPosition: number | undefined;
+  chapterDuration: number | undefined;
+  chapterTitle: string;
   error: Error | null;
 } => {
   const progress = useProgress();
-  const playbackPos = usePlaybackPosition();
-  const bookActions = useBooksStore((state) => state.actions);
+  const activeTrack = useActiveTrack() as ABSQueuedTrack | null;
+  // Determine if book is active and loaded
+  const isLoaded = usePlaybackStore((state) => state.isLoaded);
+  const isBookActive = useIsBookActive(libraryItemId);
+
+  // get stored book data
+  const theBook = useBookData(libraryItemId);
+  const chapters = theBook?.book?.chapters || [];
+
+  const [chapterInfo, setChapterInfo] = useState<ChapterPosInfo>({
+    chapterPosition: 0,
+    chapterDuration: 0,
+  });
   // ✅ Select ONLY the libraryItemId to prevent unnecessary re-renders
   const sessionLibraryItemId = usePlaybackStore((s) => s.session?.libraryItemId);
 
-  const [position, setPosition] = useState<number | undefined>();
-  const [isLoading, setIsLoading] = useState(false);
+  const [bookPosition, setBookPosition] = useState<number | undefined>();
+  const [currentChapter, setCurrentChapter] = useState<EnhancedChapter | null>();
+
   const [error, setError] = useState<Error | null>(null);
   // Fetch position on mount or when libraryItemId changes
+
   useEffect(() => {
-    let isMounted = true;
+    // this is the globalPosition from the saved book from store-books
+    console.log("FIRST BOOK", theBook.book?.currentPosition);
+    setBookPosition(theBook?.book?.currentPosition);
+    const currChapt = getChapterFromProgress(chapters, theBook.book?.currentPosition || 0);
+    const chaptStart = currChapt?.startSeconds ? Math.round(currChapt?.startSeconds) : 0;
+    const newChapterPosition = (theBook.book?.currentPosition || 0) - chaptStart;
 
-    const fetchPosition = async () => {
-      if (!libraryItemId) return;
+    setCurrentChapter(currChapt);
+    setChapterInfo({
+      chapterPosition: newChapterPosition || 0,
+      chapterDuration: currChapt?.chapterDuration || 0,
+    });
 
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        const absAuth = getAbsAuth();
-        const userId = absAuth.userId;
-
-        if (!userId) {
-          throw new Error("User not authenticated");
-        }
-
-        // This handles both cache lookup AND server fetch
-        const book = await bookActions.getOrFetchBook({
-          userId,
-          libraryItemId,
-        });
-
-        // Cache for useBookData hook to prevent duplicate fetches
-        bookDataCache.set(libraryItemId, book);
-
-        if (isMounted) {
-          setPosition(book.currentPosition);
-        }
-      } catch (err) {
-        if (isMounted) {
-          setError(err instanceof Error ? err : new Error("Failed to fetch position"));
-          setPosition(0); // Fallback to 0
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    fetchPosition();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [libraryItemId]); // ✅ FIXED: Removed bookActions from dependencies
+    console.log("ISActive - Book", isBookActive && isLoaded, theBook.book?.currentPosition);
+    console.log("Active Track", activeTrack?.trackOffset);
+  }, [libraryItemId]);
 
   // Update to playback position when available AND it's for THIS book
   useEffect(() => {
-    const isThisBookLoaded = sessionLibraryItemId === libraryItemId;
+    const isThisBookLoaded = isBookActive && isLoaded;
 
     // ✅ Only use TrackPlayer position if THIS book is loaded
     if (isThisBookLoaded) {
       // Round to 1 decimal place to reduce unnecessary re-renders
       // from floating point precision changes
-      const newPosition =
-        progress.position > 0
-          ? Math.round(progress.position * 10) / 10
-          : playbackPos !== undefined
-          ? Math.round(playbackPos * 10) / 10
-          : undefined;
+      //!! Calculation - ONLY when book is active
+      // this is the global position in the book
+      let newPosition = bookPosition;
+      if (progress.position !== 0 && bookPosition && bookPosition > 0) {
+        newPosition = Math.round((activeTrack?.trackOffset || 0) + progress.position);
+        console.log("BOOK LOADED - bookPosition", bookPosition);
+        const currChapt = getChapterFromProgress(chapters, newPosition);
+        const chaptStart = currChapt?.startSeconds ? Math.round(currChapt?.startSeconds) : 0;
+        const newChapterPosition = newPosition - chaptStart;
+        console.log("CUrrChapt, Progress Total", currChapt?.title, newPosition, newChapterPosition);
+        setCurrentChapter(currChapt);
+        setChapterInfo({
+          chapterPosition: newChapterPosition || 0,
+          chapterDuration: currChapt?.chapterDuration || 0,
+        });
+      }
+      // console.log(
+      //   "New Chapter Pos",
+      //   progressTotal,
+      //   chaptStart,
+      //   newChapterPosition,
+      //   currChapt?.chapterDuration,
+      //   currChapt?.endSeconds
+      // );
+      // const newPosition =
+      //   progress.position > 0
+      //     ? Math.round(progressTotal * 10) / 10
+      //     : // ? Math.round(progress.position * 10) / 10
+      //     playbackPos !== undefined
+      //     ? Math.round(playbackPos * 10) / 10
+      //     : undefined;
 
       // Only update if position actually changed significantly
-      if (newPosition !== undefined && newPosition !== position) {
-        setPosition(newPosition);
+      if (newPosition !== undefined && newPosition !== bookPosition) {
+        setBookPosition(newPosition);
       }
     }
     // If different book is loaded, keep showing cached position
-  }, [progress.position, playbackPos, libraryItemId, sessionLibraryItemId, position]);
-  return { position, isLoading, error };
+  }, [progress.position, libraryItemId, sessionLibraryItemId, isLoaded]);
+  return {
+    bookPosition: bookPosition,
+    bookDuration: theBook.duration,
+    chapterPosition: chapterInfo.chapterPosition,
+    chapterDuration: chapterInfo.chapterDuration,
+    chapterTitle: currentChapter?.title || "",
+    error,
+  };
 };
 
 /**
@@ -224,3 +254,23 @@ export const usePlaybackRate = (libraryItemId: string) => {
   }
   return bookPlaybackRate || 1;
 };
+
+//## ------------------------------------------------
+//## Gets passed an array Chapters with current total progress
+//## NOTE: progress is total progress in book NOT just the progress in a given track
+//## ------------------------------------------------
+function getChapterFromProgress(chapters: EnhancedChapter[] | undefined, progressSeconds: number) {
+  // Optional: handle values outside range
+  if (!chapters || chapters.length === 0 || progressSeconds < chapters[0].startSeconds) return null;
+
+  // Find chapter where startSeconds ≤ progressSeconds < endSeconds
+  for (let i = 0; i < chapters.length; i++) {
+    const ch = chapters[i];
+    if (progressSeconds >= ch.startSeconds && progressSeconds < ch.endSeconds) {
+      return ch;
+    }
+  }
+
+  // If beyond last chapter end, return last chapter (or null depending on logic)
+  return chapters[chapters.length - 1];
+}

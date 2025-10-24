@@ -10,6 +10,9 @@ import { useBooksStore } from "./store-books";
 
 // Extend Track to reflect extra fields we attach from ABS
 export type ABSQueuedTrack = Track & {
+  id: string; // session id + track number (1 based)
+  trackOffset: number; // how many seconds in previous tracks
+  trackIndex: number; // zero based index
   sessionId?: string;
   libraryItemId?: string;
   chapters?: any[];
@@ -32,6 +35,7 @@ interface PlaybackState {
   session: PlaybackAudioBookSession | null;
   queue: ABSQueuedTrack[];
   isPlaying: boolean;
+  seeking: boolean;
   //! Only will be true once book has been loaded and playing has started
   //! isBookActive function returns as SOON as book session has been loaded
   //! However, it takes Track Player about 1 second to finish init as start playing.
@@ -82,6 +86,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
   queue: [],
   isPlaying: false,
   isLoaded: false,
+  seeking: false,
   playbackState: State.None,
   position: 0,
   duration: 0,
@@ -206,9 +211,11 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
         chapters: sessionData.chapters,
         position: startTime,
       });
-      console.log("Chapter Info", chapterInfo);
-      //!!
-      await TrackPlayer.seekTo(startTime);
+      // console.log("Chapter Info", chapterInfo);
+      //!! When seeking to the initial startTime in
+      //!! a book with chapters, we need to do our seetTo function
+      console.log("Seek TO in loadBook", startTime);
+      await get().actions.seekTo(startTime);
       await TrackPlayer.setRate(savedPlaybackRate);
 
       set({ position: startTime });
@@ -324,8 +331,33 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
     },
 
     seekTo: async (pos: number) => {
-      await TrackPlayer.seekTo(pos);
-      set({ position: pos });
+      set({ seeking: true });
+      const activeTrack = (await TrackPlayer.getActiveTrack()) as ABSQueuedTrack;
+      const queue = (await TrackPlayer.getQueue()) as ABSQueuedTrack[];
+      console.log(queue.map((el) => el.trackOffset));
+
+      //-- Find the next track based on the pos (position) passed in
+
+      let newTrackOffset = { offset: 0, nextTrack: 0 };
+      queue.forEach((el) => {
+        if (el.trackOffset < pos) {
+          newTrackOffset = { offset: el.trackOffset, nextTrack: el.trackIndex };
+        }
+      });
+
+      console.log("NEW TRACK", newTrackOffset, activeTrack.trackIndex);
+      // const newTrackPos = pos - (activeTrack?.duration || 0) + activeTrack?.trackOffset;
+      console.log("post / newPos", pos, pos - newTrackOffset.offset);
+      // If the next track is the same as our current don't waste time skipping
+      if (activeTrack.trackIndex !== newTrackOffset.nextTrack) {
+        await TrackPlayer.skip(newTrackOffset.nextTrack);
+      }
+      // global pos - the skip to tracks offset
+      // 6000 - track 3 where sum of duration of 1 & 2 = 5800
+      // This means we are 200 seconds into track 3
+      await TrackPlayer.seekTo(pos - newTrackOffset.offset);
+
+      set({ position: pos, seeking: false });
 
       // Immediately sync the new position to the server
       try {

@@ -1,4 +1,4 @@
-import TrackPlayer, { Event, State } from "react-native-track-player";
+import TrackPlayer, { Event, PitchAlgorithm, State } from "react-native-track-player";
 import { ABSQueuedTrack } from "../../store/store-playback";
 import { AudiobookshelfAPI } from "../AudiobookShelf/absAPIClass";
 import { AudiobookSession } from "../AudiobookShelf/abstypes";
@@ -54,10 +54,12 @@ export default class AudiobookStreamer {
 
   // Real-time sync timer properties
   private syncTimer: NodeJS.Timeout | null = null;
-  private syncIntervalSeconds: number = 5; // Default, will be updated from settings
+  // how often to sync to server.  NOTE: always will sync on play/pause transition
+  private syncIntervalSeconds: number = 60; // Default, will be updated from settings
 
   // Books store update throttling
   private lastBookStoreUpdate: number = 0;
+  // update the store-books position entry for this book
   private bookStoreUpdateIntervalMs: number = 30000; // Update books store every 30s
   private forceBooksStoreUpdate: boolean = false; // Force update on pause/stop
 
@@ -212,7 +214,9 @@ export default class AudiobookStreamer {
       }
     }
   }
-
+  //## ------------------------------------------------------------
+  //## setupAudioPlayback ---
+  //## ------------------------------------------------------------
   async setupAudioPlayback(itemId: string): Promise<{
     tracks: ABSQueuedTrack[];
     sessionData: AudiobookSession & { absServerURL: string; coverURL: string };
@@ -255,14 +259,17 @@ export default class AudiobookStreamer {
     const coverURL = await this.apiClient.buildCoverURL(itemId);
     const tracks = response.audioTracks.map((audioTrack) => ({
       id: `${response.id}-${audioTrack.index}`,
+      trackIndex: audioTrack.index - 1, // convert to zero based index
       url: `${this.serverUrl}/audiobookshelf/public/session/${response.id}/track/${audioTrack.index}`,
       title: response.displayTitle,
       artist: response.displayAuthor,
       artwork: coverURL.coverFull, //`${this.serverUrl}/api/items/${response.libraryItemId}/cover`,
       duration: audioTrack.duration,
       sessionId: response.id,
+      trackOffset: this.trackOffsets[audioTrack.index - 1],
       libraryItemId: response.libraryItemId,
-      chapters: response.chapters,
+      chapters: response.chapters || [],
+      pitchAlgorithm: PitchAlgorithm.Voice,
     }));
 
     return {
@@ -348,21 +355,13 @@ export default class AudiobookStreamer {
               const { useBooksStore } = require("../../store/store-books");
               const bookActions = useBooksStore.getState().actions;
 
-              // Get duration from active track or fall back to this.session
-              const activeTrack = await TrackPlayer.getActiveTrack();
-              const activeDuration = activeTrack?.duration || this.session?.duration;
-
               // console.log(`[AudiobookStreamer] Updating books store with:`, {
               //   libraryItemId: activeLibraryItemId,
               //   currentTime: syncResult.currentTime,
               //   duration: activeDuration,
               //   reason: this.forceBooksStoreUpdate ? "forced (pause/stop)" : "throttled interval",
               // });
-              bookActions.updateCurrentPosition(
-                activeLibraryItemId,
-                syncResult.currentTime,
-                activeDuration
-              );
+              bookActions.updateCurrentPosition(activeLibraryItemId, syncResult.currentTime);
               this.lastBookStoreUpdate = now;
 
               // Reset force flag after update
@@ -452,18 +451,19 @@ export default class AudiobookStreamer {
     this.lastSyncAttempt = now;
 
     try {
-      const { position } = await TrackPlayer.getProgress();
+      // const { position } = await TrackPlayer.getProgress();
+      const globalPosition = await this.getGlobalPosition();
       const activeSessionId = await this.getActiveSessionId();
       if (!activeSessionId) {
         console.warn("No active session ID found, skipping position sync");
         return;
       }
-      const prevTrackDuration = await this.getPreviousTrackDuration();
+      // const prevTrackDuration = await this.getPreviousTrackDuration();
 
       // For seek operations, we don't accumulate timeListened - just sync the new position
       const syncData: SyncData = {
         timeListened: 0,
-        currentTime: position + prevTrackDuration,
+        currentTime: globalPosition,
       };
 
       const syncResult = await this.apiClient.syncProgressToServer(activeSessionId, syncData);
@@ -474,13 +474,7 @@ export default class AudiobookStreamer {
         if (activeLibraryItemId) {
           const { useBooksStore } = require("../../store/store-books");
           const bookActions = useBooksStore.getState().actions;
-          const activeTrack = await TrackPlayer.getActiveTrack();
-          const activeDuration = activeTrack?.duration || this.session?.duration;
-          bookActions.updateCurrentPosition(
-            activeLibraryItemId,
-            syncResult.currentTime,
-            activeDuration
-          );
+          bookActions.updateCurrentPosition(activeLibraryItemId, syncResult.currentTime);
         }
       }
       // console.log(`Position synced to session ${activeSessionId} - position: ${position}s`);
@@ -539,9 +533,10 @@ export default class AudiobookStreamer {
         });
         this.pendingSessionClose = null;
       } else {
-        const { position } = await TrackPlayer.getProgress();
-        const prevTrackDuration = this.getQueuedSyncCount();
-        finalPosition = position + prevTrackDuration;
+        // const { position } = await TrackPlayer.getProgress();
+        // const prevTrackDuration = this.getQueuedSyncCount();
+        const globalPosition = await this.getGlobalPosition();
+        finalPosition = globalPosition;
         finalTimeListened = this.lastSyncTime
           ? Math.floor((Date.now() - this.lastSyncTime) / 1000)
           : 0;
@@ -565,11 +560,7 @@ export default class AudiobookStreamer {
         //   currentTime: finalPosition,
         //   duration: this.session.duration,
         // });
-        bookActions.updateCurrentPosition(
-          this.session.libraryItemId,
-          finalPosition,
-          this.session.duration
-        );
+        bookActions.updateCurrentPosition(this.session.libraryItemId, finalPosition);
         this.lastBookStoreUpdate = Date.now();
       }
 
@@ -612,7 +603,7 @@ export default class AudiobookStreamer {
       );
       return (this.trackOffsets[this.trackOffsets.length - 1] || 0) + finalPos;
     }
-
+    console.log("GLOBAL POS", this.trackOffsets[activeTrackIndex] + finalPos);
     return this.trackOffsets[activeTrackIndex] + finalPos;
   }
 

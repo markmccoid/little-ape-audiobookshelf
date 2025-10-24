@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { reverse, sortBy } from "lodash";
 import { useEffect, useMemo, useState } from "react";
 import { useSafeAbsAPI } from "../contexts/AuthContext";
@@ -163,18 +163,54 @@ export const useGetBooks = (searchValue?: string) => {
 //# ----------------------------------------------
 export const useGetBookShelves = () => {
   const absAPI = useSafeAbsAPI();
-  // Always get the library ID, even if null
+  const queryClient = useQueryClient();
   const activeLibraryId = absAPI?.getActiveLibraryId() || null;
 
   const { data, isError, ...rest } = useQuery({
     queryKey: ["bookShelves", activeLibraryId],
     queryFn: async () => {
       if (!absAPI) throw new Error("Not authenticated");
-      return absAPI?.getBookShelves();
+
+      // Get cached data
+      const cachedData = queryClient.getQueryData<{
+        continueListening: any;
+        discover: any;
+      }>(["bookShelves", activeLibraryId]);
+
+      // Fetch new data
+      const newData = await absAPI.getBookShelves();
+
+      // Check if enough time has passed (e.g., 5 minutes)
+      const DISCOVER_REFRESH_INTERVAL = 60 * 60 * 1000; // 60 minutes in ms
+      const lastDiscoverUpdate =
+        queryClient.getQueryState(["bookShelves", activeLibraryId])?.dataUpdatedAt || 0;
+
+      const shouldRefreshDiscover = Date.now() - lastDiscoverUpdate > DISCOVER_REFRESH_INTERVAL;
+
+      // Return combined data: always use fresh continueListening,
+      // conditionally refresh discover
+      return {
+        ...newData,
+        discover: shouldRefreshDiscover
+          ? newData?.discover
+          : cachedData?.discover || newData?.discover,
+      };
     },
     enabled: !!absAPI && !!activeLibraryId,
     staleTime: 10000,
   });
+
+  // const activeLibraryId = absAPI?.getActiveLibraryId() || null;
+
+  // const { data, isError, ...rest } = useQuery({
+  //   queryKey: ["bookShelves", activeLibraryId],
+  //   queryFn: async () => {
+  //     if (!absAPI) throw new Error("Not authenticated");
+  //     return absAPI?.getBookShelves();
+  //   },
+  //   enabled: !!absAPI && !!activeLibraryId,
+  //   staleTime: 10000,
+  // });
 
   return { data, isError, ...rest };
 };

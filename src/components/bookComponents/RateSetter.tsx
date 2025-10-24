@@ -95,10 +95,11 @@ export default function RateSetter() {
 
       // Clamp between min and max
       const clampedValue = Math.max(MIN_VALUE, Math.min(MAX_VALUE, newValue));
+
       if (clampedValue === MAX_VALUE) {
       }
-      // Round to nearest 0.1
-      const roundedValue = Math.round(clampedValue * 10) / 10;
+      // Round to nearest 0.05
+      const roundedValue = Math.round(clampedValue * 20) / 20;
 
       value.value = roundedValue;
       runOnJS(updateDisplay)(roundedValue);
@@ -159,7 +160,7 @@ export default function RateSetter() {
             color: themeColors.accentForeground,
           }}
         >
-          {displayValue.toFixed(1)}
+          {displayValue.toFixed(2)}
         </Text>
       </Animated.View>
 

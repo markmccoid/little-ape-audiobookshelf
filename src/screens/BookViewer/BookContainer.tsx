@@ -1,10 +1,10 @@
+import BookChapters from "@/src/components/bookComponents/BookChapters";
 import BookControlsVertical from "@/src/components/bookComponents/BookControlsVertical";
 import BookCornerDetails from "@/src/components/bookComponents/BookCornerDetails";
 import BookSlider from "@/src/components/bookComponents/BookSlider";
 import RateSetter from "@/src/components/bookComponents/RateSetter";
 import RateViewer from "@/src/components/bookComponents/RateViewer";
 import { useBookData } from "@/src/hooks/trackPlayerHooks";
-import { useIsBookActive } from "@/src/store/store-playback";
 import { BlurView } from "expo-blur";
 import { Image, ImageBackground } from "expo-image";
 import { Stack, useLocalSearchParams } from "expo-router";
@@ -20,7 +20,6 @@ export type BookContainerRoute = {
 const BookContainer = () => {
   const { libraryItemId, cover, title } = useLocalSearchParams<BookContainerRoute>();
   const colorScheme = useColorScheme();
-  const isBookActive = useIsBookActive(libraryItemId);
   const { book, isLoading } = useBookData(libraryItemId);
   // console.log("BOOK DATA", isBookActive, book?.title, book?.chapters, book?.authors);
   // const { data, isPending } = useGetItemDetails(libraryItemId);
@@ -86,6 +85,7 @@ const BookContainer = () => {
 
         <Text className="text-foreground ">BookIdRoute -- {libraryItemId}</Text>
         <Text className="text-foreground ">FOREGROUND</Text>
+        <BookChapters />
         {/* {data &&
           data.media.chapters.map((el) => {
             return (

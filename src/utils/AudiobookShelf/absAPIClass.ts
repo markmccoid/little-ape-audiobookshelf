@@ -1,5 +1,6 @@
 import { reverse, sortBy } from "lodash";
 import {
+  AuthorsItemsResponse,
   BookPersonalizedView,
   MediaProgress,
   PersonalizedViewsResponse,
@@ -501,9 +502,9 @@ export class AudiobookshelfAPI {
     const authorId = libraryItem.media.metadata?.authors[0].id;
     let authorBookCount = 0;
     try {
-      const authorBookCountResp = await this.makeAuthenticatedRequest(
+      const authorBookCountResp = (await this.makeAuthenticatedRequest(
         `/api/authors/${authorId}?include=items`
-      );
+      )) as AuthorsItemsResponse;
       authorBookCount = authorBookCountResp.libraryItems.length;
     } catch (error) {
       console.log("error", error);
@@ -518,7 +519,7 @@ export class AudiobookshelfAPI {
     for (const audio of libraryItem.media.audioFiles) {
       bookDuration += audio.duration;
     }
-    // console.log("In getItemDetails", libraryItem);
+
     return {
       id: libraryItem.id,
       audioFiles: libraryItem.media.audioFiles,
@@ -726,7 +727,6 @@ export class AudiobookshelfAPI {
     const token = await this.auth.getValidAccessToken();
     if (!token) return;
 
-    //~ Continue Listening Shelf
     //~ Continue Listening Shelf
     const continueListeningShelf = resp.find(
       (el): el is BookPersonalizedView => el.id === "continue-listening"
