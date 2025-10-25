@@ -7,7 +7,7 @@ import RateViewer from "@/src/components/bookComponents/RateViewer";
 import { useBookData } from "@/src/hooks/trackPlayerHooks";
 import { BlurView } from "expo-blur";
 import { Image, ImageBackground } from "expo-image";
-import { Stack, useLocalSearchParams } from "expo-router";
+import { Stack, useLocalSearchParams, useNavigation } from "expo-router";
 import React from "react";
 import { ScrollView, StyleSheet, Text, useColorScheme, View } from "react-native";
 
@@ -19,6 +19,7 @@ export type BookContainerRoute = {
 
 const BookContainer = () => {
   const { libraryItemId, cover, title } = useLocalSearchParams<BookContainerRoute>();
+  const navigation = useNavigation();
   const colorScheme = useColorScheme();
   const { book, isLoading } = useBookData(libraryItemId);
   // console.log("BOOK DATA", isBookActive, book?.title, book?.chapters, book?.authors);
@@ -28,6 +29,7 @@ const BookContainer = () => {
   // const { position, isLoading, error } = useSmartPosition(bookid);
 
   return (
+    // Enclosing View for Image Background and BlurView
     <View className="flex-1 pt-[100]">
       {cover && (
         <ImageBackground
@@ -36,11 +38,7 @@ const BookContainer = () => {
           contentFit="cover"
         />
       )}
-      <Stack.Screen
-        options={{
-          headerTitle: title,
-        }}
-      />
+      <Stack.Screen options={{ title: title }} />
       {/* Native iOS Blur Effect */}
       <BlurView
         intensity={90}

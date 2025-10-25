@@ -29,7 +29,7 @@ const HomeLayout = () => {
           },
         }}
       />
-      <Stack.Screen name="[libraryItemId]" options={{ title: "Book" }} />
+      {/* <Stack.Screen name="[libraryItemId]" options={{ title: "Book" }} /> */}
     </Stack>
   );
 };
