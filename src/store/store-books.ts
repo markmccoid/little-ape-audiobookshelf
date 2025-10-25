@@ -124,14 +124,14 @@ export const useBooksStore = create<BooksStore>()(
           })),
 
         getOrFetchBook: async ({ userId, libraryItemId }) => {
-          console.log(`[BooksStore] getOrFetchBook called for: ${libraryItemId}--${userId}`);
+          // console.log(`[BooksStore] getOrFetchBook called for: ${libraryItemId}--${userId}`);
 
-          const { books } = get();
+          // const { books } = get();
           const now = Date.now();
 
-          const existingBook = books.find(
-            (b) => b.libraryItemId === libraryItemId && b.userId === userId
-          );
+          // const existingBook = books.find(
+          //   (b) => b.libraryItemId === libraryItemId && b.userId === userId
+          // );
 
           const fallback: Book = {
             userId,
@@ -144,61 +144,77 @@ export const useBooksStore = create<BooksStore>()(
             type: "temporary",
           };
 
-          const book = existingBook ?? fallback;
+          const book = fallback;
+          // const book = existingBook ?? fallback;
 
-          // Return immediately
-          const STALE_AFTER_MS = 1 * 6 * 1000; // 5 min
-          const isStale = !existingBook || now - (existingBook.lastUpdated ?? 0) > STALE_AFTER_MS;
-          // console.log("IS STALE OR NOT EXISTING BOOK", isStale, !existingBook);
+          // // Return immediately
+          // const STALE_AFTER_MS = 5 * 60 * 1000; // 5 min
+          // const isStale = !existingBook || now - (existingBook.lastUpdated ?? 0) > STALE_AFTER_MS;
 
-          if (isStale) {
-            (async () => {
-              try {
-                // const { getAbsAPI } = require("@/src/utils/AudiobookShelf/absInit");
-                const absAPI = getAbsAPI();
-                // const progress = await absAPI.getBookProgress(libraryItemId);
-                const itemDetails = await absAPI.getItemDetails(libraryItemId);
-                const enhancedChapters = itemDetails?.media?.chapters?.map((book) => {
-                  return {
-                    id: book.id,
-                    title: book.title,
-                    startSeconds: Math.round(book.start),
-                    endSeconds: Math.round(book.end),
-                    formattedStart: formatSeconds(book.start, "compact"),
-                    formattedEnd: formatSeconds(book.end, "compact"),
-                    chapterDuration: Math.round(book.end - book.start),
-                    formattedChapterDuration: formatSeconds(
-                      Math.round(book.end - book.start),
-                      "compact"
-                    ),
-                  } as EnhancedChapter;
-                });
+          try {
+            // const { getAbsAPI } = require("@/src/utils/AudiobookShelf/absInit");
+            const absAPI = getAbsAPI();
+            const itemDetails = await absAPI.getItemDetails(libraryItemId);
+            // Create a fallback chapter for books with NO chapters defined.
+            // We make it a single chapter, starting at zero and ending at the duration of the book.
+            const chapterFallback = [
+              {
+                id: 1,
+                title: itemDetails?.media?.metadata.title,
+                startSeconds: 0,
+                endSeconds: itemDetails?.media.duration,
+                formattedStart: formatSeconds(0, "compact"),
+                formattedEnd: formatSeconds(itemDetails?.media.duration, "compact"),
+                chapterDuration: itemDetails?.media.duration,
+                formattedChapterDuration: formatSeconds(itemDetails?.media.duration, "compact"),
+              },
+            ] as EnhancedChapter[];
+            // Get actual chapters if they exists
+            const absLoadedChapters = itemDetails?.media?.chapters?.map((book) => {
+              return {
+                id: book.id,
+                title: book.title,
+                startSeconds: Math.round(book.start),
+                endSeconds: Math.round(book.end),
+                formattedStart: formatSeconds(book.start, "compact"),
+                formattedEnd: formatSeconds(book.end, "compact"),
+                chapterDuration: Math.round(book.end - book.start),
+                formattedChapterDuration: formatSeconds(
+                  Math.round(book.end - book.start),
+                  "compact"
+                ),
+              } as EnhancedChapter;
+            });
+            // Finalize the chapter selection, fallback if none exist
+            const enhancedChapters =
+              !absLoadedChapters || absLoadedChapters.length === 0
+                ? chapterFallback
+                : absLoadedChapters;
 
-                const updated: Book = {
-                  ...book, // If new, the fallback has the libraryItemId & userId in it
-                  title: itemDetails?.media?.metadata?.title || "",
-                  author: itemDetails?.media?.metadata?.authorName || "",
-                  description: itemDetails?.media?.metadata?.description || "",
-                  narratedBy: itemDetails?.media?.metadata?.narratorName || "",
-                  genre: itemDetails?.media?.metadata?.genres.join(", "),
-                  currentPosition: itemDetails?.userMediaProgress?.currentTime || 0,
-                  duration: itemDetails?.media.duration || 0,
-                  coverURI: itemDetails?.coverURI,
-                  publishedYear: itemDetails?.media?.metadata.publishedYear,
-                  chapters: enhancedChapters,
-                  authors: itemDetails?.media?.metadata?.authors,
-                  lastUpdated: Date.now(),
-                };
+            // create a new book record or update an existing one
+            const updated: Book = {
+              ...book, // If new, the fallback has the libraryItemId & userId in it
+              title: itemDetails?.media?.metadata?.title || "",
+              author: itemDetails?.media?.metadata?.authorName || "",
+              description: itemDetails?.media?.metadata?.description || "",
+              narratedBy: itemDetails?.media?.metadata?.narratorName || "",
+              genre: itemDetails?.media?.metadata?.genres.join(", "),
+              currentPosition: itemDetails?.userMediaProgress?.currentTime || 0,
+              duration: itemDetails?.media.duration || 0,
+              coverURI: itemDetails?.coverURI,
+              publishedYear: itemDetails?.media?.metadata.publishedYear,
+              chapters: enhancedChapters,
+              authors: itemDetails?.media?.metadata?.authors,
+              lastUpdated: Date.now(),
+            };
 
-                set((s) => ({
-                  books: [...s.books.filter((b) => b.libraryItemId !== libraryItemId), updated],
-                }));
+            set((s) => ({
+              books: [...s.books.filter((b) => b.libraryItemId !== libraryItemId), updated],
+            }));
 
-                console.log(`[BooksStore] Background refresh complete: ${libraryItemId}`);
-              } catch (err) {
-                console.warn(`[BooksStore] Background refresh failed: ${libraryItemId}`, err);
-              }
-            })();
+            console.log(`[BooksStore] Background refresh complete: ${libraryItemId}`);
+          } catch (err) {
+            console.warn(`[BooksStore] Background refresh failed: ${libraryItemId}`, err);
           }
 
           return book;

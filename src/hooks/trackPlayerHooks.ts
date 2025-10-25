@@ -1,10 +1,11 @@
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useActiveTrack, useProgress } from "react-native-track-player";
 import {
   EnhancedChapter,
+  useBook,
   useBookPlaybackSpeed,
   useBooksStore,
-  type Book,
 } from "../store/store-books";
 import {
   ABSQueuedTrack,
@@ -14,10 +15,7 @@ import {
 } from "../store/store-playback";
 import { getAbsAuth } from "../utils/AudiobookShelf/absInit";
 
-// Shared cache to prevent duplicate fetches between hooks
-const bookDataCache = new Map<string, Book>();
-
-type ChapterPosInfo = { chapterPosition: number; chapterDuration: number };
+type ChapterPosInfo = { chapterPosition: number; chapterDuration: number; chapterTitle: string };
 /**
  * Hook for frequently updating position data.
  * Optimized for slider and progress displays that update every ~250ms.
@@ -34,7 +32,6 @@ export const useSmartPosition = (
   chapterPosition: number | undefined;
   chapterDuration: number | undefined;
   chapterTitle: string;
-  error: Error | null;
 } => {
   const progress = useProgress();
   const activeTrack = useActiveTrack() as ABSQueuedTrack | null;
@@ -43,41 +40,42 @@ export const useSmartPosition = (
   const isBookActive = useIsBookActive(libraryItemId);
 
   // get stored book data
-  const theBook = useBookData(libraryItemId);
-  const chapters = theBook?.book?.chapters || [];
+  const { book, isLoading: bookIsLoading, duration: bookDuration } = useBookData(libraryItemId);
+  const chapters = book?.chapters || [];
 
   const [chapterInfo, setChapterInfo] = useState<ChapterPosInfo>({
     chapterPosition: 0,
     chapterDuration: 0,
+    chapterTitle: "",
   });
   // ✅ Select ONLY the libraryItemId to prevent unnecessary re-renders
   const sessionLibraryItemId = usePlaybackStore((s) => s.session?.libraryItemId);
 
   const [bookPosition, setBookPosition] = useState<number | undefined>();
-  const [currentChapter, setCurrentChapter] = useState<EnhancedChapter | null>();
 
-  const [error, setError] = useState<Error | null>(null);
-  // Fetch position on mount or when libraryItemId changes
-
+  //# Fetch position on mount or when libraryItemId changes
+  //# This effect is to update the position/chapter information based on the stored book
+  //# It returns the data when the book is NOT active/loaded for playback.
   useEffect(() => {
-    // this is the globalPosition from the saved book from store-books
-    console.log("FIRST BOOK", theBook.book?.currentPosition);
-    setBookPosition(theBook?.book?.currentPosition);
-    const currChapt = getChapterFromProgress(chapters, theBook.book?.currentPosition || 0);
+    //~ this is the globalPosition / chapters from the saved book from store-books
+    setBookPosition(book?.currentPosition);
+    const currChapt = getChapterFromProgress(chapters, book?.currentPosition || 0);
     const chaptStart = currChapt?.startSeconds ? Math.round(currChapt?.startSeconds) : 0;
-    const newChapterPosition = (theBook.book?.currentPosition || 0) - chaptStart;
+    //~ we pulled the current chapter based on the current global position
+    //~ this means that chaptStart should ALWAYS be greater than the current position
+    const newChapterPosition = (book?.currentPosition || 0) - chaptStart;
 
-    setCurrentChapter(currChapt);
     setChapterInfo({
       chapterPosition: newChapterPosition || 0,
       chapterDuration: currChapt?.chapterDuration || 0,
+      chapterTitle: currChapt?.title || "",
     });
 
-    console.log("ISActive - Book", isBookActive && isLoaded, theBook.book?.currentPosition);
-    console.log("Active Track", activeTrack?.trackOffset);
-  }, [libraryItemId]);
+    // console.log("ISActive - Book", isBookActive && isLoaded, book?.currentPosition);
+    // console.log("Active Track", activeTrack?.trackOffset);
+  }, [libraryItemId, bookIsLoading]);
 
-  // Update to playback position when available AND it's for THIS book
+  //# Update to playback position when available AND it's for THIS book
   useEffect(() => {
     const isThisBookLoaded = isBookActive && isLoaded;
 
@@ -90,32 +88,17 @@ export const useSmartPosition = (
       let newPosition = bookPosition;
       if (progress.position !== 0 && bookPosition && bookPosition > 0) {
         newPosition = Math.round((activeTrack?.trackOffset || 0) + progress.position);
-        console.log("BOOK LOADED - bookPosition", bookPosition);
+        // console.log("BOOK LOADED - bookPosition", bookPosition);
         const currChapt = getChapterFromProgress(chapters, newPosition);
         const chaptStart = currChapt?.startSeconds ? Math.round(currChapt?.startSeconds) : 0;
         const newChapterPosition = newPosition - chaptStart;
-        console.log("CUrrChapt, Progress Total", currChapt?.title, newPosition, newChapterPosition);
-        setCurrentChapter(currChapt);
+        // console.log("CUrrChapt, Progress Total", currChapt?.title, newPosition, newChapterPosition);
         setChapterInfo({
           chapterPosition: newChapterPosition || 0,
           chapterDuration: currChapt?.chapterDuration || 0,
+          chapterTitle: currChapt?.title || "",
         });
       }
-      // console.log(
-      //   "New Chapter Pos",
-      //   progressTotal,
-      //   chaptStart,
-      //   newChapterPosition,
-      //   currChapt?.chapterDuration,
-      //   currChapt?.endSeconds
-      // );
-      // const newPosition =
-      //   progress.position > 0
-      //     ? Math.round(progressTotal * 10) / 10
-      //     : // ? Math.round(progress.position * 10) / 10
-      //     playbackPos !== undefined
-      //     ? Math.round(playbackPos * 10) / 10
-      //     : undefined;
 
       // Only update if position actually changed significantly
       if (newPosition !== undefined && newPosition !== bookPosition) {
@@ -126,11 +109,10 @@ export const useSmartPosition = (
   }, [progress.position, libraryItemId, sessionLibraryItemId, isLoaded]);
   return {
     bookPosition: bookPosition,
-    bookDuration: theBook.duration,
+    bookDuration: bookDuration,
     chapterPosition: chapterInfo.chapterPosition,
     chapterDuration: chapterInfo.chapterDuration,
-    chapterTitle: currentChapter?.title || "",
-    error,
+    chapterTitle: chapterInfo?.chapterTitle || "",
   };
 };
 
@@ -144,99 +126,123 @@ export const useSmartPosition = (
  * @param libraryItemId - The book's library item ID
  * @returns Object with book data, duration, playback speed, loading state, and error
  */
-export const useBookData = (
-  libraryItemId: string
-): {
-  book: Book | null;
-  duration: number | undefined;
-  playbackSpeed: number;
-  isLoading: boolean;
-  error: Error | null;
-  isBookActive: boolean;
-} => {
-  const bookActions = useBooksStore((state) => state.actions);
-  // ✅ Subscribe to the SPECIFIC book from Zustand - will re-render when it updates
-  const bookFromStore = useBooksStore((state) =>
-    state.books.find((b) => b.libraryItemId === libraryItemId)
-  );
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  // ✅ Select ONLY the libraryItemId to prevent unnecessary re-renders
+
+// export const useBookData = (
+//   libraryItemId: string
+// ): {
+//   book: Book | null;
+//   duration: number | undefined;
+//   playbackSpeed: number;
+//   isLoading: boolean;
+//   error: Error | null;
+//   isBookActive: boolean;
+// } => {
+//   const bookActions = useBooksStore((state) => state.actions);
+//   // ✅ Subscribe to the SPECIFIC book from Zustand - will re-render when it updates
+//   const bookFromStore = useBook(libraryItemId);
+//   // useBooksStore((state) =>
+//   //   state.books.find((b) => b.libraryItemId === libraryItemId)
+//   // );
+//   const [isLoading, setIsLoading] = useState(false);
+//   const [error, setError] = useState<Error | null>(null);
+//   // ✅ Select ONLY the libraryItemId to prevent unnecessary re-renders
+//   const sessionLibraryItemId = usePlaybackStore((s) => s.session?.libraryItemId);
+//   const isBookActive = sessionLibraryItemId === libraryItemId;
+
+//   // Fetch book on mount if not in store
+//   useEffect(() => {
+//     let isMounted = true;
+
+//     const fetchBook = async () => {
+//       if (!libraryItemId) return;
+
+//       setIsLoading(true);
+//       setError(null);
+
+//       try {
+//         const absAuth = getAbsAuth();
+//         const userId = absAuth.userId;
+
+//         if (!userId) {
+//           throw new Error("User not authenticated");
+//         }
+
+//         // Call getOrFetchBook
+//         // We don't need the returned value as our bookFromStore variable
+//         // will be run when store is updated.
+//         console.log("Fetching Book");
+//         await bookActions.getOrFetchBook({
+//           userId,
+//           libraryItemId,
+//         });
+
+//         // Update cache for other hooks
+//         // bookDataCache.set(libraryItemId, fetchedBook);
+//       } catch (err) {
+//         if (isMounted) {
+//           setError(err instanceof Error ? err : new Error("Failed to fetch book"));
+//         }
+//       } finally {
+//         if (isMounted) {
+//           setIsLoading(false);
+//         }
+//       }
+//     };
+
+//     fetchBook();
+
+//     return () => {
+//       isMounted = false;
+//     };
+//   }, [libraryItemId, bookActions]); // Run when libraryItemId changes or when book appears in store
+
+//   return {
+//     book: bookFromStore ?? null,
+//     duration: bookFromStore?.duration,
+//     playbackSpeed: bookFromStore?.playbackRate ?? 1,
+//     isLoading,
+//     error,
+//     isBookActive,
+//   };
+// };
+
+//## ------------------------------------------------
+export const useBookData = (libraryItemId: string) => {
+  const bookFromStore = useBook(libraryItemId);
+  const getOrFetchBook = useBooksStore((state) => state.actions.getOrFetchBook);
+  const absAuth = getAbsAuth();
+  const userId = absAuth.userId;
+
   const sessionLibraryItemId = usePlaybackStore((s) => s.session?.libraryItemId);
   const isBookActive = sessionLibraryItemId === libraryItemId;
 
-  // Fetch book on mount if not in store
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchBook = async () => {
-      if (!libraryItemId) return;
-
-      // If already in store, no need to fetch
-      if (bookFromStore) {
-        return;
-      }
-
-      // Check cache first (may have been populated by useSmartPosition)
-      const cached = bookDataCache.get(libraryItemId);
-      if (cached) {
-        // Cache exists but not in store - this shouldn't happen often
-        // but we'll handle it by trusting the store will be updated soon
-        return;
-      }
-
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        const absAuth = getAbsAuth();
-        const userId = absAuth.userId;
-
-        if (!userId) {
-          throw new Error("User not authenticated");
-        }
-
-        const fetchedBook = await bookActions.getOrFetchBook({
-          userId,
-          libraryItemId,
-        });
-
-        // Update cache for other hooks
-        bookDataCache.set(libraryItemId, fetchedBook);
-      } catch (err) {
-        if (isMounted) {
-          setError(err instanceof Error ? err : new Error("Failed to fetch book"));
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    fetchBook();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [libraryItemId, bookFromStore, bookActions]); // Run when libraryItemId changes or when book appears in store
-
-  return {
-    book: bookFromStore ?? null,
-    duration: bookFromStore?.duration,
-    playbackSpeed: bookFromStore?.playbackRate ?? 1,
+  //~ We are using react query to handle the stale time. Since Zustand is the store that is caching the book data
+  //~ So we don't use the returned book but instead let the subscription to the book store (useBook) return to us
+  //~ the updated book after the async operation has finished.
+  const {
+    data: fetchedBook,
     isLoading,
     error,
+  } = useQuery({
+    queryKey: ["book", libraryItemId, userId],
+    queryFn: async () => {
+      if (!userId) throw new Error("User not authenticated");
+      return await getOrFetchBook({ userId, libraryItemId });
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    enabled: !!libraryItemId && !!userId,
+  });
+
+  const book = bookFromStore;
+
+  return {
+    book,
+    duration: book?.duration,
+    playbackSpeed: book?.playbackRate ?? 1,
+    isLoading: isLoading && !bookFromStore, // Not loading if we have cached data
+    error: error as Error | null,
     isBookActive,
   };
-};
-
-/**
- * Clears the book data cache.
- * Useful when logging out or switching users.
- */
-export const clearBookDataCache = () => {
-  bookDataCache.clear();
 };
 
 //## ------------------------------------------------

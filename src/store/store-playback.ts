@@ -345,7 +345,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
         }
       });
 
-      console.log("NEW TRACK", newTrackOffset, activeTrack.trackIndex);
+      console.log("NEW TRACK", newTrackOffset, activeTrack?.trackIndex);
       // const newTrackPos = pos - (activeTrack?.duration || 0) + activeTrack?.trackOffset;
       console.log("post / newPos", pos, pos - newTrackOffset.offset);
       // If the next track is the same as our current don't waste time skipping

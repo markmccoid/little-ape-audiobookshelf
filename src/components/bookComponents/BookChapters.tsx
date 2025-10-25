@@ -23,6 +23,14 @@ const BookChapters = () => {
   const { book, duration, isBookActive } = useBookData(libraryItemId);
   const playbackActions = usePlaybackActions();
 
+  const loadChapter = async (chapterStart: number) => {
+    await playbackActions.seekTo(chapterStart);
+    await playbackActions.loadBook(libraryItemId);
+    if (!isBookActive) {
+      playbackActions.play();
+    }
+  };
+  // console.log("Book Chapters", isBookActive);
   //!! NEED TO make it so that if the book is NOT playing, the chapters are "disabled"
   //!! OR They can start the playback???
   const renderItem = ({ item }: { item: EnhancedChapter }) => {
@@ -31,7 +39,8 @@ const BookChapters = () => {
         <Pressable
           onPress={() => {
             console.log("PRESSED Chapter", item.startSeconds);
-            playbackActions.seekTo(item.startSeconds);
+            // playbackActions.seekTo(item.startSeconds);
+            loadChapter(item.startSeconds);
           }}
         >
           <View className="flex-row items-center justify-between">
