@@ -1,5 +1,5 @@
-import { useSmartPosition } from "@/src/hooks/trackPlayerHooks";
 import { useIsBookActive, usePlaybackActions } from "@/src/store/store-playback";
+import { useSmartPositions } from "@/src/store/store-smartposition";
 import { formatSeconds } from "@/src/utils/formatUtils";
 import { THEME, useThemeColors } from "@/src/utils/theme";
 import Slider from "@react-native-community/slider";
@@ -18,10 +18,16 @@ interface BookSliderProps {
 }
 
 const BookSlider: React.FC<BookSliderProps> = ({ libraryItemId, useStaticColors = false }) => {
-  const { bookPosition, bookDuration, chapterDuration, chapterPosition, chapterTitle } =
-    useSmartPosition(libraryItemId);
+  // const { bookPosition, bookDuration, chapterDuration, chapterPosition, chapterTitle } =
+  //   useSmartPosition(libraryItemId);
 
-  // const { duration: bookDuration } = useBookData(libraryItemId);
+  const {
+    globalPosition,
+    globalDuration,
+    chapterInfo: { chapterDuration, chapterPosition, chapterTitle, chapterNumber },
+  } = useSmartPositions(libraryItemId);
+
+  // const { duration: globalDuration } = useBookData(libraryItemId);
   const isBookActive = useIsBookActive(libraryItemId);
   const { seekTo } = usePlaybackActions();
   const themeColors = useThemeColors();
@@ -29,7 +35,7 @@ const BookSlider: React.FC<BookSliderProps> = ({ libraryItemId, useStaticColors 
   const animatePosition = useSharedValue(0);
 
   const position = chapterPosition;
-  const duration = chapterDuration; //playbackDuration || bookDuration || 0;
+  const duration = chapterDuration; //playbackDuration || globalDuration || 0;
 
   // Track if user is actively sliding
   const [isUserSliding, setIsUserSliding] = useState(false);
@@ -109,8 +115,8 @@ const BookSlider: React.FC<BookSliderProps> = ({ libraryItemId, useStaticColors 
 
     try {
       // Perform the seek
-      console.log("SEEK TO disabled", value, sliderValueStart.current, bookPosition);
-      await seekTo(value - sliderValueStart.current + (bookPosition || 0));
+      console.log("SEEK TO disabled", value, sliderValueStart.current, globalPosition);
+      await seekTo(value - sliderValueStart.current + (globalPosition || 0));
 
       // Delay before allowing position updates again
       // This prevents the old position from overwriting our seek
@@ -159,34 +165,57 @@ const BookSlider: React.FC<BookSliderProps> = ({ libraryItemId, useStaticColors 
       >
         <Text className="text-lg text-accent-foreground">{formatSeconds(sliderDisplayValue)}</Text>
       </Animated.View>
-      <Text className="text-xl text-foreground">{chapterTitle}</Text>
-      <Text
-        className="text-lg"
-        style={{ color: useStaticColors ? THEME.dark.foreground : themeColors.foreground }}
-      >
-        {formatSeconds(sliderDisplayValue)} of {formatSeconds(duration)}
-      </Text>
-      <Text
-        className="text-lg"
-        style={{ color: useStaticColors ? THEME.dark.foreground : themeColors.foreground }}
-      >
-        {formatSeconds(bookPosition)} of {formatSeconds(bookDuration)}
-      </Text>
 
-      <Slider
-        style={{ width: "100%", height: 40 }}
-        minimumValue={0}
-        maximumValue={duration}
-        value={sliderDisplayValue}
-        step={1}
-        tapToSeek
-        disabled={!isBookActive}
-        minimumTrackTintColor={useStaticColors ? THEME.dark.accent : themeColors.accent}
-        maximumTrackTintColor={useStaticColors ? THEME.dark.foreground : themeColors.foreground}
-        onSlidingStart={handleSlidingStart}
-        onValueChange={handleValueChange}
-        onSlidingComplete={handleSlidingComplete}
-      />
+      <View className="flex-col py-2 px-4 items-center">
+        <Text
+          className="text-xl text-foreground font-semibold"
+          numberOfLines={1}
+          lineBreakMode="tail"
+          lineBreakStrategyIOS="standard"
+        >
+          {chapterTitle}- {chapterNumber}
+        </Text>
+        {/* <Text
+          className="text-lg"
+          style={{ color: useStaticColors ? THEME.dark.foreground : themeColors.foreground }}
+        >
+          Book Progress {formatSeconds(globalPosition)} of {formatSeconds(globalDuration)}
+        </Text>
+        <Text
+          className="text-lg"
+          style={{ color: useStaticColors ? THEME.dark.foreground : themeColors.foreground }}
+        >
+          Time in Book Left {formatSeconds(globalDuration - globalPosition)}
+        </Text> */}
+      </View>
+      <View className="flex-col w-full">
+        <Slider
+          style={{ height: 20, marginHorizontal: 10 }}
+          minimumValue={0}
+          maximumValue={duration}
+          value={sliderDisplayValue}
+          step={1}
+          tapToSeek
+          disabled={!isBookActive}
+          minimumTrackTintColor={useStaticColors ? THEME.dark.accent : themeColors.accent}
+          maximumTrackTintColor={useStaticColors ? THEME.dark.foreground : themeColors.foreground}
+          onSlidingStart={handleSlidingStart}
+          onValueChange={handleValueChange}
+          onSlidingComplete={handleSlidingComplete}
+        />
+
+        <View className="flex-row justify-between ">
+          <Text className="text-foreground font-semibold">
+            {formatSeconds(sliderDisplayValue, "compact")}
+          </Text>
+          <Text className="text-foreground text-sm font-semibold">
+            {formatSeconds(chapterDuration, "compact")}
+          </Text>
+          <Text className="text-foreground font-semibold">
+            {formatSeconds(chapterDuration - sliderDisplayValue, "compact")}
+          </Text>
+        </View>
+      </View>
     </View>
   );
 };

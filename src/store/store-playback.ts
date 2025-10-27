@@ -168,7 +168,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
 
       if (currentSession?.libraryItemId === itemId) {
         // No-op: preserve current playback state (playing or paused)
-        console.log(`PlaybackStore: Book ${itemId} already loaded. Skipping reload.`);
+        // console.log(`PlaybackStore: Book ${itemId} already loaded. Skipping reload.`);
         return;
       }
       set({ isLoaded: false });
@@ -192,17 +192,28 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
         ...sessionData,
       };
 
+      // //~ Look into books store to find out if we have this book saved
+      // const bookActions = useBooksStore.getState().actions;
+      // const savedBook = await bookActions.getOrFetchBook({
+      //   userId: userId,
+      //   libraryItemId: sessionData.libraryItemId,
+      // });
+      // console.log("store-playback-savedbook", savedBook?.currentPosition);
+      // const savedPlaybackRate = savedBook?.playbackRate || 1;
+      //~
+      await TrackPlayer.reset();
+      await TrackPlayer.add(tracks);
+
+      //!!
       //~ Look into books store to find out if we have this book saved
       const bookActions = useBooksStore.getState().actions;
       const savedBook = await bookActions.getOrFetchBook({
         userId: userId,
         libraryItemId: sessionData.libraryItemId,
       });
-
+      console.log("store-playback-savedbook", savedBook?.currentPosition);
       const savedPlaybackRate = savedBook?.playbackRate || 1;
-      //~
-      await TrackPlayer.reset();
-      await TrackPlayer.add(tracks);
+      //!!
 
       // If no previous start time default to zero
       const startTime = sessionData.startTime || 0;
@@ -214,11 +225,12 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       // console.log("Chapter Info", chapterInfo);
       //!! When seeking to the initial startTime in
       //!! a book with chapters, we need to do our seetTo function
-      console.log("Seek TO in loadBook", startTime);
       await get().actions.seekTo(startTime);
       await TrackPlayer.setRate(savedPlaybackRate);
 
       set({ position: startTime });
+
+      bookActions.getBook(sessionData.libraryItemId);
 
       set({
         session: playbackSessionData,
@@ -233,12 +245,12 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
 
       // move this book to the front of the list (Continue Listening)
       // moveBookToTopOfInProgress(sessionData?.libraryItemId);
-      console.log(
-        "BOOK LOADED START TIME",
-        get().position,
-        get().session?.displayTitle,
-        get().session?.startTime
-      );
+      // console.log(
+      //   "BOOK LOADED START TIME",
+      //   get().position,
+      //   get().session?.displayTitle,
+      //   get().session?.startTime
+      // );
     },
 
     /**
@@ -334,7 +346,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       set({ seeking: true });
       const activeTrack = (await TrackPlayer.getActiveTrack()) as ABSQueuedTrack;
       const queue = (await TrackPlayer.getQueue()) as ABSQueuedTrack[];
-      console.log(queue.map((el) => el.trackOffset));
+      // const pbstate = await TrackPlayer.getPlaybackState();
 
       //-- Find the next track based on the pos (position) passed in
 
@@ -345,9 +357,9 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
         }
       });
 
-      console.log("NEW TRACK", newTrackOffset, activeTrack?.trackIndex);
+      // console.log("NEW TRACK", newTrackOffset, activeTrack?.trackIndex);
       // const newTrackPos = pos - (activeTrack?.duration || 0) + activeTrack?.trackOffset;
-      console.log("post / newPos", pos, pos - newTrackOffset.offset);
+      // console.log("post / newPos", pos, pos - newTrackOffset.offset);
       // If the next track is the same as our current don't waste time skipping
       if (activeTrack.trackIndex !== newTrackOffset.nextTrack) {
         await TrackPlayer.skip(newTrackOffset.nextTrack);
@@ -365,7 +377,10 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
         // Only sync if we have an active session
         const currentSession = streamer.getSession();
         if (currentSession) {
-          await streamer.syncPosition();
+          //!! This is the culprit.  it is supposed to save our position on sync,
+          //!! may need a syncGlobalPosition function in AudioBookStreamer that accepts a position
+          //!! That way this won't reset it.
+          await streamer.syncPosition(pos);
         } else {
           console.log("Skipping position sync - no active session");
         }

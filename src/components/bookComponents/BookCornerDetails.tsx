@@ -17,21 +17,27 @@ const BookCornerDetails = () => {
       <BookBlurView flexDirection="flex-col">
         <View className="flex-row items-center gap-1 justify-start w-full p-2">
           <SymbolView name="person" size={15} tintColor={themeColors.accent} />
-          <Text lineBreakMode="tail" numberOfLines={1}>
+          <Text className="text-foreground" lineBreakMode="tail" numberOfLines={1}>
             {book?.author}
           </Text>
         </View>
-        <View className="flex-row justify-start items-center gap-1 w-full p-1">
-          <SymbolView name="waveform.and.person.filled" size={15} tintColor={themeColors.accent} />
-          <Text lineBreakMode="tail" numberOfLines={1}>
-            {book?.narratedBy}
-          </Text>
-        </View>
+        {book?.narratedBy && (
+          <View className="flex-row justify-start items-center gap-1 w-full p-1">
+            <SymbolView
+              name="waveform.and.person.filled"
+              size={15}
+              tintColor={themeColors.accent}
+            />
+            <Text className="text-foreground" lineBreakMode="tail" numberOfLines={1}>
+              {book?.narratedBy}
+            </Text>
+          </View>
+        )}
       </BookBlurView>
       <BookBlurView>
         <View className="p-2 flex-row justify-center items-center gap-2">
           <SymbolView name="hourglass" size={15} tintColor={themeColors.accent} />
-          <Text className="text-base" lineBreakMode="tail" numberOfLines={1}>
+          <Text className="text-base text-foreground" lineBreakMode="tail" numberOfLines={1}>
             {formatSeconds(duration, "minimal")}
           </Text>
         </View>

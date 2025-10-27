@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { reverse, sortBy } from "lodash";
 import { useEffect, useMemo, useState } from "react";
 import { useSafeAbsAPI } from "../contexts/AuthContext";
+import { useBooksActions } from "../store/store-books";
 import { useSortDirection, useSortedBy } from "../store/store-filters";
 import {
   ABSGetItemsInProgress,
@@ -165,6 +166,7 @@ export const useGetBookShelves = () => {
   const absAPI = useSafeAbsAPI();
   const queryClient = useQueryClient();
   const activeLibraryId = absAPI?.getActiveLibraryId() || null;
+  const bookStoreActions = useBooksActions();
 
   const { data, isError, ...rest } = useQuery({
     queryKey: ["bookShelves", activeLibraryId],
@@ -200,18 +202,6 @@ export const useGetBookShelves = () => {
     staleTime: 10000,
   });
 
-  // const activeLibraryId = absAPI?.getActiveLibraryId() || null;
-
-  // const { data, isError, ...rest } = useQuery({
-  //   queryKey: ["bookShelves", activeLibraryId],
-  //   queryFn: async () => {
-  //     if (!absAPI) throw new Error("Not authenticated");
-  //     return absAPI?.getBookShelves();
-  //   },
-  //   enabled: !!absAPI && !!activeLibraryId,
-  //   staleTime: 10000,
-  // });
-
   return { data, isError, ...rest };
 };
 
@@ -227,7 +217,7 @@ export const useGetBooksInProgress = (enabled = true) => {
     queryKey: ["booksInProgress", activeLibraryId],
     queryFn: async () => {
       if (!absAPI) throw new Error("Not authenticated");
-      const r = await absAPI?.getBookShelves();
+      // const r = await absAPI?.getBookShelves();
       return absAPI?.getItemsInProgress();
     },
     enabled: enabled && !!absAPI && !!activeLibraryId,

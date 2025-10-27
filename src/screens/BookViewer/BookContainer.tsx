@@ -1,15 +1,18 @@
+import BookBlurView from "@/src/components/bookComponents/BookBlurView";
 import BookChapters from "@/src/components/bookComponents/BookChapters";
 import BookControlsVertical from "@/src/components/bookComponents/BookControlsVertical";
 import BookCornerDetails from "@/src/components/bookComponents/BookCornerDetails";
+import BookDescription from "@/src/components/bookComponents/BookDescription";
 import BookSlider from "@/src/components/bookComponents/BookSlider";
 import RateSetter from "@/src/components/bookComponents/RateSetter";
 import RateViewer from "@/src/components/bookComponents/RateViewer";
-import { useBookData } from "@/src/hooks/trackPlayerHooks";
+import { useBookData, useSmartPosition } from "@/src/hooks/trackPlayerHooks";
 import { BlurView } from "expo-blur";
 import { Image, ImageBackground } from "expo-image";
-import { Stack, useLocalSearchParams, useNavigation } from "expo-router";
-import React from "react";
+import { Stack, useLocalSearchParams } from "expo-router";
+import React, { useReducer } from "react";
 import { ScrollView, StyleSheet, Text, useColorScheme, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export type BookContainerRoute = {
   libraryItemId: string;
@@ -19,9 +22,12 @@ export type BookContainerRoute = {
 
 const BookContainer = () => {
   const { libraryItemId, cover, title } = useLocalSearchParams<BookContainerRoute>();
-  const navigation = useNavigation();
+  const [viewFullDesc, toggleViewFullDesc] = useReducer((s) => !s, false);
+  const bottomHeight = useSafeAreaInsets();
   const colorScheme = useColorScheme();
   const { book, isLoading } = useBookData(libraryItemId);
+  //!!
+  useSmartPosition(libraryItemId);
   // console.log("BOOK DATA", isBookActive, book?.title, book?.chapters, book?.authors);
   // const { data, isPending } = useGetItemDetails(libraryItemId);
   // console.log("GET DATA", data?.media?.metadata.authorName);
@@ -48,7 +54,7 @@ const BookContainer = () => {
       />
       <ScrollView
         className="flex-1"
-        // contentInset={{ top: headerHeight }}
+        contentInset={{ bottom: bottomHeight.bottom + 49 }}
         // contentOffset={{ x: 0, y: -headerHeight }}
       >
         <View className="flex-row mx-2 justify-between items-center pt-10 ">
@@ -77,12 +83,40 @@ const BookContainer = () => {
           </View>
         </View>
 
+        {/* BOOK SLIDER */}
         <View className="flex-1">
           <BookSlider libraryItemId={libraryItemId} />
         </View>
 
-        <Text className="text-foreground ">BookIdRoute -- {libraryItemId}</Text>
-        <Text className="text-foreground ">FOREGROUND</Text>
+        {/* BOOK DESCRIPTION */}
+        <BookBlurView
+          style={{
+            marginHorizontal: 10,
+            padding: 5,
+            paddingBottom: 15,
+            marginTop: 15,
+          }}
+        >
+          <BookDescription bookDescription={book?.description || ""} />
+        </BookBlurView>
+
+        {/* GENRES */}
+        <ScrollView
+          contentContainerClassName="flex-row items-center gap-2 px-2"
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          className="my-2"
+        >
+          {/* <Text>{book?.genre}</Text> */}
+          {book?.genres?.map((el) => {
+            return (
+              <View className="border-hairline rounded-full py-1 px-3  bg-accent">
+                <Text className="text-accent-foreground">{el}</Text>
+              </View>
+            );
+          })}
+        </ScrollView>
+
         <BookChapters />
         {/* {data &&
           data.media.chapters.map((el) => {

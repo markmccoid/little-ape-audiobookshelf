@@ -3,7 +3,7 @@ import { EnhancedBookItem } from "@/src/screens/Home/BookShelves/BookShelfContai
 import { formatSeconds } from "@/src/utils/formatUtils";
 import { useThemeColors } from "@/src/utils/theme";
 import { Image } from "expo-image";
-import { Link, useRouter } from "expo-router";
+import { Link } from "expo-router";
 import React, { useCallback } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
@@ -24,7 +24,7 @@ interface InProgressItemProps {
 const InProgressItem = React.memo<InProgressItemProps>(
   ({ item, onInitBook, togglePlayPause }) => {
     item.isPlaying && console.log("ITEM IS PLAYING", `${item.title} -- ${item.isPlaying}`);
-    const router = useRouter();
+
     const playPause = useCallback(async () => {
       if (item.isCurrentlyLoaded) {
         await togglePlayPause();
@@ -67,7 +67,7 @@ const InProgressItem = React.memo<InProgressItemProps>(
         >
           <Link
             href={{
-              pathname: `/(tabs)/(home)/[bookid]`,
+              pathname: `/(tabs)/(home)/[libraryItemId]`,
               params: {
                 libraryItemId: item.libraryItemId,
                 cover: item.coverURL,

@@ -22,7 +22,7 @@ type Props = {
   libraryItemId: string;
 };
 const BookControls = ({ libraryItemId }: Props) => {
-  const { jumpForwardSeconds, jumpBackwardSeconds, togglePlayPause, loadBookAndPlay } =
+  const { jumpForwardSeconds, jumpBackwardSeconds, togglePlayPause, loadBookAndPlay, loadBook } =
     usePlaybackActions();
   const themeColors = useThemeColors();
   const seekForward = useSeekForwardSeconds();
@@ -42,6 +42,8 @@ const BookControls = ({ libraryItemId }: Props) => {
   const localTogglePlayPause = async () => {
     if (!isBookActive) {
       await loadBookAndPlay(libraryItemId);
+
+      // await loadBook(libraryItemId);
     } else {
       await togglePlayPause();
     }

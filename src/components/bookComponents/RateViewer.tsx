@@ -47,7 +47,7 @@ const RateViewer = () => {
                 type="palette"
                 colors={[themeColors.accent, "white"]}
               />
-              <Text className="text-xl">{playbackRate}x</Text>
+              <Text className="text-xl text-foreground w-[55]">{playbackRate}x</Text>
             </View>
           </ContextMenu.Trigger>
         </ContextMenu>

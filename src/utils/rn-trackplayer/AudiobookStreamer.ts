@@ -429,8 +429,11 @@ export default class AudiobookStreamer {
   /**
    * Sync current position immediately (used for seek operations)
    * This ensures server knows the new position right away
+   * ! globalPosIn allows our seekTo function from store-playback to update the
+   * ! position manually because when seeking our getProgress from the getGlobalPosition will
+   * ! zero before getting correct seek to position.
    */
-  async syncPosition(): Promise<void> {
+  async syncPosition(globalPosIn?: number): Promise<void> {
     if (!this.session) {
       console.log("Skipping position sync - no active session or playback not started");
       return;
@@ -463,7 +466,7 @@ export default class AudiobookStreamer {
       // For seek operations, we don't accumulate timeListened - just sync the new position
       const syncData: SyncData = {
         timeListened: 0,
-        currentTime: globalPosition,
+        currentTime: globalPosIn ? globalPosIn : globalPosition,
       };
 
       const syncResult = await this.apiClient.syncProgressToServer(activeSessionId, syncData);
@@ -603,7 +606,7 @@ export default class AudiobookStreamer {
       );
       return (this.trackOffsets[this.trackOffsets.length - 1] || 0) + finalPos;
     }
-    console.log("GLOBAL POS", this.trackOffsets[activeTrackIndex] + finalPos);
+
     return this.trackOffsets[activeTrackIndex] + finalPos;
   }
 

@@ -49,15 +49,18 @@ export const getCurrentChapter = ({ chapters = [], position }: Params) => {
 //~ When loading a book for the first time, this will let
 //~ us know when the book is fully loaded and ready to be played.
 //~ ------------------------------------------
-export const waitForReadyState = (timeout = 15000) => {
+export const waitForReadyState = (timeout = 5000) => {
   return new Promise((resolve, reject) => {
     const timeoutId = setTimeout(() => {
-      reject(new Error("Playback timeout"));
+      // reject(new Error("Playback timeout"));
+      // clearTimeout(timeoutId);
+      resolve(true);
     }, timeout);
 
     const checkState = async () => {
       const state = await TrackPlayer.getPlaybackState();
-      if (state.state === State.Ready) {
+      // console.log("Checking Ready state", state.state);
+      if (state.state === State.Ready || state.state === State.Playing) {
         // if (state.state === State.Playing) {
         clearTimeout(timeoutId);
         resolve(true);

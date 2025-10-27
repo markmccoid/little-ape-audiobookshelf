@@ -24,8 +24,8 @@ const BookChapters = () => {
   const playbackActions = usePlaybackActions();
 
   const loadChapter = async (chapterStart: number) => {
-    await playbackActions.seekTo(chapterStart);
     await playbackActions.loadBook(libraryItemId);
+    await playbackActions.seekTo(chapterStart);
     if (!isBookActive) {
       playbackActions.play();
     }
@@ -35,7 +35,7 @@ const BookChapters = () => {
   //!! OR They can start the playback???
   const renderItem = ({ item }: { item: EnhancedChapter }) => {
     return (
-      <BlurView className="border-b-hairline py-2 px-3" intensity={100} tint="extraLight">
+      <BlurView className="h-[40] border-b-hairline px-2" intensity={100} tint="extraLight">
         <Pressable
           onPress={() => {
             console.log("PRESSED Chapter", item.startSeconds);
@@ -43,8 +43,8 @@ const BookChapters = () => {
             loadChapter(item.startSeconds);
           }}
         >
-          <View className="flex-row items-center justify-between">
-            <Text className="font-semibold text-lg w-2/3" numberOfLines={2}>
+          <View className="flex-row items-center justify-between h-full">
+            <Text className="font-semibold text-lg w-2/3" numberOfLines={1}>
               {item.title}
             </Text>
             <View className="flex-row justify-end flex-1">
@@ -59,12 +59,16 @@ const BookChapters = () => {
     );
   };
   return (
-    <FlashList<EnhancedChapter>
-      // className="h-[300]"
-      data={book?.chapters}
-      renderItem={renderItem}
-      keyExtractor={(item) => item.id.toString()}
-    />
+    <View className="">
+      <FlashList<EnhancedChapter>
+        // className="h-[300]"
+        className="mt-1"
+        contentContainerClassName="px-1"
+        data={book?.chapters}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id.toString()}
+      />
+    </View>
   );
 };
 

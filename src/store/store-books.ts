@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { getAbsAPI } from "../utils/AudiobookShelf/absInit";
-import { Author, PersonalizedView } from "../utils/AudiobookShelf/abstypes";
+import { Author } from "../utils/AudiobookShelf/abstypes";
 import { formatSeconds } from "../utils/formatUtils";
 import { mmkvStorage } from "./mmkv-storage";
 
@@ -26,6 +26,7 @@ export type Book = {
   authors?: Author[];
   narratedBy?: string;
   genre?: string;
+  genres?: string[];
   description?: string;
   coverURI?: string;
   publishedYear?: string;
@@ -36,7 +37,13 @@ export type Book = {
   lastUpdated?: number;
   chapters?: EnhancedChapter[];
   //continue-listening, discover, etc
-  bookShelfType?: PersonalizedView["type"] | undefined;
+  bookShelfType?:
+    | "continue-listening"
+    | "discover"
+    | "recently-added"
+    | "recent-series"
+    | "listen-again"
+    | "newest-authors";
   // bookshelf - see bookShelfType for specific type
   // downloaded - downloaded book
   // temporary - a book accessed
@@ -126,12 +133,12 @@ export const useBooksStore = create<BooksStore>()(
         getOrFetchBook: async ({ userId, libraryItemId }) => {
           // console.log(`[BooksStore] getOrFetchBook called for: ${libraryItemId}--${userId}`);
 
-          // const { books } = get();
+          const { books } = get();
           const now = Date.now();
 
-          // const existingBook = books.find(
-          //   (b) => b.libraryItemId === libraryItemId && b.userId === userId
-          // );
+          const existingBook = books.find(
+            (b) => b.libraryItemId === libraryItemId && b.userId === userId
+          );
 
           const fallback: Book = {
             userId,
@@ -144,8 +151,8 @@ export const useBooksStore = create<BooksStore>()(
             type: "temporary",
           };
 
-          const book = fallback;
-          // const book = existingBook ?? fallback;
+          // const book = fallback;
+          const book = existingBook ?? fallback;
 
           // // Return immediately
           // const STALE_AFTER_MS = 5 * 60 * 1000; // 5 min
@@ -199,7 +206,8 @@ export const useBooksStore = create<BooksStore>()(
               description: itemDetails?.media?.metadata?.description || "",
               narratedBy: itemDetails?.media?.metadata?.narratorName || "",
               genre: itemDetails?.media?.metadata?.genres.join(", "),
-              currentPosition: itemDetails?.userMediaProgress?.currentTime || 0,
+              genres: itemDetails?.media?.metadata?.genres,
+              // currentPosition: itemDetails?.userMediaProgress?.currentTime || 0,
               duration: itemDetails?.media.duration || 0,
               coverURI: itemDetails?.coverURI,
               publishedYear: itemDetails?.media?.metadata.publishedYear,

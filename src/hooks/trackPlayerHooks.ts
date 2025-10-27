@@ -15,6 +15,47 @@ import {
 } from "../store/store-playback";
 import { getAbsAuth } from "../utils/AudiobookShelf/absInit";
 
+//###
+//# useSmartPositionStore version 2
+//###
+import { useSmartPositionStore } from "@/src/store/store-smartposition";
+
+export const useSmartPosition = (libraryItemId: string) => {
+  const isLoaded = usePlaybackStore((s) => s.isLoaded);
+  const sessionId = usePlaybackStore((s) => s.session?.libraryItemId);
+  const isBookActive = sessionId === libraryItemId;
+  // const isPlaying = usePlaybackIsPlaying(libraryItemId);
+  const { book, duration } = useBookData(libraryItemId);
+  const chapters = book?.chapters || [];
+  const progress = useProgress();
+  const activeTrack = useActiveTrack();
+  const update = useSmartPositionStore((s) => s.updateForActiveBook);
+
+  useEffect(() => {
+    // console.log("USESMPOS", progress.position, book?.currentPosition, book?.title);
+    if (isBookActive && isLoaded && progress.position !== 0) {
+      const newPos = Math.round((activeTrack?.trackOffset ?? 0) + progress.position);
+      const curr = getChapterFromProgress(chapters, newPos);
+      update(libraryItemId, newPos, duration, {
+        chapterPosition: newPos - (curr?.startSeconds ?? 0),
+        chapterDuration: curr?.chapterDuration ?? 0,
+        chapterTitle: curr?.title ?? "",
+        numOfChapters: chapters.length,
+        chapterNumber: curr?.chapterNumber,
+      });
+    } else if (!isBookActive || progress.position == 0) {
+      const pos = book?.currentPosition ?? 0;
+      const curr = getChapterFromProgress(chapters, pos);
+      update(libraryItemId, pos, duration, {
+        chapterPosition: pos - (curr?.startSeconds ?? 0),
+        chapterDuration: curr?.chapterDuration ?? 0,
+        chapterTitle: curr?.title ?? "",
+        chapterNumber: curr?.chapterNumber,
+      });
+    }
+  }, [progress.position, isLoaded, sessionId, libraryItemId, book]);
+};
+
 type ChapterPosInfo = { chapterPosition: number; chapterDuration: number; chapterTitle: string };
 /**
  * Hook for frequently updating position data.
@@ -23,8 +64,7 @@ type ChapterPosInfo = { chapterPosition: number; chapterDuration: number; chapte
  * @param libraryItemId - The book's library item ID
  * @returns Object with position, loading state, and error
  */
-
-export const useSmartPosition = (
+export const useSmartPositionOLD = (
   libraryItemId: string
 ): {
   bookPosition: number | undefined;
@@ -227,6 +267,7 @@ export const useBookData = (libraryItemId: string) => {
     queryKey: ["book", libraryItemId, userId],
     queryFn: async () => {
       if (!userId) throw new Error("User not authenticated");
+      console.log("In useBookDataHook queryFN");
       return await getOrFetchBook({ userId, libraryItemId });
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -273,10 +314,10 @@ function getChapterFromProgress(chapters: EnhancedChapter[] | undefined, progres
   for (let i = 0; i < chapters.length; i++) {
     const ch = chapters[i];
     if (progressSeconds >= ch.startSeconds && progressSeconds < ch.endSeconds) {
-      return ch;
+      return { ...ch, chapterNumber: i + 1 };
     }
   }
 
   // If beyond last chapter end, return last chapter (or null depending on logic)
-  return chapters[chapters.length - 1];
+  return { ...chapters[chapters.length - 1], chapterNumber: chapters.length - 1 };
 }
