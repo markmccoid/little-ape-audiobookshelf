@@ -2,10 +2,13 @@ import { useBookData } from "@/src/hooks/trackPlayerHooks";
 import { BookContainerRoute } from "@/src/screens/BookViewer/BookContainer";
 import { EnhancedChapter } from "@/src/store/store-books";
 import { usePlaybackActions } from "@/src/store/store-playback";
+import { useSmartPositions } from "@/src/store/store-smartposition";
+import { useThemeColors } from "@/src/utils/theme";
 import { FlashList } from "@shopify/flash-list";
 import { BlurView } from "expo-blur";
 import { useLocalSearchParams } from "expo-router";
-import React from "react";
+import { SymbolView } from "expo-symbols";
+import React, { useCallback, useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 // type EnhancedChapter = {
 //   id: number;
@@ -21,43 +24,86 @@ import { Pressable, Text, View } from "react-native";
 const BookChapters = () => {
   const { libraryItemId } = useLocalSearchParams<BookContainerRoute>();
   const { book, duration, isBookActive } = useBookData(libraryItemId);
+  const {
+    chapterInfo: { chapterIndex },
+  } = useSmartPositions(libraryItemId);
   const playbackActions = usePlaybackActions();
 
-  const loadChapter = async (chapterStart: number) => {
-    await playbackActions.loadBook(libraryItemId);
-    await playbackActions.seekTo(chapterStart);
-    if (!isBookActive) {
-      playbackActions.play();
+  const [localChapterIndex, setLocalChapterIndex] = useState(chapterIndex);
+  const themeColors = useThemeColors();
+
+  useEffect(() => {
+    if (chapterIndex !== localChapterIndex) {
+      setLocalChapterIndex(chapterIndex);
     }
-  };
+  }, [chapterIndex]);
+
+  const loadChapter = useCallback(
+    async (chapterStart: number) => {
+      await playbackActions.loadBook(libraryItemId);
+      await playbackActions.seekTo(chapterStart);
+      if (!isBookActive) playbackActions.play();
+    },
+    [libraryItemId, isBookActive, playbackActions]
+  );
+
   // console.log("Book Chapters", isBookActive);
   //!! NEED TO make it so that if the book is NOT playing, the chapters are "disabled"
   //!! OR They can start the playback???
-  const renderItem = ({ item }: { item: EnhancedChapter }) => {
-    return (
-      <BlurView className="h-[40] border-b-hairline px-2" intensity={100} tint="extraLight">
-        <Pressable
-          onPress={() => {
-            console.log("PRESSED Chapter", item.startSeconds);
-            // playbackActions.seekTo(item.startSeconds);
-            loadChapter(item.startSeconds);
-          }}
-        >
-          <View className="flex-row items-center justify-between h-full">
-            <Text className="font-semibold text-lg w-2/3" numberOfLines={1}>
-              {item.title}
-            </Text>
-            <View className="flex-row justify-end flex-1">
-              <Text className=" " numberOfLines={1} lineBreakMode="tail">
-                {item.formattedStart} - {item.formattedEnd}
+  const renderItem = useCallback(
+    ({ item, index }: { item: EnhancedChapter; index: number }) => {
+      const active = index === localChapterIndex;
+      const completed = index < localChapterIndex;
+
+      return (
+        <BlurView className="h-[40] border-b-hairline" intensity={100} tint="extraLight">
+          <Pressable
+            onPress={() => {
+              setLocalChapterIndex(index);
+              loadChapter(item.startSeconds);
+            }}
+          >
+            <View
+              className="flex-row items-center justify-between h-full px-2"
+              style={{ backgroundColor: active ? `${themeColors.accent}55` : "" }}
+            >
+              {completed && (
+                <SymbolView
+                  name="checkmark.seal.fill"
+                  tintColor="gray"
+                  size={20}
+                  style={{ marginRight: 4 }}
+                />
+              )}
+              {active && (
+                <SymbolView
+                  name="play.circle.fill"
+                  type="palette"
+                  colors={["white", themeColors.accent]}
+                  size={20}
+                  style={{ marginRight: 4 }}
+                />
+              )}
+              <Text
+                className={`${
+                  completed ? "text-base text-gray-600" : "text-lg"
+                } w-2/3 font-semibold`}
+                numberOfLines={1}
+              >
+                {item.title}
               </Text>
+              <View className="flex-row justify-end flex-1">
+                <Text numberOfLines={1}>
+                  {item.formattedStart} - {item.formattedEnd}
+                </Text>
+              </View>
             </View>
-            {/* <Text>{item.formattedChapterDuration}</Text> */}
-          </View>
-        </Pressable>
-      </BlurView>
-    );
-  };
+          </Pressable>
+        </BlurView>
+      );
+    },
+    [localChapterIndex, loadChapter, themeColors]
+  );
   return (
     <View className="">
       <FlashList<EnhancedChapter>
@@ -67,6 +113,7 @@ const BookChapters = () => {
         data={book?.chapters}
         renderItem={renderItem}
         keyExtractor={(item) => item.id.toString()}
+        extraData={localChapterIndex}
       />
     </View>
   );

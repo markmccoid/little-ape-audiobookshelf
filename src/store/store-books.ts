@@ -27,6 +27,7 @@ export type Book = {
   narratedBy?: string;
   genre?: string;
   genres?: string[];
+  tags?: string[];
   description?: string;
   coverURI?: string;
   publishedYear?: string;
@@ -143,7 +144,7 @@ export const useBooksStore = create<BooksStore>()(
           const fallback: Book = {
             userId,
             libraryItemId,
-            playbackRate: 1,
+            playbackRate: 1.14,
             isDownloaded: false,
             currentPosition: 0,
             duration: 0,
@@ -197,7 +198,6 @@ export const useBooksStore = create<BooksStore>()(
               !absLoadedChapters || absLoadedChapters.length === 0
                 ? chapterFallback
                 : absLoadedChapters;
-
             // create a new book record or update an existing one
             const updated: Book = {
               ...book, // If new, the fallback has the libraryItemId & userId in it
@@ -207,7 +207,8 @@ export const useBooksStore = create<BooksStore>()(
               narratedBy: itemDetails?.media?.metadata?.narratorName || "",
               genre: itemDetails?.media?.metadata?.genres.join(", "),
               genres: itemDetails?.media?.metadata?.genres,
-              // currentPosition: itemDetails?.userMediaProgress?.currentTime || 0,
+              tags: itemDetails?.media?.tags,
+              currentPosition: itemDetails?.userMediaProgress?.currentTime || 0,
               duration: itemDetails?.media.duration || 0,
               coverURI: itemDetails?.coverURI,
               publishedYear: itemDetails?.media?.metadata.publishedYear,
@@ -220,7 +221,10 @@ export const useBooksStore = create<BooksStore>()(
               books: [...s.books.filter((b) => b.libraryItemId !== libraryItemId), updated],
             }));
 
-            console.log(`[BooksStore] Background refresh complete: ${libraryItemId}`);
+            console.log(
+              `[BooksStore] Background refresh complete: ${libraryItemId}`,
+              itemDetails?.media?.tags
+            );
           } catch (err) {
             console.warn(`[BooksStore] Background refresh failed: ${libraryItemId}`, err);
           }

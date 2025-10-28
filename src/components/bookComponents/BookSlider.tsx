@@ -190,7 +190,7 @@ const BookSlider: React.FC<BookSliderProps> = ({ libraryItemId, useStaticColors 
       </View>
       <View className="flex-col w-full">
         <Slider
-          style={{ height: 20, marginHorizontal: 10 }}
+          style={{ height: 35, marginHorizontal: 10 }}
           minimumValue={0}
           maximumValue={duration}
           value={sliderDisplayValue}

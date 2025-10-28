@@ -211,7 +211,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
         userId: userId,
         libraryItemId: sessionData.libraryItemId,
       });
-      console.log("store-playback-savedbook", savedBook?.currentPosition);
+
       const savedPlaybackRate = savedBook?.playbackRate || 1;
       //!!
 

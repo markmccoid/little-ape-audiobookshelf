@@ -1,8 +1,6 @@
-import BookBlurView from "@/src/components/bookComponents/BookBlurView";
-import BookChapters from "@/src/components/bookComponents/BookChapters";
 import BookControlsVertical from "@/src/components/bookComponents/BookControlsVertical";
 import BookCornerDetails from "@/src/components/bookComponents/BookCornerDetails";
-import BookDescription from "@/src/components/bookComponents/BookDescription";
+import BookDetails from "@/src/components/bookComponents/BookDetails";
 import BookSlider from "@/src/components/bookComponents/BookSlider";
 import RateSetter from "@/src/components/bookComponents/RateSetter";
 import RateViewer from "@/src/components/bookComponents/RateViewer";
@@ -11,7 +9,7 @@ import { BlurView } from "expo-blur";
 import { Image, ImageBackground } from "expo-image";
 import { Stack, useLocalSearchParams } from "expo-router";
 import React, { useReducer } from "react";
-import { ScrollView, StyleSheet, Text, useColorScheme, View } from "react-native";
+import { ScrollView, StyleSheet, useColorScheme, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export type BookContainerRoute = {
@@ -88,36 +86,9 @@ const BookContainer = () => {
           <BookSlider libraryItemId={libraryItemId} />
         </View>
 
-        {/* BOOK DESCRIPTION */}
-        <BookBlurView
-          style={{
-            marginHorizontal: 10,
-            padding: 5,
-            paddingBottom: 15,
-            marginTop: 15,
-          }}
-        >
-          <BookDescription bookDescription={book?.description || ""} />
-        </BookBlurView>
+        {/* BOOK DETAILS - Description, Genres, tags */}
+        <BookDetails />
 
-        {/* GENRES */}
-        <ScrollView
-          contentContainerClassName="flex-row items-center gap-2 px-2"
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          className="my-2"
-        >
-          {/* <Text>{book?.genre}</Text> */}
-          {book?.genres?.map((el) => {
-            return (
-              <View className="border-hairline rounded-full py-1 px-3  bg-accent">
-                <Text className="text-accent-foreground">{el}</Text>
-              </View>
-            );
-          })}
-        </ScrollView>
-
-        <BookChapters />
         {/* {data &&
           data.media.chapters.map((el) => {
             return (

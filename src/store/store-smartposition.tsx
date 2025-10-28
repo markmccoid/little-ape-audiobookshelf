@@ -5,6 +5,7 @@ type ChapterInfo = {
   chapterDuration: number;
   chapterTitle: string;
   chapterNumber: number;
+  chapterIndex: number;
 };
 
 type BookSmartPosition = {
@@ -58,17 +59,18 @@ const EMPTY_SMART_POSITION = {
     chapterDuration: 0,
     chapterTitle: "",
     chapterNumber: 1,
+    chapterIndex: 0,
   },
 };
 export const useSmartPositions = (libraryItemId: string) => {
   const {
     globalPosition,
     globalDuration,
-    chapterInfo: { chapterDuration, chapterPosition, chapterTitle, chapterNumber },
+    chapterInfo: { chapterDuration, chapterPosition, chapterTitle, chapterNumber, chapterIndex },
   } = useSmartPositionStore((state) => state.smartPositions[libraryItemId] ?? EMPTY_SMART_POSITION);
   return {
     globalPosition,
     globalDuration,
-    chapterInfo: { chapterDuration, chapterPosition, chapterTitle, chapterNumber },
+    chapterInfo: { chapterDuration, chapterPosition, chapterTitle, chapterNumber, chapterIndex },
   };
 };
