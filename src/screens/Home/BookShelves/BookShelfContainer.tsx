@@ -5,6 +5,7 @@ import {
   usePlaybackSession,
   usePlaybackStore,
 } from "@/src/store/store-playback";
+import { useSmartPositionStore } from "@/src/store/store-smartposition";
 import { BookShelfItemType } from "@/src/utils/AudiobookShelf/absUtils";
 import { useThemeColors } from "@/src/utils/theme";
 import { SymbolView } from "expo-symbols";
@@ -35,6 +36,7 @@ const BookShelfContainer = ({ shelfData, isLoading, isError }: Props) => {
   const isPlaying = usePlaybackStore((state) => state.isPlaying);
   const session = usePlaybackSession();
   const progress = useProgress();
+
   const absAPI = useSafeAbsAPI();
   const activeLibraryId = absAPI?.getActiveLibraryId() || null;
   //!! Does nothing here --- Take out and use in full list of IN PROGRESS
@@ -69,6 +71,7 @@ const BookShelfContainer = ({ shelfData, isLoading, isError }: Props) => {
     return shelfData.books
       .map((book) => {
         const isCurrentlyLoaded = session?.libraryItemId === book.libraryItemId;
+
         // Determine current time with priority:
         // 1. If loaded and playing and this is continue-listening shelf: use live progress.position
         // 2. If unloaded but we have cached position: use cached position
@@ -83,7 +86,9 @@ const BookShelfContainer = ({ shelfData, isLoading, isError }: Props) => {
           // Book is loaded and this is continue-listening shelf: use live position and update cache
           // Need to fallback to book.currentTime if progress.position is zero
           // it isn't
-          currentTime = progress.position;
+          const smartPos = useSmartPositionStore.getState().getSmartPosition(book.libraryItemId);
+
+          currentTime = smartPos.globalPosition || 0; //progress.position;
         } else {
           currentTime = book.currentTime || 0;
         }

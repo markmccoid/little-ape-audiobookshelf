@@ -8,7 +8,7 @@ import { useBookData, useSmartPosition } from "@/src/hooks/trackPlayerHooks";
 import { BlurView } from "expo-blur";
 import { Image, ImageBackground } from "expo-image";
 import { Stack, useLocalSearchParams } from "expo-router";
-import React, { useReducer } from "react";
+import React, { useEffect, useReducer } from "react";
 import { ScrollView, StyleSheet, useColorScheme, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -31,7 +31,10 @@ const BookContainer = () => {
   // console.log("GET DATA", data?.media?.metadata.authorName);
   // console.log("BOOK ACTIVe", isBookActive, isLoaded);
   // const { position, isLoading, error } = useSmartPosition(bookid);
-
+  useEffect(() => {
+    console.log("in Book Container", libraryItemId);
+    return () => console.log("UNMOUNT Book Container", libraryItemId);
+  }, []);
   return (
     // Enclosing View for Image Background and BlurView
     <View className="flex-1 pt-[100]">

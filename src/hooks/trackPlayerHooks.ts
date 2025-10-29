@@ -20,7 +20,7 @@ export const useSmartPosition = (libraryItemId: string) => {
   const sessionId = usePlaybackStore((s) => s.session?.libraryItemId);
   const isBookActive = sessionId === libraryItemId;
   // const isPlaying = usePlaybackIsPlaying(libraryItemId);
-  const { book, duration } = useBookData(libraryItemId);
+  const { book, duration = 0 } = useBookData(libraryItemId);
   const chapters = book?.chapters || [];
   const progress = useProgress();
   const activeTrack = useActiveTrack();
@@ -33,11 +33,13 @@ export const useSmartPosition = (libraryItemId: string) => {
       const curr = getChapterFromProgress(chapters, newPos);
       update(libraryItemId, newPos, duration, {
         chapterPosition: newPos - (curr?.startSeconds ?? 0),
+        chapterStart: curr?.startSeconds || 0,
+        chapterEnd: (curr?.startSeconds || 0) + (curr?.chapterDuration || 0),
         chapterDuration: curr?.chapterDuration ?? 0,
         chapterTitle: curr?.title ?? "",
         numOfChapters: chapters.length,
-        chapterNumber: curr?.chapterNumber,
-        chapterIndex: curr?.chapterIndex,
+        chapterNumber: curr?.chapterNumber || 1,
+        chapterIndex: curr?.chapterIndex || 0,
       });
     } else if (!isBookActive || progress.position == 0) {
       // console.log("Pulling from stored book", book?.title, book?.currentPosition);
@@ -45,20 +47,16 @@ export const useSmartPosition = (libraryItemId: string) => {
       const curr = getChapterFromProgress(chapters, pos);
       update(libraryItemId, pos, duration, {
         chapterPosition: pos - (curr?.startSeconds ?? 0),
+        chapterStart: curr?.startSeconds || 0,
+        chapterEnd: (curr?.startSeconds || 0) + (curr?.chapterDuration || 0),
         chapterDuration: curr?.chapterDuration ?? 0,
         chapterTitle: curr?.title ?? "",
-        chapterNumber: curr?.chapterNumber,
-        chapterIndex: curr?.chapterIndex,
+        numOfChapters: chapters.length,
+        chapterNumber: curr?.chapterNumber || 1,
+        chapterIndex: curr?.chapterIndex || 0,
       });
     }
-  }, [progress.position, isLoaded, sessionId, libraryItemId, book]);
-};
-
-type ChapterPosInfo = {
-  chapterPosition: number;
-  chapterDuration: number;
-  chapterTitle: string;
-  chapterIndex: number;
+  }, [progress.position, isLoaded, sessionId, libraryItemId, book?.currentPosition]);
 };
 
 /**

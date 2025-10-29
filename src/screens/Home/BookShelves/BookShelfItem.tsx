@@ -23,6 +23,10 @@ interface BookShelfItemProps {
  */
 const BookShelfItem = React.memo<BookShelfItemProps>(
   ({ item, onInitBook, togglePlayPause }) => {
+    const isContinueListeningShelf = item.shelfId === "continue-listening";
+    const imageSize = isContinueListeningShelf ? 210 : 175;
+    const itemSize = isContinueListeningShelf ? 220 : 190;
+
     const playPause = useCallback(async () => {
       if (item.isCurrentlyLoaded) {
         await togglePlayPause();
@@ -42,12 +46,16 @@ const BookShelfItem = React.memo<BookShelfItemProps>(
     const absAPI = useSafeAbsAPI();
     const themeColors = useThemeColors();
     return (
-      <Animated.View className="flex-col py-2 w-[190] justify-center items-center rounded-lg">
+      <Animated.View
+        className={`flex-col py-2 justify-center items-center rounded-lg`}
+        style={{ width: itemSize }}
+      >
         <View
           className="mx-2"
           style={{
-            backgroundColor: item.isCurrentlyLoaded ? themeColors.accent : "transparent",
+            borderColor: item.isCurrentlyLoaded ? themeColors.accent : "transparent",
             borderRadius: 10,
+            borderWidth: item.isCurrentlyLoaded ? 2 : 0,
           }}
         >
           <Link
@@ -66,8 +74,8 @@ const BookShelfItem = React.memo<BookShelfItemProps>(
               <Image
                 source={item.coverURL}
                 style={{
-                  width: 175,
-                  height: 175,
+                  width: imageSize,
+                  height: imageSize,
                   borderRadius: 10,
                   borderWidth: StyleSheet.hairlineWidth,
                 }}
@@ -112,7 +120,7 @@ const BookShelfItem = React.memo<BookShelfItemProps>(
           </Text>
 
           {item.shelfId === "continue-listening" && (
-            <Text className="text-xs text-muted mt-1">
+            <Text className="text-sm text-muted mt-1">
               {formatSeconds(item.currentTime)} / {formatSeconds(item.duration || 0)}
             </Text>
           )}

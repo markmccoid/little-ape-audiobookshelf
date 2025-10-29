@@ -144,7 +144,7 @@ export const useBooksStore = create<BooksStore>()(
           const fallback: Book = {
             userId,
             libraryItemId,
-            playbackRate: 1.14,
+            playbackRate: 1,
             isDownloaded: false,
             currentPosition: 0,
             duration: 0,

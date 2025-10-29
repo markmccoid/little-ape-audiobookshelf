@@ -24,7 +24,15 @@ const BookSlider: React.FC<BookSliderProps> = ({ libraryItemId, useStaticColors 
   const {
     globalPosition,
     globalDuration,
-    chapterInfo: { chapterDuration, chapterPosition, chapterTitle, chapterNumber },
+    chapterInfo: {
+      chapterDuration,
+      chapterPosition,
+      chapterTitle,
+      chapterNumber,
+      chapterStart,
+      chapterEnd,
+      numOfChapters,
+    },
   } = useSmartPositions(libraryItemId);
 
   // const { duration: globalDuration } = useBookData(libraryItemId);
@@ -100,7 +108,6 @@ const BookSlider: React.FC<BookSliderProps> = ({ libraryItemId, useStaticColors 
       dampingRatio: 0.5,
       mass: 9,
       overshootClamping: false,
-      energyThreshold: 6e-9,
       reduceMotion: ReduceMotion.System,
     });
     // animatePosition.value = withTiming(0, { duration: 500 });
@@ -136,19 +143,29 @@ const BookSlider: React.FC<BookSliderProps> = ({ libraryItemId, useStaticColors 
     const scale = interpolate(animatePosition.value, [0, 1], [0.5, 2]);
     const translateY = interpolate(animatePosition.value, [0, 1], [0, -150]);
     return {
+      width: 100,
+      // borderRadius: 10,
       transform: [{ translateY }, { scale }],
-
       opacity: interpolate(animatePosition.value, [0, 1], [0, 1]),
       // display: animatePosition.value == 0 ? "none" : "contents",
     };
   });
+
+  // console.log(
+  //   "Chapter Start/End",
+  //   formatSeconds(chapterStart),
+  //   formatSeconds(chapterEnd),
+  //   formatSeconds(chapterDuration - sliderDisplayValue)
+  // );
+
   return (
     <View className="flex-col justify-center items-center mx-3 relative">
       <Animated.View
-        style={[
-          animStyle,
-          {
-            // transform: [{ translateY: -150 }],
+        style={[animStyle]}
+        // className="px-2 py-1 w-[100] justify-center flex-row h-auto"
+      >
+        <View
+          style={{
             borderRadius: 10,
             borderWidth: StyleSheet.hairlineWidth,
             zIndex: 10,
@@ -159,63 +176,80 @@ const BookSlider: React.FC<BookSliderProps> = ({ libraryItemId, useStaticColors 
             width: 100,
             flexDirection: "row",
             justifyContent: "center",
-          },
-        ]}
-        // className="px-2 py-1 w-[100] justify-center flex-row h-auto"
-      >
-        <Text className="text-lg text-accent-foreground">{formatSeconds(sliderDisplayValue)}</Text>
-      </Animated.View>
-
-      <View className="flex-col py-2 px-4 items-center">
-        <Text
-          className="text-xl text-foreground font-semibold"
-          numberOfLines={1}
-          lineBreakMode="tail"
-          lineBreakStrategyIOS="standard"
+          }}
         >
-          {chapterTitle}- {chapterNumber}
-        </Text>
-        {/* <Text
-          className="text-lg"
-          style={{ color: useStaticColors ? THEME.dark.foreground : themeColors.foreground }}
-        >
-          Book Progress {formatSeconds(globalPosition)} of {formatSeconds(globalDuration)}
-        </Text>
-        <Text
-          className="text-lg"
-          style={{ color: useStaticColors ? THEME.dark.foreground : themeColors.foreground }}
-        >
-          Time in Book Left {formatSeconds(globalDuration - globalPosition)}
-        </Text> */}
-      </View>
-      <View className="flex-col w-full">
-        <Slider
-          style={{ height: 35, marginHorizontal: 10 }}
-          minimumValue={0}
-          maximumValue={duration}
-          value={sliderDisplayValue}
-          step={1}
-          tapToSeek
-          disabled={!isBookActive}
-          minimumTrackTintColor={useStaticColors ? THEME.dark.accent : themeColors.accent}
-          maximumTrackTintColor={useStaticColors ? THEME.dark.foreground : themeColors.foreground}
-          onSlidingStart={handleSlidingStart}
-          onValueChange={handleValueChange}
-          onSlidingComplete={handleSlidingComplete}
-        />
-
-        <View className="flex-row justify-between ">
-          <Text className="text-foreground font-semibold">
-            {formatSeconds(sliderDisplayValue, "compact")}
-          </Text>
-          <Text className="text-foreground text-sm font-semibold">
-            {formatSeconds(chapterDuration, "compact")}
-          </Text>
-          <Text className="text-foreground font-semibold">
-            {formatSeconds(chapterDuration - sliderDisplayValue, "compact")}
+          <Text className="text-lg text-accent-foreground">
+            {formatSeconds(sliderDisplayValue)}
           </Text>
         </View>
+      </Animated.View>
+
+      <View className="flex-col py-2  items-center w-full">
+        {/* Header Row */}
+        <View className="relative w-full h-8 items-center justify-center">
+          {/* Left-aligned chapter indicator */}
+          <View className="absolute left-0 top-[-10]  justify-center">
+            <Text className="text-sm text-foreground/70">
+              Chapter [{chapterNumber}/{numOfChapters}]
+            </Text>
+          </View>
+          <Text
+            className="text-xl text-foreground font-semibold ml-4"
+            numberOfLines={1}
+            lineBreakMode="tail"
+            lineBreakStrategyIOS="standard"
+          >
+            {chapterTitle}- {chapterNumber}
+          </Text>
+        </View>
+        {!isBookActive && (
+          <View>
+            <Text
+              className="text-lg"
+              style={{ color: useStaticColors ? THEME.dark.foreground : themeColors.foreground }}
+            >
+              Book Progress {formatSeconds(globalPosition)} of {formatSeconds(globalDuration)}
+            </Text>
+            <Text
+              className="text-lg"
+              style={{ color: useStaticColors ? THEME.dark.foreground : themeColors.foreground }}
+            >
+              Time in Book Left {formatSeconds(globalDuration - globalPosition)}
+            </Text>
+          </View>
+        )}
       </View>
+      {isBookActive && (
+        <View className="flex-col w-full">
+          <Slider
+            style={{ height: 35, marginHorizontal: 10 }}
+            minimumValue={0}
+            maximumValue={duration}
+            value={sliderDisplayValue}
+            // thumbTintColor="#ffffff00"
+            step={1}
+            // tapToSeek
+            disabled={!isBookActive}
+            minimumTrackTintColor={useStaticColors ? THEME.dark.accent : themeColors.accent}
+            maximumTrackTintColor={useStaticColors ? THEME.dark.foreground : themeColors.foreground}
+            onSlidingStart={handleSlidingStart}
+            onValueChange={handleValueChange}
+            onSlidingComplete={handleSlidingComplete}
+          />
+
+          <View className="flex-row justify-between ">
+            <Text className="text-foreground font-semibold">
+              {formatSeconds(sliderDisplayValue, "compact")}
+            </Text>
+            <Text className="text-foreground text-sm font-semibold">
+              {formatSeconds(chapterDuration, "compact")}
+            </Text>
+            <Text className="text-foreground font-semibold">
+              {formatSeconds(chapterDuration - sliderDisplayValue, "compact")}
+            </Text>
+          </View>
+        </View>
+      )}
     </View>
   );
 };

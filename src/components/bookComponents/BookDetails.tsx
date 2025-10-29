@@ -1,5 +1,6 @@
 import { useBookData } from "@/src/hooks/trackPlayerHooks";
 import { BookContainerRoute } from "@/src/screens/BookViewer/BookContainer";
+import { useSmartPositions } from "@/src/store/store-smartposition";
 import { useThemeColors } from "@/src/utils/theme";
 import { Host, Picker } from "@expo/ui/swift-ui";
 import { useLocalSearchParams } from "expo-router";
@@ -18,6 +19,7 @@ function BookDetails() {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const { width } = useWindowDimensions();
   const numChapters = book?.chapters?.length ?? 0;
+  const x = useSmartPositions(libraryItemId);
 
   // Smoothly animates between 0, 1, 2 when user changes tab
   const animatedIndex = useDerivedValue(
@@ -43,7 +45,11 @@ function BookDetails() {
     <View className="rounded-2xl">
       <Host matchContents>
         <Picker
-          options={["Details", `Chapters (${numChapters})`, "Bookmarks"]}
+          options={[
+            "Details",
+            `Chapters (${x.chapterInfo.chapterNumber}/${numChapters})`,
+            "Bookmarks",
+          ]}
           selectedIndex={selectedIndex}
           onOptionSelected={({ nativeEvent: { index } }) => setSelectedIndex(index)}
           variant="segmented"

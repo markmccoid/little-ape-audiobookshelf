@@ -8,7 +8,8 @@ import { useSeekBackwardSeconds, useSeekForwardSeconds } from "@/src/store/store
 import { THEME, useThemeColors } from "@/src/utils/theme";
 import { BlurView } from "expo-blur";
 import { SymbolView } from "expo-symbols";
-import React, { useEffect } from "react";
+import { PressableScale } from "pressto";
+import React, { useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import Animated, {
   useAnimatedStyle,
@@ -29,6 +30,9 @@ const BookControls = ({ libraryItemId }: Props) => {
   const seekBackward = useSeekBackwardSeconds();
 
   const isBookActive = useIsBookActive(libraryItemId);
+  // needed to make sure UI is responsive as soon as button it pressed
+  const [isLocalBookActive, setIsLocalBookActive] = useState(isBookActive);
+
   const isBookLoaded = usePlaybackStore((state) => state.isLoaded);
   const isPlaying = usePlaybackIsPlaying(libraryItemId);
 
@@ -41,6 +45,7 @@ const BookControls = ({ libraryItemId }: Props) => {
 
   const localTogglePlayPause = async () => {
     if (!isBookActive) {
+      setIsLocalBookActive(true);
       await loadBookAndPlay(libraryItemId);
 
       // await loadBook(libraryItemId);
@@ -52,6 +57,7 @@ const BookControls = ({ libraryItemId }: Props) => {
 
   //~~ ===== Size Book Control START
   useEffect(() => {
+    setIsLocalBookActive(isBookActive);
     if (isBookActive) {
       growVal.value = withTiming(expandedHeight, { duration: 900 });
       opacityVal.value = withDelay(900, withTiming(1, { duration: 600 }));
@@ -90,9 +96,10 @@ const BookControls = ({ libraryItemId }: Props) => {
         {/* ---- BACKWARD ---- */}
         <View className="flex-row justify-between w-full absolute top-1 px-1">
           <Animated.View style={[opacityAnim]} className="mt-1 ">
-            <Pressable
+            <PressableScale
               onPress={() => jumpBackwardSeconds(seekBackward)}
-              className="flex-row justify-center items-center"
+              // className="flex-row justify-center items-center"
+              style={{ flexDirection: "row", justifyContent: "center", alignItems: "center" }}
             >
               <Text
                 className="absolute mt-1 text-xl font-semibold"
@@ -107,7 +114,7 @@ const BookControls = ({ libraryItemId }: Props) => {
                 tintColor={THEME.light.accent}
                 // tintColor={themeColors.accent}
               />
-            </Pressable>
+            </PressableScale>
           </Animated.View>
           {/* ---- FORWARD ---- */}
           <Animated.View
@@ -149,7 +156,7 @@ const BookControls = ({ libraryItemId }: Props) => {
               isPlaying={showPlayingState}
               size={50}
               duration={600}
-              isBookActive={isBookActive}
+              isBookActive={isBookActive || isLocalBookActive}
               isBookLoaded={isBookLoaded}
             />
           </Pressable>
