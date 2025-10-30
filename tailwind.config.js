@@ -7,6 +7,25 @@ module.exports = {
   presets: [require("nativewind/preset")],
   theme: {
     extend: {
+      fontFamily: {
+        // Single entry with weight mapping
+        firacode: [
+          "FiraCode-Regular",
+          {
+            fontWeight: {
+              100: "FiraCode-Light", // font-firacode font-light
+              200: "FiraCode-Light", // or font-firacode font-thin
+              300: "FiraCode-Light", // font-firacode font-extralight
+              400: "FiraCode-Regular", // font-firacode (default)
+              500: "FiraCode-Medium", // font-firacode font-medium
+              600: "FiraCode-SemiBold", // font-firacode font-semibold
+              700: "FiraCode-Bold", // font-firacode font-bold
+              800: "FiraCode-Bold", // font-firacode font-extrabold
+              900: "FiraCode-Bold", // font-firacode font-black
+            },
+          },
+        ],
+      },
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",

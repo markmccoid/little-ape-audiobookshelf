@@ -14,6 +14,8 @@ export type EnhancedChapter = {
   formattedEnd: string;
   chapterDuration: number;
   formattedChapterDuration: string;
+  completedPercentage: number;
+  remainingPercentage: number;
 };
 // Define the book object type
 export type Book = {
@@ -175,21 +177,30 @@ export const useBooksStore = create<BooksStore>()(
                 formattedEnd: formatSeconds(itemDetails?.media.duration, "compact"),
                 chapterDuration: itemDetails?.media.duration,
                 formattedChapterDuration: formatSeconds(itemDetails?.media.duration, "compact"),
+                completedPercentage: 0,
+                remainingPercentage: 100,
               },
             ] as EnhancedChapter[];
             // Get actual chapters if they exists
-            const absLoadedChapters = itemDetails?.media?.chapters?.map((book) => {
+            const absLoadedChapters = itemDetails?.media?.chapters?.map((chapter) => {
               return {
-                id: book.id,
-                title: book.title,
-                startSeconds: Math.round(book.start),
-                endSeconds: Math.round(book.end),
-                formattedStart: formatSeconds(book.start, "compact"),
-                formattedEnd: formatSeconds(book.end, "compact"),
-                chapterDuration: Math.round(book.end - book.start),
+                id: chapter.id,
+                title: chapter.title,
+                startSeconds: Math.round(chapter.start),
+                endSeconds: Math.round(chapter.end),
+                formattedStart: formatSeconds(chapter.start, "compact"),
+                formattedEnd: formatSeconds(chapter.end, "compact"),
+                chapterDuration: Math.round(chapter.end - chapter.start),
                 formattedChapterDuration: formatSeconds(
-                  Math.round(book.end - book.start),
+                  Math.round(chapter.end - chapter.start),
                   "compact"
+                ),
+                completedPercentage: Math.round(
+                  (chapter.start / itemDetails?.media.duration) * 100
+                ),
+                remainingPercentage: Math.round(
+                  ((itemDetails?.media.duration - chapter.start) / itemDetails?.media.duration) *
+                    100
                 ),
               } as EnhancedChapter;
             });

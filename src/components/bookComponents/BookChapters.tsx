@@ -9,7 +9,7 @@ import { BlurView } from "expo-blur";
 import { useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import React, { useCallback, useEffect, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 // type EnhancedChapter = {
 //   id: number;
 //   title: string;
@@ -56,7 +56,7 @@ const BookChapters = () => {
       const completed = index < localChapterIndex;
 
       return (
-        <BlurView className="h-[40] border-b-hairline" intensity={100} tint="extraLight">
+        <BlurView className="h-[75] border-b-hairline" intensity={80} tint="extraLight">
           <Pressable
             onPress={() => {
               setLocalChapterIndex(index);
@@ -81,21 +81,35 @@ const BookChapters = () => {
                   type="palette"
                   colors={["white", themeColors.accent]}
                   size={20}
-                  style={{ marginRight: 4 }}
+                  style={{
+                    marginRight: 4,
+                    borderWidth: StyleSheet.hairlineWidth,
+                    borderRadius: 20,
+                  }}
                 />
               )}
               <Text
                 className={`${
                   completed ? "text-base text-gray-600" : "text-lg"
-                } w-2/3 font-semibold`}
-                numberOfLines={1}
+                } w-4/6 font-semibold pl-2`}
+                numberOfLines={2}
               >
                 {item.title}
               </Text>
-              <View className="flex-row justify-end flex-1">
-                <Text numberOfLines={1}>
-                  {item.formattedStart} - {item.formattedEnd}
+              <View className="flex-col items-end justify-center flex-1">
+                <Text numberOfLines={1} className="font-firacode font-semibold">
+                  {item.formattedChapterDuration}
                 </Text>
+                <View className="flex-row items-center">
+                  <Text numberOfLines={1} className="font-firacode font-semibold">
+                    {item.remainingPercentage}%
+                  </Text>
+                  <SymbolView
+                    name="arrow.right.circle.dotted"
+                    tintColor={themeColors.accent}
+                    size={20}
+                  />
+                </View>
               </View>
             </View>
           </Pressable>
@@ -105,7 +119,7 @@ const BookChapters = () => {
     [localChapterIndex, loadChapter, themeColors]
   );
   return (
-    <View className="">
+    <View className="flex-1">
       <FlashList<EnhancedChapter>
         // className="h-[300]"
         className="mt-1"

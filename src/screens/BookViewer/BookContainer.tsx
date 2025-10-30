@@ -7,8 +7,9 @@ import RateViewer from "@/src/components/bookComponents/RateViewer";
 import { useBookData, useSmartPosition } from "@/src/hooks/trackPlayerHooks";
 import { BlurView } from "expo-blur";
 import { Image, ImageBackground } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import { Stack, useLocalSearchParams } from "expo-router";
-import React, { useEffect, useReducer } from "react";
+import React, { useReducer } from "react";
 import { ScrollView, StyleSheet, useColorScheme, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -31,19 +32,41 @@ const BookContainer = () => {
   // console.log("GET DATA", data?.media?.metadata.authorName);
   // console.log("BOOK ACTIVe", isBookActive, isLoaded);
   // const { position, isLoading, error } = useSmartPosition(bookid);
-  useEffect(() => {
-    console.log("in Book Container", libraryItemId);
-    return () => console.log("UNMOUNT Book Container", libraryItemId);
-  }, []);
+
   return (
     // Enclosing View for Image Background and BlurView
-    <View className="flex-1 pt-[100]">
+    <View className="flex-1 pt-[100] ">
       {cover && (
         <ImageBackground
           source={{ uri: cover }}
           style={StyleSheet.absoluteFillObject}
+          // style={{
+          //   position: "absolute",
+          //   top: 0,
+          //   left: 0,
+          //   right: 0,
+          //   height: "70%", // top half only
+          // }}
           contentFit="cover"
-        />
+        >
+          {/* Smooth gradient fade from image to background */}
+          {/* <LinearGradient
+            colors={["transparent", colorScheme === "dark" ? "#000" : "#fff"]}
+            locations={[0.6, 1]} // adjust fade curve
+            style={{
+              ...StyleSheet.absoluteFillObject,
+            }}
+          /> */}
+          <LinearGradient
+            colors={[
+              "transparent", // 0%–40% image shows
+              colorScheme === "dark" ? "#000" : "#fff", // 40%–80% fade to white
+              "transparent", // 80%–100% fade back to image
+            ]}
+            locations={[0, 0.55, 1]}
+            style={{ ...StyleSheet.absoluteFillObject }}
+          />
+        </ImageBackground>
       )}
       <Stack.Screen options={{ title: title }} />
       {/* Native iOS Blur Effect */}
@@ -85,7 +108,7 @@ const BookContainer = () => {
         </View>
 
         {/* BOOK SLIDER */}
-        <View className="flex-1">
+        <View className="flex-1 mb-2">
           <BookSlider libraryItemId={libraryItemId} />
         </View>
 

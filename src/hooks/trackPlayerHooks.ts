@@ -173,7 +173,7 @@ export const useBookData = (libraryItemId: string) => {
       console.log("In useBookDataHook queryFN");
       return await getOrFetchBook({ userId, libraryItemId });
     },
-    staleTime: 1 * 6 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000, // 5 minutes
     enabled: !!libraryItemId && !!userId,
   });
 

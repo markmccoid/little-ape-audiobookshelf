@@ -45,6 +45,18 @@ export default {
         },
       ],
       "expo-secure-store",
+      [
+        "expo-font",
+        {
+          fonts: [
+            "./assets/fonts/FiraCode-Bold.ttf",
+            "./assets/fonts/FiraCode-Light.ttf",
+            "./assets/fonts/FiraCode-Medium.ttf",
+            "./assets/fonts/FiraCode-Regular.ttf",
+            "./assets/fonts/FiraCode-SemiBold.ttf",
+          ],
+        },
+      ],
     ],
     experiments: {
       typedRoutes: true,
