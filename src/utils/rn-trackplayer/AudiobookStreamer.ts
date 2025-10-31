@@ -66,7 +66,7 @@ export default class AudiobookStreamer {
   private constructor(
     private serverUrl: string,
     private apiClient: AudiobookshelfAPI, // Your ABS API class instance
-    syncIntervalSeconds: number = 5
+    syncIntervalSeconds: number = 60
   ) {
     this.syncIntervalSeconds = syncIntervalSeconds;
   }
@@ -797,8 +797,8 @@ export default class AudiobookStreamer {
    */
   public updateSyncInterval(newIntervalSeconds: number): void {
     if (newIntervalSeconds <= 0) {
-      console.warn("Sync interval must be positive, using default of 5 seconds");
-      newIntervalSeconds = 5;
+      console.warn("Sync interval must be positive, using default of 60 seconds");
+      newIntervalSeconds = 60;
     }
 
     this.syncIntervalSeconds = newIntervalSeconds;

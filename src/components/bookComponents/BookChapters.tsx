@@ -5,21 +5,10 @@ import { usePlaybackActions } from "@/src/store/store-playback";
 import { useSmartPositions } from "@/src/store/store-smartposition";
 import { useThemeColors } from "@/src/utils/theme";
 import { FlashList } from "@shopify/flash-list";
-import { BlurView } from "expo-blur";
 import { useLocalSearchParams } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import React, { useCallback, useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-// type EnhancedChapter = {
-//   id: number;
-//   title: string;
-//   startSeconds: number;
-//   endSeconds: number;
-//   formattedStart: string;
-//   formattedEnd: string;
-//   chapterDuration: number;
-//   formattedChapterDuration: string;
-// };
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 
 const BookChapters = () => {
   const { libraryItemId } = useLocalSearchParams<BookContainerRoute>();
@@ -32,11 +21,42 @@ const BookChapters = () => {
   const [localChapterIndex, setLocalChapterIndex] = useState(chapterIndex);
   const themeColors = useThemeColors();
 
+  // Add ref for FlashList
+  const flashListRef = useRef<FlatList<EnhancedChapter>>(null);
+
+  // Function to scroll to a specific chapter
+  const scrollToChapter = useCallback(
+    (index: number) => {
+      if (flashListRef.current && book?.chapters && index >= 0 && index < book.chapters.length) {
+        flashListRef.current.scrollToIndex({
+          index,
+          animated: true,
+          viewPosition: 0, // Centers the item vertically (0 = top, 1 = bottom)
+        });
+      }
+    },
+    [book?.chapters]
+  );
+
+  // Update local chapter index and scroll when global chapter changes
   useEffect(() => {
     if (chapterIndex !== localChapterIndex) {
       setLocalChapterIndex(chapterIndex);
+      scrollToChapter(chapterIndex);
     }
-  }, [chapterIndex]);
+  }, [chapterIndex, localChapterIndex, scrollToChapter]);
+
+  // Scroll to current chapter on mount
+  useEffect(() => {
+    if (book?.chapters && localChapterIndex >= 0) {
+      // Small delay to ensure FlashList is fully rendered
+      const timer = setTimeout(() => {
+        scrollToChapter(localChapterIndex);
+      }, 100);
+
+      return () => clearTimeout(timer);
+    }
+  }, [book?.chapters]); // Only run when chapters are loaded
 
   const loadChapter = useCallback(
     async (chapterStart: number) => {
@@ -47,19 +67,17 @@ const BookChapters = () => {
     [libraryItemId, isBookActive, playbackActions]
   );
 
-  // console.log("Book Chapters", isBookActive);
-  //!! NEED TO make it so that if the book is NOT playing, the chapters are "disabled"
-  //!! OR They can start the playback???
   const renderItem = useCallback(
     ({ item, index }: { item: EnhancedChapter; index: number }) => {
       const active = index === localChapterIndex;
       const completed = index < localChapterIndex;
 
       return (
-        <BlurView className="h-[75] border-b-hairline" intensity={80} tint="extraLight">
+        <View className="h-[75] border-b-hairline bg-background">
           <Pressable
             onPress={() => {
               setLocalChapterIndex(index);
+              scrollToChapter(index);
               loadChapter(item.startSeconds);
             }}
           >
@@ -70,7 +88,7 @@ const BookChapters = () => {
               {completed && (
                 <SymbolView
                   name="checkmark.seal.fill"
-                  tintColor="gray"
+                  tintColor={themeColors.muted}
                   size={20}
                   style={{ marginRight: 4 }}
                 />
@@ -89,39 +107,53 @@ const BookChapters = () => {
                 />
               )}
               <Text
-                className={`${
-                  completed ? "text-base text-gray-600" : "text-lg"
-                } w-4/6 font-semibold pl-2`}
+                className={`${completed ? "text-base" : "text-lg"} w-4/6 font-semibold pl-2`}
+                style={{
+                  color: completed ? themeColors.muted : themeColors.foreground,
+                }}
                 numberOfLines={2}
               >
                 {item.title}
               </Text>
               <View className="flex-col items-end justify-center flex-1">
-                <Text numberOfLines={1} className="font-firacode font-semibold">
+                <Text
+                  numberOfLines={1}
+                  className="font-firacode font-semibold "
+                  style={{
+                    color: completed ? themeColors.muted : themeColors.foreground,
+                  }}
+                >
                   {item.formattedChapterDuration}
                 </Text>
                 <View className="flex-row items-center">
-                  <Text numberOfLines={1} className="font-firacode font-semibold">
+                  <Text
+                    numberOfLines={1}
+                    className="font-firacode font-semibold"
+                    style={{
+                      color: completed ? themeColors.muted : themeColors.foreground,
+                    }}
+                  >
                     {item.remainingPercentage}%
                   </Text>
                   <SymbolView
                     name="arrow.right.circle.dotted"
-                    tintColor={themeColors.accent}
+                    tintColor={completed ? themeColors.muted : themeColors.foreground}
                     size={20}
                   />
                 </View>
               </View>
             </View>
           </Pressable>
-        </BlurView>
+        </View>
       );
     },
-    [localChapterIndex, loadChapter, themeColors]
+    [localChapterIndex, loadChapter, themeColors, scrollToChapter]
   );
+
   return (
     <View className="flex-1">
       <FlashList<EnhancedChapter>
-        // className="h-[300]"
+        ref={flashListRef}
         className="mt-1"
         contentContainerClassName="px-1"
         data={book?.chapters}

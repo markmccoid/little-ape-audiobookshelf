@@ -9,7 +9,7 @@ import { useColorScheme } from "nativewind";
 import { useEffect, useRef, useState } from "react";
 import { LogBox, Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import MiniPlayer from "../components/MiniPlayer";
+import MiniPlayer from "../components/miniPlayer/MiniPlayer";
 import { AuthProvider, useAuth } from "../contexts/AuthContext";
 import "../global.css";
 import "../lib/polyfills";
