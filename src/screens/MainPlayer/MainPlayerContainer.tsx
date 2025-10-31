@@ -7,15 +7,16 @@ import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
 import { SymbolView } from "expo-symbols";
 import React, { useCallback } from "react";
-import { StyleSheet, Text, View, useColorScheme } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { useSafeAreaFrame, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useColorScheme } from "nativewind";
 
 const MainPlayerContainer = () => {
   const playbackSession = usePlaybackSession();
   const { setIsOnBookScreen } = usePlaybackActions();
   const { top, bottom } = useSafeAreaInsets();
   const { y, x, height } = useSafeAreaFrame();
-  const colorScheme = useColorScheme();
+  const { colorScheme } = useColorScheme();
 
   // Detect when modal is focused/unfocused (dismissed)
   useFocusEffect(

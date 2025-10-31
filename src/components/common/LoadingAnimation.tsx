@@ -4,7 +4,8 @@
 import { DarkTheme, DefaultTheme } from "@react-navigation/native";
 import { View as MView } from "moti";
 import * as React from "react";
-import { Dimensions, useColorScheme, View } from "react-native";
+import { Dimensions, View } from "react-native";
+import { useColorScheme } from "nativewind";
 const { width, height } = Dimensions.get("screen");
 
 const _size = 80;
@@ -16,7 +17,7 @@ type Props = {
 };
 
 export default function LoadingAnimation({ backgroundColor, ringColor }: Props) {
-  const colorScheme = useColorScheme();
+  const { colorScheme } = useColorScheme();
   const defaultBG =
     colorScheme === "dark" ? DarkTheme.colors.background : DefaultTheme.colors.background;
   const defaultRing = colorScheme === "dark" ? DarkTheme.colors.text : DefaultTheme.colors.text;

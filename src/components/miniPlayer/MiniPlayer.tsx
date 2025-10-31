@@ -1,3 +1,6 @@
+import { useMiniPlayerDrag } from "@/src/hooks/useMiniPlayerDrag";
+import { useSmartPositions } from "@/src/store/store-smartposition";
+import { formatSeconds } from "@/src/utils/formatUtils";
 import { useThemeColors } from "@/src/utils/theme";
 import { LiquidGlassView } from "@callstack/liquid-glass";
 import {
@@ -6,118 +9,132 @@ import {
   usePlaybackIsPlaying,
   usePlaybackPosition,
   usePlaybackSession,
-  usePlaybackStore,
   useShowMiniPlayer,
 } from "@store/store-playback";
+import { Image } from "expo-image";
 import { Link } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import Animated from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { GestureDetector } from "react-native-gesture-handler";
+import Animated, { runOnJS, useAnimatedReaction } from "react-native-reanimated";
 
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 
 export default function MiniPlayer() {
   const showMini = useShowMiniPlayer();
-  const { bottom } = useSafeAreaInsets();
   const themeColors = useThemeColors();
-  const isBookLoaded = usePlaybackStore((state) => state.isLoaded);
   const position = usePlaybackPosition() || 0;
   const session = usePlaybackSession();
+  const { globalPosition } = useSmartPositions(session?.libraryItemId || "");
   const isPlaying = usePlaybackIsPlaying(session?.libraryItemId || "");
   const duration = usePlaybackDuration(session?.libraryItemId || "");
 
-  const { play, pause, seekTo, closeSession, setIsOnBookScreen } = usePlaybackActions();
+  const { play, pause, closeSession, setIsOnBookScreen } = usePlaybackActions();
 
-  // console.log("MiniPlayer", showMini, isBookLoaded, position);
-  const seekBackwardSeconds = 15;
-  const seekForwardSeconds = 15;
+  // Drag functionality with swipe down to close
+  const { gesture, animatedStyle, isDragging } = useMiniPlayerDrag(closeSession);
+
+  // Sync isDragging shared value to React state to avoid reading .value during render
+  const [isDraggingState, setIsDraggingState] = useState(false);
+
+  useAnimatedReaction(
+    () => isDragging.value,
+    (current) => {
+      runOnJS(setIsDraggingState)(current);
+    },
+    [isDragging]
+  );
+
   const progressPct = useMemo(() => {
     if (!duration || duration <= 0) return 0;
     return clamp((position / duration) * 100, 0, 100);
   }, [position, duration]);
-
-  if (!showMini) return null;
 
   const onToggle = useCallback(async () => {
     if (isPlaying) await pause();
     else await play();
   }, [isPlaying, pause, play]);
 
-  const onBack = useCallback(async () => {
-    const newPos = clamp(position - seekBackwardSeconds, 0, duration || 0);
-    await seekTo(newPos);
-  }, [position, seekBackwardSeconds, duration, seekTo]);
+  // Disable link navigation while dragging
+  const handlePress = useCallback(() => {
+    if (!isDraggingState) {
+      setIsOnBookScreen(true);
+    }
+  }, [isDraggingState, setIsOnBookScreen]);
 
-  const onFwd = useCallback(async () => {
-    const newPos = clamp(position + seekForwardSeconds, 0, duration || 0);
-    await seekTo(newPos);
-  }, [position, seekForwardSeconds, duration, seekTo]);
+  if (!showMini) return null;
 
-  const onValueChange = (val) => {
-    console.log("valChange", val);
-  };
   return (
-    <Animated.View
-      style={{ width: 200, position: "absolute", bottom: bottom + 55 }}
-      className="flex-row justify-center border-2 flex-1"
-    >
-      <Link href="/main-player" asChild>
-        <Pressable
-          onPress={() => setIsOnBookScreen(true)}
-          className="flex-1"
+    <GestureDetector gesture={gesture}>
+      <Animated.View style={[animatedStyle, { width: "auto" }]}>
+        <Link href="/main-player" asChild disabled={isDraggingState}>
+          <Pressable onPress={handlePress} className="flex-1" disabled={isDraggingState}>
+            <LiquidGlassView
+              className="mx-2"
+              style={{
+                borderRadius: 20,
+                padding: 12,
+                borderWidth: isDraggingState ? 2 : StyleSheet.hairlineWidth,
+                borderColor: themeColors.accent,
+              }}
+            >
+              {/* Main content row */}
+              <View className="flex-row items-center gap-3">
+                {/* Play/Pause Button */}
+                <Pressable onPress={onToggle} disabled={isDraggingState}>
+                  <SymbolView
+                    name={isPlaying ? "pause.circle.fill" : "play.circle.fill"}
+                    type="palette"
+                    colors={[themeColors.accentForeground, themeColors.accent]}
+                    size={50}
+                  />
+                </Pressable>
 
-          // className="mx-2 px-3 py-2 bg-slate-400 border-t border-slate-700 absolute rounded-lg"
-        >
-          <LiquidGlassView
-            className="mx-2  "
-            tintColor={""}
-            // className="flex-row items-center justify-between w-full"
-            style={{
-              borderRadius: 20,
-              padding: 10,
-              borderWidth: StyleSheet.hairlineWidth,
-            }}
-          >
-            <View className="flex-1 pr-3">
-              <Text numberOfLines={1} className="text-slate-100 font-semibold">
-                {session?.displayTitle ?? "Playing"}
-              </Text>
-              <Text numberOfLines={1} className="text-slate-300 text-xs">
-                {session?.displayAuthor ?? ""}
-              </Text>
-            </View>
+                {/* Book info - flexible container */}
+                <View className="">
+                  {/* Title */}
+                  <Text
+                    numberOfLines={1}
+                    className="text-foreground font-semibold text-base mb-0.5"
+                  >
+                    {session?.displayTitle ?? "Playing"}
+                  </Text>
 
-            <View className="flex-row items-center gap-3">
-              {/* <Pressable onPress={onBack} className="px-2 py-1 rounded bg-slate-700">
-              <Text className="text-slate-100">-{seekBackwardSeconds}s</Text>
-            </Pressable> */}
+                  {/* Author */}
+                  <Text numberOfLines={1} className="text-foreground text-xs mb-1">
+                    {session?.displayAuthor ?? "Unknown Author"}
+                  </Text>
 
-              <Pressable onPress={onToggle} className="">
-                <SymbolView
-                  name={isPlaying ? "pause.circle.fill" : "play.circle.fill"}
-                  type="palette"
-                  colors={[themeColors.accentForeground, themeColors.accent]}
-                  size={40}
+                  {/* Time info */}
+                  <View className="flex-row items-center justify-between">
+                    <Text className="text-foreground text-xs font-firacode">
+                      {formatSeconds(globalPosition || 0, "compact") ?? "0:00"}
+                    </Text>
+                    <Text className="text-foreground text-xs font-firacode">
+                      {formatSeconds(session?.duration || 0, "compact") ?? "0:00"}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Cover image */}
+                <Image
+                  source={session?.coverURL}
+                  style={{ width: 55, height: 55, borderRadius: 8 }}
                 />
-              </Pressable>
+              </View>
 
-              {/* <Pressable onPress={onFwd} className="px-2 py-1 rounded bg-slate-700">
-              <Text className="text-slate-100">+{seekForwardSeconds}s</Text>
-            </Pressable> */}
-
-              <Pressable onPress={closeSession} className="px-2 py-1 rounded bg-rose-600">
-                <Text className="text-white">Close</Text>
-              </Pressable>
-            </View>
-
-            <View className="mt-2 h-1 rounded bg-white overflow-hidden">
-              <View style={{ width: `${progressPct}%` }} className="h-full bg-emerald-500" />
-            </View>
-          </LiquidGlassView>
-        </Pressable>
-      </Link>
-    </Animated.View>
+              {/* Progress bar */}
+              <View className="mt-3 h-1 rounded-full bg-white/80 overflow-hidden">
+                <View
+                  style={{ width: `${progressPct}%` }}
+                  className="h-full bg-emerald-500 rounded-full"
+                />
+              </View>
+            </LiquidGlassView>
+          </Pressable>
+        </Link>
+      </Animated.View>
+    </GestureDetector>
   );
 }

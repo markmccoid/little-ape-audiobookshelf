@@ -120,8 +120,9 @@ const BookShelfItem = React.memo<BookShelfItemProps>(
           </Text>
 
           {item.shelfId === "continue-listening" && (
-            <Text className="text-sm text-muted mt-1">
-              {formatSeconds(item.currentTime)} / {formatSeconds(item.duration || 0)}
+            <Text className="text-sm text-muted mt-1 font-firacode font-semibold">
+              {formatSeconds((item.duration || 0) - item.currentTime)} left
+              {/* {formatSeconds(item.currentTime)} / {formatSeconds(item.duration || 0)} */}
             </Text>
           )}
 

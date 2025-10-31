@@ -8,9 +8,10 @@ import { useHeaderHeight } from "@react-navigation/elements";
 import { Image } from "expo-image";
 import { SymbolView } from "expo-symbols";
 import React from "react";
-import { StyleSheet, Text, View, useColorScheme } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { useSafeAreaFrame, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useProgress } from "react-native-track-player";
+import { useColorScheme } from "nativewind";
 
 /**
  * MainPlayerContainerBlur2 - Uses image-based blur instead of BlurView
@@ -26,7 +27,7 @@ const MainPlayerContainerBlur2 = () => {
   const progress = useProgress();
   const { top, bottom } = useSafeAreaInsets();
   const { y, x, height } = useSafeAreaFrame();
-  const colorScheme = useColorScheme();
+  const { colorScheme } = useColorScheme();
 
   if (!playbackSession) {
     return (

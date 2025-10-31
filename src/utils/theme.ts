@@ -1,5 +1,5 @@
 import { DarkTheme, DefaultTheme, Theme } from "@react-navigation/native";
-import { useColorScheme } from "react-native";
+import { useColorScheme } from "nativewind";
 
 // Base color palette
 const THEME = {
@@ -86,8 +86,8 @@ export { THEME };
 
 // Helper hook for accessing theme colors in components
 export const useThemeColors = () => {
-  const colorScheme = useColorScheme() || "light";
-  return THEME[colorScheme];
+  const { colorScheme } = useColorScheme();
+  return THEME[colorScheme || "light"];
 };
 
 /* 

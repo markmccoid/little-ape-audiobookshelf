@@ -10,8 +10,9 @@ import { Image, ImageBackground } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { Stack, useLocalSearchParams } from "expo-router";
 import React, { useReducer } from "react";
-import { ScrollView, StyleSheet, useColorScheme, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useColorScheme } from "nativewind";
 
 export type BookContainerRoute = {
   libraryItemId: string;
@@ -23,7 +24,7 @@ const BookContainer = () => {
   const { libraryItemId, cover, title } = useLocalSearchParams<BookContainerRoute>();
   const [viewFullDesc, toggleViewFullDesc] = useReducer((s) => !s, false);
   const bottomHeight = useSafeAreaInsets();
-  const colorScheme = useColorScheme();
+  const { colorScheme } = useColorScheme();
   const { book, isLoading } = useBookData(libraryItemId);
   //!!
   useSmartPosition(libraryItemId);

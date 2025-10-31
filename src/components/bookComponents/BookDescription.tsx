@@ -1,7 +1,7 @@
 import { useThemeColors } from "@/src/utils/theme";
 import { SymbolView } from "expo-symbols";
 import { useEffect, useRef, useState } from "react";
-import { Platform, Pressable, View } from "react-native";
+import { Platform, Pressable, ScrollView, View } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -86,13 +86,14 @@ function BookDescription({ bookDescription }: { bookDescription: string }) {
           <SymbolView name="ellipsis.rectangle.fill" tintColor={themeColors.accent} size={30} />
         </Animated.View>
       )}
-
-      {/* Main visible component */}
-      <AnimatedPressable onPress={toggleViewFullDesc} hitSlop={20}>
-        <Animated.View ref={contentRef} style={[animatedStyle, { overflow: "hidden" }]}>
-          <HtmlToMarkdown html={bookDescription || ""} textColor={themeColors.foreground} />
-        </Animated.View>
-      </AnimatedPressable>
+      <ScrollView>
+        {/* Main visible component */}
+        <AnimatedPressable onPress={toggleViewFullDesc} hitSlop={20}>
+          <Animated.View ref={contentRef} style={[animatedStyle, { overflow: "hidden" }]}>
+            <HtmlToMarkdown html={bookDescription || ""} textColor={themeColors.foreground} />
+          </Animated.View>
+        </AnimatedPressable>
+      </ScrollView>
     </>
   );
 }
