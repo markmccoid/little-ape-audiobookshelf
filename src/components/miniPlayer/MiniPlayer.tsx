@@ -3,6 +3,8 @@ import { useSmartPositions } from "@/src/store/store-smartposition";
 import { formatSeconds } from "@/src/utils/formatUtils";
 import { useThemeColors } from "@/src/utils/theme";
 import { LiquidGlassView } from "@callstack/liquid-glass";
+import { Host, LinearProgress } from "@expo/ui/swift-ui";
+import { background } from "@expo/ui/swift-ui/modifiers";
 import {
   usePlaybackActions,
   usePlaybackDuration,
@@ -15,13 +17,19 @@ import { Image } from "expo-image";
 import { Link } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import React, { useCallback, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Dimensions, Pressable, StyleSheet, Text, View } from "react-native";
 import { GestureDetector } from "react-native-gesture-handler";
-import Animated, { runOnJS, useAnimatedReaction } from "react-native-reanimated";
+import Animated, {
+  runOnJS,
+  SlideInDown,
+  SlideOutDown,
+  useAnimatedReaction,
+} from "react-native-reanimated";
 
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 
 export default function MiniPlayer() {
+  const { width, height } = Dimensions.get("window");
   const showMini = useShowMiniPlayer();
   const themeColors = useThemeColors();
   const position = usePlaybackPosition() || 0;
@@ -67,12 +75,17 @@ export default function MiniPlayer() {
 
   return (
     <GestureDetector gesture={gesture}>
-      <Animated.View style={[animatedStyle, { width: "auto" }]}>
+      <Animated.View
+        style={[animatedStyle, { width: width - 64 }]}
+        entering={SlideInDown.springify()}
+        exiting={SlideOutDown.springify()}
+      >
         <Link href="/main-player" asChild disabled={isDraggingState}>
-          <Pressable onPress={handlePress} className="flex-1" disabled={isDraggingState}>
+          <Pressable onPress={handlePress} disabled={isDraggingState}>
             <LiquidGlassView
-              className="mx-2"
+              className="mx-2 "
               style={{
+                // maxWidth: width * (2 / 3),
                 borderRadius: 20,
                 padding: 12,
                 borderWidth: isDraggingState ? 2 : StyleSheet.hairlineWidth,
@@ -80,7 +93,7 @@ export default function MiniPlayer() {
               }}
             >
               {/* Main content row */}
-              <View className="flex-row items-center gap-3">
+              <View className="flex-row items-center gap-3 justify-between">
                 {/* Play/Pause Button */}
                 <Pressable onPress={onToggle} disabled={isDraggingState}>
                   <SymbolView
@@ -92,7 +105,7 @@ export default function MiniPlayer() {
                 </Pressable>
 
                 {/* Book info - flexible container */}
-                <View className="">
+                <View className="shrink">
                   {/* Title */}
                   <Text
                     numberOfLines={1}
@@ -125,12 +138,20 @@ export default function MiniPlayer() {
               </View>
 
               {/* Progress bar */}
-              <View className="mt-3 h-1 rounded-full bg-white/80 overflow-hidden">
+              <Host style={{ marginTop: 12 }}>
+                <LinearProgress
+                  progress={progressPct / 100}
+                  color={themeColors.accent}
+                  modifiers={[background("white")]}
+                />
+              </Host>
+
+              {/* <View className="mt-3 h-1 rounded-full bg-white/80 overflow-hidden">
                 <View
                   style={{ width: `${progressPct}%` }}
                   className="h-full bg-emerald-500 rounded-full"
                 />
-              </View>
+              </View> */}
             </LiquidGlassView>
           </Pressable>
         </Link>

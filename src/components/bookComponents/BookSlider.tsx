@@ -15,10 +15,10 @@ import Animated, {
 import { CycleFade } from "./CycleFade";
 interface BookSliderProps {
   libraryItemId: string;
-  useStaticColors?: boolean;
+  forceStaticColors?: boolean;
 }
 
-const BookSlider: React.FC<BookSliderProps> = ({ libraryItemId, useStaticColors = false }) => {
+const BookSlider: React.FC<BookSliderProps> = ({ libraryItemId, forceStaticColors = false }) => {
   // const { bookPosition, bookDuration, chapterDuration, chapterPosition, chapterTitle } =
   //   useSmartPosition(libraryItemId);
 
@@ -187,10 +187,11 @@ const BookSlider: React.FC<BookSliderProps> = ({ libraryItemId, useStaticColors 
         {/* Header Row */}
         <View className="w-full items-center justify-center">
           <Text
-            className="text-xl text-foreground font-semibold ml-4"
+            className="text-xl font-semibold ml-4"
             numberOfLines={1}
             lineBreakMode="tail"
             lineBreakStrategyIOS="standard"
+            style={{ color: forceStaticColors ? THEME.dark.foreground : themeColors.foreground }}
           >
             {chapterNumber} - {chapterTitle}
           </Text>
@@ -202,13 +203,13 @@ const BookSlider: React.FC<BookSliderProps> = ({ libraryItemId, useStaticColors 
           >
             <Text
               className="text-lg font-firacode"
-              style={{ color: useStaticColors ? THEME.dark.foreground : themeColors.foreground }}
+              style={{ color: forceStaticColors ? THEME.dark.foreground : themeColors.foreground }}
             >
               {formatSeconds(globalPosition)} of {formatSeconds(globalDuration)}
             </Text>
             <Text
               className="text-lg font-firacode"
-              style={{ color: useStaticColors ? THEME.dark.foreground : themeColors.foreground }}
+              style={{ color: forceStaticColors ? THEME.dark.foreground : themeColors.foreground }}
             >
               {formatSeconds(globalDuration - globalPosition)} Left
             </Text>
@@ -226,8 +227,10 @@ const BookSlider: React.FC<BookSliderProps> = ({ libraryItemId, useStaticColors 
             step={1}
             // tapToSeek
             disabled={!isBookActive}
-            minimumTrackTintColor={useStaticColors ? THEME.dark.accent : themeColors.accent}
-            maximumTrackTintColor={useStaticColors ? THEME.dark.foreground : themeColors.foreground}
+            minimumTrackTintColor={forceStaticColors ? THEME.dark.accent : themeColors.accent}
+            maximumTrackTintColor={
+              forceStaticColors ? THEME.dark.foreground : themeColors.foreground
+            }
             onSlidingStart={handleSlidingStart}
             onValueChange={handleValueChange}
             onSlidingComplete={handleSlidingComplete}
@@ -237,28 +240,43 @@ const BookSlider: React.FC<BookSliderProps> = ({ libraryItemId, useStaticColors 
             className="flex-row justify-between items-center px-2 py-1 border-hairline"
             style={{ backgroundColor: `${themeColors.accent}33`, borderRadius: 10 }}
           >
-            <Text className="text-foreground font-firacode ">
+            <Text
+              className="font-firacode "
+              style={{ color: forceStaticColors ? THEME.dark.foreground : themeColors.foreground }}
+            >
               {formatSeconds(sliderDisplayValue, "compact")}
             </Text>
             {/* CENTER TEXT CYCLE */}
             <CycleFade transitionDurationMs={500}>
               <Text
                 className="text-sm font-firacode font-semibold"
-                style={{ color: useStaticColors ? THEME.dark.foreground : themeColors.foreground }}
+                style={{
+                  color: forceStaticColors ? THEME.dark.foreground : themeColors.foreground,
+                }}
               >
                 {formatSeconds(globalPosition)} of {formatSeconds(globalDuration)}
               </Text>
-              <Text className="text-foreground text-sm font-firacode ">
+              <Text
+                className="text-sm font-firacode "
+                style={{
+                  color: forceStaticColors ? THEME.dark.foreground : themeColors.foreground,
+                }}
+              >
                 {Math.round((globalPosition / globalDuration) * 100)}%
               </Text>
               <Text
                 className="text-sm font-firacode font-semibold"
-                style={{ color: useStaticColors ? THEME.dark.foreground : themeColors.foreground }}
+                style={{
+                  color: forceStaticColors ? THEME.dark.foreground : themeColors.foreground,
+                }}
               >
                 {formatSeconds(globalDuration - globalPosition)} left
               </Text>
             </CycleFade>
-            <Text className="text-foreground font-firacode ">
+            <Text
+              className="font-firacode "
+              style={{ color: forceStaticColors ? THEME.dark.foreground : themeColors.foreground }}
+            >
               {formatSeconds(chapterDuration - sliderDisplayValue, "compact")}
             </Text>
           </View>

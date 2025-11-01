@@ -100,24 +100,26 @@ function AppContent() {
 
 export default function RootLayout() {
   const { colorScheme, setColorScheme } = useColorScheme();
-
-  // const colorScheme = useColorScheme();
+  // const cs = useRNColorScheme();
 
   // useEffect(() => {
-  //   Appearance.setColorScheme("light");
-  // }, [colorScheme]);
+  //   console.log("colorShceme", colorScheme, cs);
+  //   // setColorScheme(colorScheme || "light");
+  // }, [colorScheme, cs]);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }} className={colorScheme === "dark" ? "dark" : ""}>
-      <ThemeProvider value={colorScheme === "dark" ? NAV_THEME.dark : NAV_THEME.light}>
-        {/* <ThemeProvider value={scheme === "dark" ? DarkTheme : DefaultTheme}> */}
-        <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <AppContent />
-            <PortalHost />
-          </AuthProvider>
-        </QueryClientProvider>
-      </ThemeProvider>
-    </GestureHandlerRootView>
+    <View style={{ flex: 1 }} className={colorScheme === "dark" ? "dark" : ""}>
+      <GestureHandlerRootView>
+        <ThemeProvider value={colorScheme === "dark" ? NAV_THEME.dark : NAV_THEME.light}>
+          {/* <ThemeProvider value={scheme === "dark" ? DarkTheme : DefaultTheme}> */}
+          <QueryClientProvider client={queryClient}>
+            <AuthProvider>
+              <AppContent />
+              <PortalHost />
+            </AuthProvider>
+          </QueryClientProvider>
+        </ThemeProvider>
+      </GestureHandlerRootView>
+    </View>
   );
 }

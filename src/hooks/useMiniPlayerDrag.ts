@@ -12,16 +12,14 @@ import {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const MINI_PLAYER_WIDTH = 200;
-const MINI_PLAYER_HEIGHT = 120; // Approximate height
+const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
+const MINI_PLAYER_WIDTH = screenWidth - 64;
+const MINI_PLAYER_HEIGHT = 90; // Approximate height
 const LONG_PRESS_DURATION = 500; // ms
-
 export function useMiniPlayerDrag(onCloseSession?: () => void) {
   const savedPosition = useMiniPlayerPosition();
   const { setPosition } = useMiniPlayerActions();
   const insets = useSafeAreaInsets();
-
-  const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
   // Shared values for animation
   const translateX = useSharedValue(0);
@@ -59,6 +57,13 @@ export function useMiniPlayerDrag(onCloseSession?: () => void) {
     setPosition({ x, y });
   };
 
+  const reposition = () => {
+    // Default position: centered horizontally, near bottom
+    const defaultX = (screenWidth - MINI_PLAYER_WIDTH) / 2;
+    const defaultY = screenHeight - MINI_PLAYER_HEIGHT - insets.bottom - 55;
+    translateX.value = defaultX;
+    translateY.value = defaultY;
+  };
   const handleCloseSession = () => {
     if (onCloseSession) {
       onCloseSession();
@@ -86,6 +91,13 @@ export function useMiniPlayerDrag(onCloseSession?: () => void) {
     .onStart(() => {
       runOnJS(triggerCloseHaptic)();
       runOnJS(handleCloseSession)();
+    });
+  // Swipe up gesture to reposition to default
+  const swipeUpGesture = Gesture.Fling()
+    .direction(Directions.UP)
+    .onStart(() => {
+      runOnJS(triggerCloseHaptic)();
+      runOnJS(reposition)();
     });
 
   // Combined long press + drag gesture
@@ -128,7 +140,7 @@ export function useMiniPlayerDrag(onCloseSession?: () => void) {
     .activateAfterLongPress(LONG_PRESS_DURATION);
 
   // Race between swipe down and drag - whichever recognizes first wins
-  const composedGesture = Gesture.Race(swipeDownGesture, dragGesture);
+  const composedGesture = Gesture.Race(swipeDownGesture, swipeUpGesture, dragGesture);
 
   // Animated style
   const animatedStyle = useAnimatedStyle(() => {

@@ -6,10 +6,10 @@ import { useFocusEffect } from "@react-navigation/native";
 import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
 import { SymbolView } from "expo-symbols";
+import { useColorScheme } from "nativewind";
 import React, { useCallback } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useSafeAreaFrame, useSafeAreaInsets } from "react-native-safe-area-context";
-import { useColorScheme } from "nativewind";
 
 const MainPlayerContainer = () => {
   const playbackSession = usePlaybackSession();
@@ -81,8 +81,8 @@ const MainPlayerContainer = () => {
         </View> */}
 
         <BookImage coverURL={playbackSession.coverURL} />
-        <View className="px-5">
-          <BookSlider libraryItemId={playbackSession.libraryItemId} useStaticColors />
+        <View className="px-5 mb-2">
+          <BookSlider libraryItemId={playbackSession.libraryItemId} forceStaticColors />
         </View>
         <View className="flex-row w-full justify-center">
           <BookControls libraryItemId={playbackSession.libraryItemId} />
