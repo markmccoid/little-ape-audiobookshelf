@@ -1,3 +1,4 @@
+import { useSeekSettings } from "@/src/store/store-settings";
 import TrackPlayer, { Event } from "react-native-track-player";
 // src/services/PlaybackService.ts
 
@@ -8,7 +9,6 @@ export const handleRemoteNext = async () => {
   const trackIndex = await TrackPlayer.getActiveTrackIndex();
   const queue = await TrackPlayer.getQueue();
   const rate = await TrackPlayer.getRate();
-  const plId = usePlaybackStore.getState().currentPlaylistId;
 
   if (queue.length - 1 === trackIndex) {
     await TrackPlayer.skip(0);
@@ -33,8 +33,9 @@ export const handleRemotePrev = async () => {
 
 export const handleRemoteJumpForward = async () => {
   const { position: currPos, duration: currDuration } = await TrackPlayer.getProgress();
+  const { seekBackwardSeconds, seekForwardSeconds } = useSeekSettings();
   // const currDuration = await TrackPlayer.getDuration();
-  const newPos = currPos + 10;
+  const newPos = currPos + seekForwardSeconds;
   if (newPos > currDuration) {
     await handleRemoteNext();
   } else {
@@ -43,7 +44,9 @@ export const handleRemoteJumpForward = async () => {
 };
 export const handleRemoteJumpBackward = async () => {
   const { position: currPos } = await TrackPlayer.getProgress();
-  const newPos = currPos - 10;
+  const { seekBackwardSeconds, seekForwardSeconds } = useSeekSettings();
+
+  const newPos = currPos - seekBackwardSeconds;
   if (newPos < 0) {
     await handleRemotePrev();
     const { duration } = await TrackPlayer.getProgress();

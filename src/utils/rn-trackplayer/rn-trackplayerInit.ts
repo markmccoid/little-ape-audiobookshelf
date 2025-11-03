@@ -1,17 +1,24 @@
+import { useSettingsStore } from "@/src/store/store-settings";
 import TrackPlayer, { Capability } from "react-native-track-player";
 
 export const trackPlayerInit = async () => {
+  const seekBackwardSeconds = useSettingsStore.getState().seekBackwardSeconds;
+  const seekForwardSeconds = useSettingsStore.getState().seekForwardSeconds;
+
   try {
     await TrackPlayer.setupPlayer();
     await TrackPlayer.updateOptions({
       progressUpdateEventInterval: 5,
-      forwardJumpInterval: 10,
-      backwardJumpInterval: 10,
+      forwardJumpInterval: seekForwardSeconds,
+      backwardJumpInterval: seekBackwardSeconds,
       capabilities: [
         Capability.Play,
         Capability.Pause,
         Capability.SkipToNext,
         Capability.SkipToPrevious,
+        Capability.SeekTo,
+        Capability.JumpBackward,
+        Capability.JumpForward,
       ],
     });
   } catch (error) {

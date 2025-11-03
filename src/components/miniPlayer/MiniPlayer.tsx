@@ -3,8 +3,6 @@ import { useSmartPositions } from "@/src/store/store-smartposition";
 import { formatSeconds } from "@/src/utils/formatUtils";
 import { useThemeColors } from "@/src/utils/theme";
 import { LiquidGlassView } from "@callstack/liquid-glass";
-import { Host, LinearProgress } from "@expo/ui/swift-ui";
-import { background } from "@expo/ui/swift-ui/modifiers";
 import {
   usePlaybackActions,
   usePlaybackDuration,
@@ -22,7 +20,7 @@ import { GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   runOnJS,
   SlideInDown,
-  SlideOutDown,
+  SlideOutUp,
   useAnimatedReaction,
 } from "react-native-reanimated";
 
@@ -34,7 +32,10 @@ export default function MiniPlayer() {
   const themeColors = useThemeColors();
   const position = usePlaybackPosition() || 0;
   const session = usePlaybackSession();
-  const { globalPosition } = useSmartPositions(session?.libraryItemId || "");
+  const {
+    globalPosition,
+    chapterInfo: { chapterNumber, chapterTitle },
+  } = useSmartPositions(session?.libraryItemId || "");
   const isPlaying = usePlaybackIsPlaying(session?.libraryItemId || "");
   const duration = usePlaybackDuration(session?.libraryItemId || "");
 
@@ -78,9 +79,16 @@ export default function MiniPlayer() {
       <Animated.View
         style={[animatedStyle, { width: width - 64 }]}
         entering={SlideInDown.springify()}
-        exiting={SlideOutDown.springify()}
+        exiting={SlideOutUp.duration(700)}
       >
-        <Link href="/main-player" asChild disabled={isDraggingState}>
+        <Link
+          href={{
+            pathname: "/main-player",
+            params: { libraryItemId: session?.libraryItemId },
+          }}
+          asChild
+          disabled={isDraggingState}
+        >
           <Pressable onPress={handlePress} disabled={isDraggingState}>
             <LiquidGlassView
               className="mx-2 "
@@ -116,15 +124,14 @@ export default function MiniPlayer() {
 
                   {/* Author */}
                   <Text numberOfLines={1} className="text-foreground text-xs mb-1">
-                    {session?.displayAuthor ?? "Unknown Author"}
+                    {/* {session?.displayAuthor ?? "Unknown Author"} */}
+                    {chapterNumber} - {chapterTitle}
                   </Text>
 
                   {/* Time info */}
                   <View className="flex-row items-center justify-between">
                     <Text className="text-foreground text-xs font-firacode">
-                      {formatSeconds(globalPosition || 0, "compact") ?? "0:00"}
-                    </Text>
-                    <Text className="text-foreground text-xs font-firacode">
+                      {formatSeconds(globalPosition || 0, "compact") ?? "0:00"} of{" "}
                       {formatSeconds(session?.duration || 0, "compact") ?? "0:00"}
                     </Text>
                   </View>
@@ -138,13 +145,13 @@ export default function MiniPlayer() {
               </View>
 
               {/* Progress bar */}
-              <Host style={{ marginTop: 12 }}>
+              {/* <Host style={{ marginTop: 12 }}>
                 <LinearProgress
                   progress={progressPct / 100}
                   color={themeColors.accent}
                   modifiers={[background("white")]}
                 />
-              </Host>
+              </Host> */}
 
               {/* <View className="mt-3 h-1 rounded-full bg-white/80 overflow-hidden">
                 <View

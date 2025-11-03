@@ -78,14 +78,14 @@ export default function ABSAuthMain() {
       {isAuthenticated ? (
         <View className="flex-1 mt-4 w-full px-5">
           <View className="flex-row items-center mb-2">
-            <Text className="font-semibold text-lg">ABS URL: </Text>
-            <Text className="border-hairline bg-gray-200 text-gray-600 p-2 flex-1 rounded-md text-lg">
+            <Text className="text-foreground font-semibold text-lg">ABS URL: </Text>
+            <Text className=" border-hairline bg-gray-200 text-gray-600 p-2 flex-1 rounded-md text-lg">
               {authInfo.serverUrl || "Not available"}
             </Text>
           </View>
           <View className="flex-row items-center mb-2">
-            <Text className="font-semibold">Username: </Text>
-            <Text className="border-hairline bg-gray-200 text-gray-600 rounded-md p-2 flex-1 ">
+            <Text className="text-foreground font-semibold">Username: </Text>
+            <Text className=" border-hairline bg-gray-200 text-gray-600 rounded-md p-2 flex-1 ">
               {authInfo.username || "Not available"}
             </Text>
           </View>

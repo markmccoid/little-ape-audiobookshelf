@@ -27,6 +27,7 @@ export const unstable_settings = {
 };
 
 function AppContent() {
+  const { colorScheme, setColorScheme } = useColorScheme();
   let [isReady, setIsReady] = useState(false);
   const router = useRouter();
   const { hasStoredCredentials, checkAuthStatus } = useAuth();
@@ -108,18 +109,21 @@ export default function RootLayout() {
   // }, [colorScheme, cs]);
 
   return (
-    <View style={{ flex: 1 }} className={colorScheme === "dark" ? "dark" : ""}>
-      <GestureHandlerRootView>
-        <ThemeProvider value={colorScheme === "dark" ? NAV_THEME.dark : NAV_THEME.light}>
-          {/* <ThemeProvider value={scheme === "dark" ? DarkTheme : DefaultTheme}> */}
-          <QueryClientProvider client={queryClient}>
-            <AuthProvider>
-              <AppContent />
-              <PortalHost />
-            </AuthProvider>
-          </QueryClientProvider>
-        </ThemeProvider>
-      </GestureHandlerRootView>
-    </View>
+    <GestureHandlerRootView
+      style={[{ flex: 1 }]}
+      // className={colorScheme === "dark" ? "dark" : "light"}
+    >
+      {/* <ThemeProvider value={scheme === "dark" ? DarkTheme : DefaultTheme}> */}
+      <QueryClientProvider client={queryClient}>
+        {/* <View style={{ flex: 1 }} className={colorScheme === "dark" ? "dark" : ""}> */}
+        <AuthProvider>
+          <ThemeProvider value={colorScheme === "dark" ? NAV_THEME.dark : NAV_THEME.light}>
+            <AppContent />
+            <PortalHost />
+          </ThemeProvider>
+        </AuthProvider>
+        {/* </View> */}
+      </QueryClientProvider>
+    </GestureHandlerRootView>
   );
 }

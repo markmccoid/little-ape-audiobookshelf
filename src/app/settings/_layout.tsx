@@ -37,7 +37,7 @@ export default function SettingsLayout() {
           headerRight: () => {
             return (
               <Pressable onPress={() => router.dismissTo("/(tabs)/(home)")}>
-                <Text>Home</Text>
+                <Text className="text-foreground">Home</Text>
               </Pressable>
             );
           },

@@ -1,39 +1,34 @@
 import BookControls from "@/src/components/bookComponents/BookControls";
-import BookImage from "@/src/components/bookComponents/BookImage";
+import BookImageCycleContainer from "@/src/components/bookComponents/bookImageCycle/BookImageCycleContainer";
+import BookQuickButtons from "@/src/components/bookComponents/bookImageCycle/BookQuickButtons";
 import BookSlider from "@/src/components/bookComponents/BookSlider";
 import { usePlaybackActions, usePlaybackSession } from "@/src/store/store-playback";
 import { useFocusEffect } from "@react-navigation/native";
 import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
 import { SymbolView } from "expo-symbols";
-import { useColorScheme } from "nativewind";
-import React, { useCallback } from "react";
+import React, { useCallback, useRef } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { useSafeAreaFrame, useSafeAreaInsets } from "react-native-safe-area-context";
+import PagerView from "react-native-pager-view";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const MainPlayerContainer = () => {
   const playbackSession = usePlaybackSession();
   const { setIsOnBookScreen } = usePlaybackActions();
   const { top, bottom } = useSafeAreaInsets();
-  const { y, x, height } = useSafeAreaFrame();
-  const { colorScheme } = useColorScheme();
+  const pagerRef = useRef<PagerView>(null);
 
   // Detect when modal is focused/unfocused (dismissed)
   useFocusEffect(
     useCallback(() => {
       // This runs when the modal is opened/focused
       setIsOnBookScreen(true);
-      console.log("MainPlayer: Modal opened/focused");
+      // console.log("MainPlayer: Modal opened/focused");
 
       return () => {
         // This runs when the modal is dismissed/unfocused
         setIsOnBookScreen(false);
-        console.log("MainPlayer: Modal dismissed!");
-        // Add your cleanup logic here
-        // Examples:
-        // - Sync playback position
-        // - Save state
-        // - Update analytics
+        // console.log("MainPlayer: Modal dismissed!");
       };
     }, [])
   );
@@ -72,21 +67,21 @@ const MainPlayerContainer = () => {
         <View className="flex-row justify-center">
           <SymbolView name="minus" size={50} tintColor="white" />
         </View>
+        {/* BOOK IMAGE "Cycle" component */}
+        <BookImageCycleContainer pagerRef={pagerRef} />
 
-        {/* Book Title and Author */}
-        {/* <View className="px-6">
-          <Text className="text-white text-xl font-bold text-center mb-2" numberOfLines={1}>
-            {playbackSession.displayTitle}
-          </Text>
-        </View> */}
-
-        <BookImage coverURL={playbackSession.coverURL} />
+        {/* BOOK SLIDER */}
         <View className="px-5 mb-2">
           <BookSlider libraryItemId={playbackSession.libraryItemId} forceStaticColors />
         </View>
+
+        {/* BOOK CONTROLS */}
         <View className="flex-row w-full justify-center">
           <BookControls libraryItemId={playbackSession.libraryItemId} />
         </View>
+
+        {/* BOOK QUICK BUTTONS */}
+        <BookQuickButtons pagerRef={pagerRef} />
       </View>
     </View>
   );

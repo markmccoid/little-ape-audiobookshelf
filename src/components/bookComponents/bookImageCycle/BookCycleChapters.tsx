@@ -8,18 +8,17 @@ import { SymbolView } from "expo-symbols";
 import React, { useCallback, useRef } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 
-const BookChapters = () => {
+//!!!
+const BookCycleChapters = () => {
   const { libraryItemId } = useLocalSearchParams<BookContainerRoute>();
   const flashListRef = useRef<FlatList<EnhancedChapter>>(null);
-  // Hook to manage FlashList of Chapters
-  // -chapters is a list of chapters
-  // -chapterIndex
   const { chapters, handleChapterPressed, chapterIndex, isBookActive } = useBookChapters(
     libraryItemId,
     flashListRef
   );
-
   const themeColors = useThemeColors();
+
+  // Add ref for FlashList
 
   const renderItem = useCallback(
     ({ item, index }: { item: EnhancedChapter; index: number }) => {
@@ -27,16 +26,20 @@ const BookChapters = () => {
       const completed = index < chapterIndex;
 
       return (
-        <View className="h-[75] border-b-hairline bg-background">
+        <View className="h-[55] border-b-hairline bg-background">
           <Pressable
             onPress={() => {
+              // setLocalChapterIndex(index);
+              // scrollToChapter(index);
+              // loadChapter(item.startSeconds);
               handleChapterPressed(index, item.startSeconds);
             }}
           >
             <View
-              className="flex-row items-center justify-between h-full px-2"
+              className="flex-row items-center h-full px-2"
               style={{ backgroundColor: active ? `${themeColors.accent}55` : "" }}
             >
+              {/* Icons - only take space when present */}
               {completed && (
                 <SymbolView
                   name="checkmark.seal.fill"
@@ -58,8 +61,10 @@ const BookChapters = () => {
                   }}
                 />
               )}
+
+              {/* Title - grows to fill available space */}
               <Text
-                className={`${completed ? "text-base" : "text-lg"} w-4/6 font-semibold pl-2`}
+                className={`${completed ? "text-sm" : "text-base"} font-semibold flex-1 pl-2`}
                 style={{
                   color: completed ? themeColors.muted : themeColors.foreground,
                 }}
@@ -67,12 +72,15 @@ const BookChapters = () => {
               >
                 {item.title}
               </Text>
-              <View className="flex-col items-end justify-center flex-1">
+
+              {/* Time section - shrinks to content */}
+              <View className="flex-col items-end justify-center ml-2" style={{ minWidth: 60 }}>
                 <Text
                   numberOfLines={1}
-                  className="font-firacode font-semibold "
+                  className="text-xs font-semibold font-firacode"
                   style={{
                     color: completed ? themeColors.muted : themeColors.foreground,
+                    fontSize: 12,
                   }}
                 >
                   {item.formattedChapterDuration}
@@ -83,6 +91,7 @@ const BookChapters = () => {
                     className="font-firacode font-semibold"
                     style={{
                       color: completed ? themeColors.muted : themeColors.foreground,
+                      fontSize: 12,
                     }}
                   >
                     {item.remainingPercentage}%
@@ -117,4 +126,4 @@ const BookChapters = () => {
   );
 };
 
-export default BookChapters;
+export default BookCycleChapters;

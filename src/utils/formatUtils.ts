@@ -1,3 +1,5 @@
+import { Dimensions } from "react-native";
+
 export const formatBytes = (bytes: number) => {
   let finalBytes = "";
   if (bytes >= 1073741824) {
@@ -93,5 +95,17 @@ export const timeBetween = (endDate: Date, startDate: Date) => {
     minutesBetween,
     minutesInt: Math.floor(minutesBetween),
     secondsInt: secondsLeft,
+  };
+};
+
+// Calculate image dimensions based on screen width with 20px margin on each side
+export const getImageDimensions = () => {
+  const screenWidth = Dimensions.get("window").width;
+  const margin = 30 * 2; // 20px on each side
+  const imageSize = screenWidth - margin;
+  return {
+    width: imageSize,
+    height: imageSize,
+    borderRadius: 12,
   };
 };

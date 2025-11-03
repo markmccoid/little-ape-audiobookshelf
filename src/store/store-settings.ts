@@ -23,12 +23,12 @@ interface SettingsStore extends SettingsState {
 }
 
 // Default values
-const DEFAULT_SEEK_FORWARD_SECONDS = 30;
+const DEFAULT_SEEK_FORWARD_SECONDS = 15;
 const DEFAULT_SEEK_BACKWARD_SECONDS = 15;
 const DEFAULT_SYNC_INTERVAL_SECONDS = 5;
 
 // Create the store (not exported directly - following best practices)
-const useSettingsStore = create<SettingsStore>()(
+export const useSettingsStore = create<SettingsStore>()(
   persist(
     (set) => ({
       // State

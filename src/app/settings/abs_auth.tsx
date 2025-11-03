@@ -8,7 +8,7 @@ const ABSAuth = () => {
   const headerHeight = useHeaderHeight();
 
   return (
-    <ScrollView className="flex-1" style={{ paddingTop: headerHeight }}>
+    <ScrollView className="flex-1 " style={{ paddingTop: headerHeight }}>
       <ABSAuthMain />
     </ScrollView>
   );
