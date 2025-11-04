@@ -223,8 +223,9 @@ const BookSlider: React.FC<BookSliderProps> = ({ libraryItemId, forceStaticColor
             minimumValue={0}
             maximumValue={duration}
             value={sliderDisplayValue}
-            // thumbTintColor="#ffffff00"
-            step={1}
+            // if chapter is more than an hour switch to 1 minute step
+            // found issues with long durations trying to allow seconds
+            step={chapterDuration > 3600 ? 60 : 1}
             // tapToSeek
             disabled={!isBookActive}
             minimumTrackTintColor={forceStaticColors ? THEME.dark.accent : themeColors.accent}

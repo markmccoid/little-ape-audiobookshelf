@@ -1,4 +1,4 @@
-import { useThemeColors } from "@/src/utils/theme";
+import { THEME, useThemeColors } from "@/src/utils/theme";
 import { SymbolView } from "expo-symbols";
 import { PressableScale } from "pressto";
 import React from "react";
@@ -22,21 +22,22 @@ const BookQuickButtons = ({ pagerRef }: BookQuickButtonsProps) => {
       style={{ borderRadius: 15 }}
     >
       <PressableScale onPress={() => pagerRef.current?.setPage(0)}>
-        <SymbolView name="house" tintColor={themeColors.accent} size={35} />
+        <SymbolView name="house" tintColor={THEME.light.accent} size={35} />
       </PressableScale>
       <PressableScale onPress={() => pagerRef.current?.setPage(1)}>
         <SymbolView
           name="list.bullet.rectangle.portrait.fill"
-          tintColor={themeColors.accent}
+          tintColor={THEME.light.accent}
           size={35}
         />
       </PressableScale>
       <PressableScale onPress={() => pagerRef.current?.setPage(2)}>
-        <SymbolView name="hare.fill" tintColor={themeColors.accent} size={35} />
+        <SymbolView name="hare.fill" tintColor={THEME.light.accent} size={35} />
       </PressableScale>
       <PressableScale onPress={() => pagerRef.current?.setPage(3)}>
-        <SymbolView name="bookmark.fill" tintColor={themeColors.accent} size={35} />
+        <SymbolView name="bookmark.fill" tintColor={THEME.light.accent} size={35} />
       </PressableScale>
+
       {/* <SymbolView name="house" tintColor={themeColors.accent} size={35} /> */}
     </View>
     // </View>

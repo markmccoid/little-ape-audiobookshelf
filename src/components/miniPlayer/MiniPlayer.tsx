@@ -20,7 +20,7 @@ import { GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   runOnJS,
   SlideInDown,
-  SlideOutUp,
+  SlideOutDown,
   useAnimatedReaction,
 } from "react-native-reanimated";
 
@@ -79,7 +79,8 @@ export default function MiniPlayer() {
       <Animated.View
         style={[animatedStyle, { width: width - 64 }]}
         entering={SlideInDown.springify()}
-        exiting={SlideOutUp.duration(700)}
+        // exiting={SlideOutUp.duration(700)}
+        exiting={SlideOutDown.duration(700)}
       >
         <Link
           href={{

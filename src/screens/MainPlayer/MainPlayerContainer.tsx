@@ -23,6 +23,7 @@ const MainPlayerContainer = () => {
     useCallback(() => {
       // This runs when the modal is opened/focused
       setIsOnBookScreen(true);
+      pagerRef.current?.setPage(0);
       // console.log("MainPlayer: Modal opened/focused");
 
       return () => {
@@ -42,7 +43,7 @@ const MainPlayerContainer = () => {
   }
 
   return (
-    <View className="flex-1">
+    <View className="flex-1 pb-[50]">
       {/* Background Image (unblurred) */}
       {playbackSession?.coverURL && (
         <Image
@@ -76,7 +77,7 @@ const MainPlayerContainer = () => {
         </View>
 
         {/* BOOK CONTROLS */}
-        <View className="flex-row w-full justify-center">
+        <View className="flex-row w-full justify-center flex-1">
           <BookControls libraryItemId={playbackSession.libraryItemId} />
         </View>
 

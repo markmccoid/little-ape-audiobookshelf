@@ -5,6 +5,7 @@ import { Text, View } from "react-native";
 import PagerView from "react-native-pager-view";
 import BookImage from "../BookImage";
 import BookCycleChapters from "./BookCycleChapters";
+import BookRateCycle from "./BookRateCycle";
 
 type BookImageCycleContainerProps = {
   pagerRef: React.RefObject<PagerView>;
@@ -28,7 +29,12 @@ const BookImageCycleContainer = ({ pagerRef }: BookImageCycleContainerProps) => 
         <BookCycleChapters />
       </View>
       <View key={3}>
-        <Text>BookImageContainer 2</Text>
+        <BookRateCycle />
+      </View>
+      <View key={4}>
+        <View>
+          <Text>BookMarks Placeholder</Text>
+        </View>
       </View>
     </PagerView>
   );

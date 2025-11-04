@@ -88,8 +88,8 @@ export const useSmartPositions = (libraryItemId: string) => {
     },
   } = useSmartPositionStore((state) => state.smartPositions[libraryItemId] ?? EMPTY_SMART_POSITION);
   return {
-    globalPosition,
-    globalDuration,
+    globalPosition: globalPosition || 0,
+    globalDuration: globalDuration || 0,
     chapterInfo: {
       chapterDuration,
       chapterPosition,
