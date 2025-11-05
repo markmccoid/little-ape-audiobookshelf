@@ -31,8 +31,8 @@ const BookRateCycle = () => {
     return {
       transform: [
         { scale: withTiming(isSliding ? 1.5 : 1, { duration: 300 }) },
-        { translateX: withTiming(isSliding ? 10 : 0, { duration: 300 }) },
-        { translateY: withTiming(isSliding ? -30 : 0, { duration: 300 }) },
+        { translateX: withTiming(isSliding ? -10 : 0, { duration: 300 }) },
+        { translateY: withTiming(isSliding ? 5 : 0, { duration: 300 }) },
       ],
       backgroundColor: withTiming(isSliding ? themeColors.accent : themeColors.accent, {
         duration: 300,
@@ -42,7 +42,7 @@ const BookRateCycle = () => {
 
   return (
     <View
-      className="flex-col justify-center mx-7 flex-1 pt-10"
+      className="flex-col justify-center mx-5 flex-1 pt-10"
       // style={{ width: COMPONENT_WIDTH, paddingHorizontal: COMPONENT_PADDING }}
     >
       {/* <Text className="ml-2 text-lg font-bold">Audio Speed:</Text> */}
@@ -119,7 +119,7 @@ const BookRateCycle = () => {
                 isSliding ? "text-accent-foreground" : "font-semibold"
               }`}
             >
-              {rate.toFixed(2)}
+              {rate.toFixed(2)}x
             </Text>
           </Animated.View>
         </View>

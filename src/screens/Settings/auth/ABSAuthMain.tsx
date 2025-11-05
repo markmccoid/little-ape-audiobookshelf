@@ -37,6 +37,7 @@ export default function ABSAuthMain() {
     try {
       setIsLoggingIn(true);
       setError(undefined);
+      console.log("In auth Submit", url, username, password);
       const auth = await AudiobookshelfAuth.create(url);
       const info = await auth.login({ username, password });
       // console.log(info.user.librariesAccessible);

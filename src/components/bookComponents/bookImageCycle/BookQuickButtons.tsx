@@ -6,7 +6,7 @@ import { View } from "react-native";
 import PagerView from "react-native-pager-view";
 
 type BookQuickButtonsProps = {
-  pagerRef: React.RefObject<PagerView>;
+  pagerRef: React.RefObject<PagerView> | null;
 };
 
 const BookQuickButtons = ({ pagerRef }: BookQuickButtonsProps) => {
@@ -21,20 +21,20 @@ const BookQuickButtons = ({ pagerRef }: BookQuickButtonsProps) => {
       className="mx-5 border-hairline mt-5 px-2 py-1 h-[50] bg-['#ffffffbb'] flex-row justify-evenly items-center overflow-hidden"
       style={{ borderRadius: 15 }}
     >
-      <PressableScale onPress={() => pagerRef.current?.setPage(0)}>
+      <PressableScale onPress={() => pagerRef?.current?.setPage(0)}>
         <SymbolView name="house" tintColor={THEME.light.accent} size={35} />
       </PressableScale>
-      <PressableScale onPress={() => pagerRef.current?.setPage(1)}>
+      <PressableScale onPress={() => pagerRef?.current?.setPage(1)}>
         <SymbolView
           name="list.bullet.rectangle.portrait.fill"
           tintColor={THEME.light.accent}
           size={35}
         />
       </PressableScale>
-      <PressableScale onPress={() => pagerRef.current?.setPage(2)}>
+      <PressableScale onPress={() => pagerRef?.current?.setPage(2)}>
         <SymbolView name="hare.fill" tintColor={THEME.light.accent} size={35} />
       </PressableScale>
-      <PressableScale onPress={() => pagerRef.current?.setPage(3)}>
+      <PressableScale onPress={() => pagerRef?.current?.setPage(3)}>
         <SymbolView name="bookmark.fill" tintColor={THEME.light.accent} size={35} />
       </PressableScale>
 

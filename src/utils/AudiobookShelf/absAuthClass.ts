@@ -100,7 +100,7 @@ export class AudiobookshelfAuth {
 
   async login(credentials: AuthCredentials): Promise<LoginResponse> {
     try {
-      const response = await fetch(`${this.serverUrl}/login`, {
+      const response = await fetch(`${this.serverUrl}/audiobookshelf/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -108,7 +108,7 @@ export class AudiobookshelfAuth {
         },
         body: JSON.stringify(credentials),
       });
-
+      console.log("login resp", credentials, response);
       if (!response.ok) {
         if (response.status === 401) {
           throw new AuthenticationError("Invalid username or password");
