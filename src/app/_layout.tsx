@@ -10,7 +10,9 @@ import { useEffect, useRef, useState } from "react";
 import { LogBox, Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import MiniPlayer from "../components/miniPlayer/MiniPlayer";
+import { NetworkStatusBanner } from "../components/NetworkStatusBanner";
 import { AuthProvider, useAuth } from "../contexts/AuthContext";
+import { NetworkProvider } from "../contexts/NetworkContext";
 import "../global.css";
 import "../lib/polyfills";
 import { absInitalize } from "../utils/AudiobookShelf/absInit";
@@ -72,6 +74,7 @@ function AppContent() {
 
   return (
     <>
+      <NetworkStatusBanner />
       <Stack
         screenOptions={{
           headerShown: false,
@@ -116,12 +119,14 @@ export default function RootLayout() {
       {/* <ThemeProvider value={scheme === "dark" ? DarkTheme : DefaultTheme}> */}
       <QueryClientProvider client={queryClient}>
         {/* <View style={{ flex: 1 }} className={colorScheme === "dark" ? "dark" : ""}> */}
-        <AuthProvider>
-          <ThemeProvider value={colorScheme === "dark" ? NAV_THEME.dark : NAV_THEME.light}>
-            <AppContent />
-            <PortalHost />
-          </ThemeProvider>
-        </AuthProvider>
+        <NetworkProvider>
+          <AuthProvider>
+            <ThemeProvider value={colorScheme === "dark" ? NAV_THEME.dark : NAV_THEME.light}>
+              <AppContent />
+              <PortalHost />
+            </ThemeProvider>
+          </AuthProvider>
+        </NetworkProvider>
         {/* </View> */}
       </QueryClientProvider>
     </GestureHandlerRootView>

@@ -1,4 +1,5 @@
 // services/AudiobookshelfAuth.ts
+import NetInfo from "@react-native-community/netinfo";
 import * as SecureStore from "expo-secure-store";
 import {
   AudiobookshelfError,
@@ -14,15 +15,22 @@ export class AudiobookshelfAuth {
   private static readonly TOKEN_KEY = "audiobookshelf_tokens";
   private static readonly SERVER_URL_KEY = "audiobookshelf_server_url";
   private static readonly USERINFO_KEY = "audiobookshelf_user_info";
+  private static readonly CREDENTIALS_KEY = "audiobookshelf_credentials";
 
   private static instance: AudiobookshelfAuth | null = null;
 
   // 🔹 In-memory cache
   private tokens: AuthTokens | null = null;
+  private credentials: AuthCredentials | null = null;
   username: string | undefined = "";
   userEmail: string | undefined = "";
   userId: string | undefined = "";
   defaultLibraryId: string | undefined = "";
+
+  // Retry logic properties
+  private retryCount: number = 0;
+  private maxRetries: number = 3;
+  private baseRetryDelayMs: number = 1000; // Start with 1 second
 
   private constructor(private serverUrl: string) {}
 
@@ -61,6 +69,11 @@ export class AudiobookshelfAuth {
       auth.userEmail = userInfo.userEmail;
       auth.userId = userInfo.userId;
     }
+    // Load credentials into memory if they exist
+    const storedCredentials = await SecureStore.getItemAsync(this.CREDENTIALS_KEY);
+    if (storedCredentials) {
+      auth.credentials = JSON.parse(storedCredentials);
+    }
 
     this.instance = auth;
     return auth;
@@ -76,6 +89,26 @@ export class AudiobookshelfAuth {
       return !!(storedUrl && storedTokens);
     } catch {
       return false;
+    }
+  }
+
+  // Check if we have stored password for automatic re-authentication
+  static async hasStoredPassword(): Promise<boolean> {
+    try {
+      const storedCredentials = await SecureStore.getItemAsync(this.CREDENTIALS_KEY);
+      return !!storedCredentials;
+    } catch {
+      return false;
+    }
+  }
+
+  // Get stored credentials for automatic re-authentication
+  static async getStoredCredentials(): Promise<AuthCredentials | null> {
+    try {
+      const stored = await SecureStore.getItemAsync(this.CREDENTIALS_KEY);
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
     }
   }
   static async getStoredURL(): Promise<string | null> {
@@ -95,10 +128,37 @@ export class AudiobookshelfAuth {
   }
 
   // -------------------------
+  // NETWORK CHECK
+  // -------------------------
+
+  private async checkNetworkConnection(): Promise<boolean> {
+    try {
+      const networkState = await NetInfo.fetch();
+      const isConnected = networkState.isConnected && networkState.isInternetReachable !== false;
+      
+      if (!isConnected) {
+        console.warn("No internet connection available");
+      }
+      
+      return isConnected;
+    } catch (error) {
+      console.error("Error checking network connection:", error);
+      // Assume connected if we can't check (fail open)
+      return true;
+    }
+  }
+
+  // -------------------------
   // AUTH METHODS
   // -------------------------
 
   async login(credentials: AuthCredentials): Promise<LoginResponse> {
+    // Check network before attempting login
+    const isConnected = await this.checkNetworkConnection();
+    if (!isConnected) {
+      throw new NetworkError("No internet connection. Please check your network and try again.");
+    }
+
     try {
       const response = await fetch(`${this.serverUrl}/audiobookshelf/login`, {
         method: "POST",
@@ -136,6 +196,8 @@ export class AudiobookshelfAuth {
         userEmail: data.user.email,
         userId: data.user.id,
       });
+      // Store credentials for automatic re-authentication
+      await this.storeCredentials(credentials);
 
       this.defaultLibraryId = data.userDefaultLibraryId;
       this.username = data.user.username;
@@ -155,6 +217,12 @@ export class AudiobookshelfAuth {
       throw new AuthenticationError("No refresh token available");
     }
 
+    // Check network before attempting token refresh
+    const isConnected = await this.checkNetworkConnection();
+    if (!isConnected) {
+      throw new NetworkError("No internet connection. Unable to refresh session.");
+    }
+
     try {
       const response = await fetch(`${this.serverUrl}/auth/refresh`, {
         method: "POST",
@@ -165,9 +233,29 @@ export class AudiobookshelfAuth {
       });
 
       if (!response.ok) {
-        await this.clearTokens();
-        AudiobookshelfAuth.reset();
-        throw new AuthenticationError("Session expired. Please login again.");
+        // Token refresh failed - attempt automatic re-authentication with stored credentials
+        const storedCredentials = this.credentials || await AudiobookshelfAuth.getStoredCredentials();
+        
+        if (storedCredentials) {
+          console.log("Token refresh failed, attempting automatic re-authentication...");
+          try {
+            // Attempt to re-login with stored credentials
+            const loginResponse = await this.login(storedCredentials);
+            console.log("Automatic re-authentication successful");
+            return loginResponse.user.accessToken;
+          } catch (reAuthError) {
+            console.error("Automatic re-authentication failed:", reAuthError);
+            // Only clear tokens but keep credentials for manual retry
+            await this.clearTokens(false);
+            AudiobookshelfAuth.reset();
+            throw new AuthenticationError("Session expired. Automatic re-login failed. Please login again.");
+          }
+        } else {
+          // No stored credentials, can't auto re-authenticate
+          await this.clearTokens(false);
+          AudiobookshelfAuth.reset();
+          throw new AuthenticationError("Session expired. Please login again.");
+        }
       }
 
       const data: LoginResponse = await response.json();
@@ -192,16 +280,43 @@ export class AudiobookshelfAuth {
     if (!tokens) return null;
 
     if (Date.now() < tokens.expiresAt - 300000) {
+      // Reset retry count on successful token validation
+      this.retryCount = 0;
       return tokens.accessToken;
     }
 
-    try {
-      return await this.refreshAccessToken();
-    } catch {
-      await this.clearTokens();
-      AudiobookshelfAuth.reset();
-      return null;
+    // Try to refresh token with exponential backoff
+    return await this.refreshTokenWithRetry();
+  }
+
+  private async refreshTokenWithRetry(): Promise<string | null> {
+    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
+      try {
+        const token = await this.refreshAccessToken();
+        // Success - reset retry count
+        this.retryCount = 0;
+        return token;
+      } catch (error) {
+        this.retryCount = attempt + 1;
+        
+        // If this was the last attempt, or if it's an auth error (not network), don't retry
+        if (attempt === this.maxRetries || error instanceof AuthenticationError) {
+          console.error(`Token refresh failed after ${attempt + 1} attempts`);
+          await this.clearTokens(false);
+          AudiobookshelfAuth.reset();
+          return null;
+        }
+
+        // Calculate exponential backoff delay
+        const delayMs = this.baseRetryDelayMs * Math.pow(2, attempt);
+        console.log(`Token refresh attempt ${attempt + 1} failed, retrying in ${delayMs}ms...`);
+        
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
     }
+    
+    return null;
   }
 
   async isAuthenticated(): Promise<boolean> {
@@ -221,8 +336,11 @@ export class AudiobookshelfAuth {
   async logout(): Promise<LogoutResponse | null> {
     const tokens = this.tokens || (await this.getStoredTokens());
 
+    // Check network - but don't block logout if offline
+    const isConnected = await this.checkNetworkConnection();
+
     try {
-      if (tokens?.refreshToken) {
+      if (tokens?.refreshToken && isConnected) {
         const response = await fetch(`${this.serverUrl}/logout`, {
           method: "POST",
           headers: {
@@ -233,7 +351,7 @@ export class AudiobookshelfAuth {
 
         if (response.ok) {
           const data: LogoutResponse = await response.json();
-          await this.clearTokens();
+          await this.clearTokens(true); // Clear credentials on explicit logout
           AudiobookshelfAuth.reset();
           this.username = "";
           this.userEmail = "";
@@ -245,7 +363,7 @@ export class AudiobookshelfAuth {
       console.warn("Server logout failed, clearing local tokens anyway");
     }
 
-    await this.clearTokens();
+    await this.clearTokens(true); // Clear credentials on explicit logout
     AudiobookshelfAuth.reset();
     this.username = "";
     this.userEmail = "";
@@ -293,13 +411,24 @@ export class AudiobookshelfAuth {
     await SecureStore.setItemAsync(AudiobookshelfAuth.USERINFO_KEY, JSON.stringify(userInfo));
   }
 
-  private async clearTokens(): Promise<void> {
+  private async storeCredentials(credentials: AuthCredentials): Promise<void> {
+    this.credentials = credentials; // 🔹 keep in memory
+    await SecureStore.setItemAsync(AudiobookshelfAuth.CREDENTIALS_KEY, JSON.stringify(credentials));
+  }
+
+  private async clearTokens(clearCredentials: boolean = false): Promise<void> {
     this.tokens = null; // 🔹 clear memory
     await SecureStore.deleteItemAsync(AudiobookshelfAuth.TOKEN_KEY);
     this.username = undefined;
     this.userEmail = undefined;
     this.userId = undefined;
     await SecureStore.deleteItemAsync(AudiobookshelfAuth.USERINFO_KEY);
+    
+    // Only clear credentials on explicit logout
+    if (clearCredentials) {
+      this.credentials = null;
+      await SecureStore.deleteItemAsync(AudiobookshelfAuth.CREDENTIALS_KEY);
+    }
   }
 
   private async storeServerUrl(): Promise<void> {

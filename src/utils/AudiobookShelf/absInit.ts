@@ -4,7 +4,6 @@ import { QueryClient } from "@tanstack/react-query";
 import { AudiobookshelfAPI } from "./absAPIClass";
 import { AudiobookshelfAuth } from "./absAuthClass";
 
-import { Alert } from "react-native";
 import "react-native-random-uuid";
 
 let absAuth: AudiobookshelfAuth | undefined;
@@ -57,12 +56,12 @@ export const absInitalize = async (queryClient?: QueryClient) => {
       if (typeof orig === "function") {
         return (...args: any[]) => {
           // Ensure auth is initialized before any API call
-          // const auth = await AudiobookshelfAuth.create();
-          // const isAuthed = await auth.isAuthenticated();
           const isAuthed = AudiobookshelfAuth.isAssumedAuthedGlobal;
           if (!isAuthed) {
-            console.log("Not authenticated. Please login first.");
-            Alert.alert("Not Authenticated. Please login");
+            // Log warning but don't show alert - let UI layer handle error display
+            console.warn(`API call attempted while not authenticated: ${String(prop)}`);
+            // Throw error that can be caught by calling code
+            throw new Error("Not authenticated. Please login first.");
           }
 
           // Call the original method
