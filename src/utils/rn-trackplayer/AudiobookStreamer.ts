@@ -1,7 +1,9 @@
+import NetInfo from "@react-native-community/netinfo";
 import TrackPlayer, { Event, PitchAlgorithm, State } from "react-native-track-player";
 import { ABSQueuedTrack } from "../../store/store-playback";
 import { AudiobookshelfAPI } from "../AudiobookShelf/absAPIClass";
 import { AudiobookSession } from "../AudiobookShelf/abstypes";
+import { syncQueue } from "../syncQueue";
 
 type SyncData = { timeListened: number; currentTime: number };
 type OfflineListenSession = {
@@ -46,11 +48,8 @@ export default class AudiobookStreamer {
   private lastPauseTime: number = 0;
   private pauseDebounceMs: number = 500; // 500ms debounce for pause events
 
-  // Offline sync properties
+  // Offline sync properties - now using persistent sync queue
   private isOfflineMode: boolean = false;
-  private offlineListenSessions: OfflineListenSession[] = [];
-  private queuedSyncs: QueuedSync[] = [];
-  private maxRetries: number = 3;
 
   // Real-time sync timer properties
   private syncTimer: NodeJS.Timeout | null = null;
@@ -731,65 +730,83 @@ export default class AudiobookStreamer {
 
   /**
    * Queue a sync for later when network is available
+   * Now uses persistent sync queue with MMKV
    */
   private async queueSyncForLater(sessionId: string, syncData: SyncData): Promise<void> {
-    const queuedSync: QueuedSync = {
-      sessionId,
-      timeListened: syncData.timeListened,
-      currentTime: syncData.currentTime,
-      timestamp: Date.now(),
-      retryCount: 0,
-    };
-
-    this.queuedSyncs.push(queuedSync);
+    syncQueue.addToQueue({
+      type: "playback-progress",
+      data: {
+        sessionId,
+        timeListened: syncData.timeListened,
+        currentTime: syncData.currentTime,
+      },
+    });
     console.log(`Queued sync for session ${sessionId} - ${syncData.timeListened}s listened`);
   }
 
   /**
    * Process any queued syncs after successful network connection
+   * Now uses persistent sync queue with MMKV
    */
   private async processQueuedSyncs(): Promise<void> {
-    if (this.queuedSyncs.length === 0) return;
-
-    console.log(`Processing ${this.queuedSyncs.length} queued syncs...`);
-
-    const failedSyncs: QueuedSync[] = [];
-
-    for (const queuedSync of this.queuedSyncs) {
-      if (queuedSync.retryCount >= this.maxRetries) {
-        console.warn(`Skipping sync for session ${queuedSync.sessionId} - max retries exceeded`);
-        continue;
+    const stats = await syncQueue.processQueue(async (item) => {
+      if (item.type !== "playback-progress") {
+        console.warn(`Unexpected sync type in AudiobookStreamer: ${item.type}`);
+        return false;
       }
 
+      const { sessionId, timeListened, currentTime } = item.data;
+      
       try {
-        await this.apiClient.syncProgressToServer(queuedSync.sessionId, {
-          timeListened: queuedSync.timeListened,
-          currentTime: queuedSync.currentTime,
+        await this.apiClient.syncProgressToServer(sessionId!, {
+          timeListened: timeListened!,
+          currentTime: currentTime!,
         });
-        console.log(
-          `Successfully synced queued data for session ${queuedSync.sessionId} - ${queuedSync.timeListened}s listened`
-        );
+        return true; // Success
       } catch (error) {
-        queuedSync.retryCount++;
-        console.warn(
-          `Failed to sync queued data for session ${queuedSync.sessionId} (attempt ${queuedSync.retryCount}/${this.maxRetries}):`,
-          error
-        );
-
-        if (queuedSync.retryCount < this.maxRetries) {
-          failedSyncs.push(queuedSync);
-        }
+        console.error(`Failed to process queued sync for session ${sessionId}:`, error);
+        return false; // Failed
       }
-    }
+    });
 
-    this.queuedSyncs = failedSyncs;
+    if (stats.success > 0) {
+      console.log(`Processed ${stats.success} queued syncs successfully`);
+    }
+    if (stats.failed > 0) {
+      console.log(`${stats.failed} syncs failed (will retry later)`);
+    }
   }
 
   /**
-   * Get count of pending queued syncs
+   * Public method to manually trigger queue processing
+   * Can be called when network connection is restored
+   */
+  async processQueueOnReconnection(): Promise<void> {
+    // Check if we have internet connectivity
+    const networkState = await NetInfo.fetch();
+    const isConnected = networkState.isConnected && networkState.isInternetReachable !== false;
+    
+    if (!isConnected) {
+      console.log("Cannot process queue - still offline");
+      return;
+    }
+
+    console.log("Network reconnected - processing queued syncs...");
+    await this.processQueuedSyncs();
+  }
+
+  /**
+   * Get count of pending queued syncs - now uses persistent queue
    */
   public getQueuedSyncCount(): number {
-    return this.queuedSyncs.length;
+    return syncQueue.getQueueCount();
+  }
+
+  /**
+   * Get queue statistics
+   */
+  public getSyncQueueStats() {
+    return syncQueue.getQueueStats();
   }
 
   /**
