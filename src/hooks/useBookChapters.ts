@@ -16,11 +16,10 @@ export const useBookChapters = (
   } = useSmartPositions(libraryItemId);
   const playbackActions = usePlaybackActions();
   const sleeperSetup = useSleeperSetup();
-  const [localChapterIndex, setLocalChapterIndex] = useState(chapterIndex);
+  const [localChapterIndex, setLocalChapterIndex] = useState(() => chapterIndex);
 
   const wasActiveRef = useRef(isBookActive);
   // Add ref for FlashList
-
   // Function to scroll to a specific chapter
   const scrollToChapter = useCallback(
     (index: number) => {
