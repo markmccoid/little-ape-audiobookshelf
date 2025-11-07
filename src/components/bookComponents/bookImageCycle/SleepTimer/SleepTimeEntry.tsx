@@ -8,7 +8,7 @@ const SleepTimeEntry = () => {
   const sleepTime = useSettingsStore((state) => state.sleepTimeMinutes);
   const [viewWidth, setViewWidth] = useState(0);
 
-  const countdownActive = useSettingsStore((state) => state.countdownActive);
+  const countdownActive = useSettingsStore((state) => state.sleepCountdownActive);
   const { updateSleepTime } = useSettingsActions();
 
   const { formattedOutput, secondsLeft } = useSettingsStore((state) => state.sleepCountDown);

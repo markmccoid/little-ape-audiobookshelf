@@ -12,10 +12,11 @@ interface SettingsState {
   // Sleep Timer ----
   sleepTimeMinutes: number;
   sleepStartDateTime: Date | undefined;
+  sleepChapterIndex: number | undefined;
   cancelSleepTimeout: (() => void) | undefined;
   cancelSleepInterval: (() => void) | undefined;
-  countdownActive: boolean;
-  intervalActive: boolean;
+  sleepCountdownActive: boolean;
+  sleepIntervalActive: boolean;
   sleepCountDown: {
     secondsLeft: number | undefined;
     formattedOutput: string | undefined;
@@ -28,8 +29,9 @@ interface SettingsActions {
   setSeekBackwardSeconds: (seconds: number) => void;
   setSyncIntervalSeconds: (seconds: number) => void;
   resetToDefaults: () => void;
-  updateSleepTime: (sleepTime: number) => Promise<void>;
-  startSleepTimer: () => void;
+  updateSleepTime: (sleepTime: number) => void;
+  updateSleepChapter: (chapterIndex: number | undefined) => void;
+  startSleepTimer: (libraryItemid?: string) => void;
   stopSleepTimer: () => void;
   runSleepCountdown: () => void;
 }
@@ -55,8 +57,9 @@ export const useSettingsStore = create<SettingsStore>()(
       // Sleep Timer START
       sleepTimeMinutes: 0,
       sleepStartDateTime: undefined,
-      countdownActive: false,
-      intervalActive: false,
+      sleepChapterIndex: undefined,
+      sleepCountdownActive: false,
+      sleepIntervalActive: false,
       sleepCountDown: {
         secondsLeft: undefined,
         formattedOutput: "",
@@ -80,7 +83,7 @@ export const useSettingsStore = create<SettingsStore>()(
             syncIntervalSeconds: DEFAULT_SYNC_INTERVAL_SECONDS,
           }),
 
-        updateSleepTime: async (sleepTime) => {
+        updateSleepTime: (sleepTime) => {
           if (sleepTime < 0) {
             sleepTime = 0;
           }
@@ -90,38 +93,7 @@ export const useSettingsStore = create<SettingsStore>()(
           // delete newSettingsData.actions;
           // Save to settings store
         },
-        startSleepTimer: () => {
-          // If the cancelSleepTimeout is set then run it to clear
-          // the old timeout
-          const cancelSleepTimeout = get().cancelSleepTimeout;
-          if (cancelSleepTimeout) {
-            cancelSleepTimeout();
-          }
-
-          set({
-            countdownActive: true,
-            sleepStartDateTime: new Date(),
-            cancelSleepTimeout: undefined,
-          });
-          const sleepTime = get().sleepTimeMinutes * 60 * 1000;
-          const cancelSleepTimeoutId = setTimeout(() => {
-            TrackPlayer.pause();
-            set({
-              countdownActive: false,
-              sleepStartDateTime: undefined,
-              cancelSleepTimeout: undefined,
-            });
-            // stop the countdown if active
-            const cancelSleepInterval = get().cancelSleepInterval;
-            if (cancelSleepInterval) {
-              cancelSleepInterval();
-            }
-            console.log("Sleep Timer Done");
-          }, sleepTime);
-          // Set function to cancel timeout if needed
-          set({ cancelSleepTimeout: () => clearTimeout(cancelSleepTimeoutId) });
-        },
-        stopSleepTimer: () => {
+        updateSleepChapter: (chapterIndex) => {
           // If the cancelSleepTimeout is set then run it to clear
           // the old timeout
           const cancelSleepTimeout = get().cancelSleepTimeout;
@@ -133,19 +105,82 @@ export const useSettingsStore = create<SettingsStore>()(
           if (cancelSleepInterval) {
             cancelSleepInterval();
           }
-          // clear the sleep timer fields that indicate a sleep timer is active
+
+          // Set the sleep chapter and reset the other sleep state vars
           set({
-            countdownActive: false,
+            sleepChapterIndex: chapterIndex,
+            sleepCountdownActive: false,
+            sleepIntervalActive: false,
             sleepStartDateTime: undefined,
             cancelSleepTimeout: undefined,
+            cancelSleepInterval: undefined,
           });
         },
-        runSleepCountdown: () => {
-          // Clear interval if it exists
+        startSleepTimer: () => {
+          // If the cancelSleepTimeout is set then run it to clear
+          // the old timeout
+          const cancelSleepTimeout = get().cancelSleepTimeout;
+          if (cancelSleepTimeout) {
+            cancelSleepTimeout();
+          }
+          // stop the countdown if active
           const cancelSleepInterval = get().cancelSleepInterval;
           if (cancelSleepInterval) {
             cancelSleepInterval();
           }
+
+          set({
+            sleepCountdownActive: true,
+            sleepStartDateTime: new Date(),
+            cancelSleepTimeout: undefined,
+          });
+          const sleepTime = get().sleepTimeMinutes * 60 * 1000;
+          console.log("SleepTime", sleepTime);
+          const cancelSleepTimeoutId = setTimeout(() => {
+            TrackPlayer.pause();
+            set({
+              sleepCountdownActive: false,
+              sleepStartDateTime: undefined,
+              cancelSleepTimeout: undefined,
+            });
+
+            console.log("Sleep Timer Done");
+          }, sleepTime);
+          // Set function to cancel timeout if needed
+          set({ cancelSleepTimeout: () => clearTimeout(cancelSleepTimeoutId) });
+        },
+        stopSleepTimer: () => {
+          // If the cancelSleepTimeout is set then run it to clear
+          7; // the old timeout
+          const cancelSleepTimeout = get().cancelSleepTimeout;
+          if (cancelSleepTimeout) {
+            cancelSleepTimeout();
+          }
+          // stop the countdown if active
+          const cancelSleepInterval = get().cancelSleepInterval;
+          if (cancelSleepInterval) {
+            cancelSleepInterval();
+          }
+          // clear the sleep timer fields that indicate a sleep timer is active
+          set({
+            sleepCountdownActive: false,
+            sleepStartDateTime: undefined,
+            cancelSleepTimeout: undefined,
+            sleepChapterIndex: undefined,
+          });
+        },
+        runSleepCountdown: () => {
+          //! Testing if we can just not do anything if this is called multiple times
+          //! If the the interval is active and we are trying to start it, just return
+          const sleepIntervalActive = get().sleepIntervalActive;
+          if (sleepIntervalActive) return;
+
+          // // Clear interval if it exists
+          // const cancelSleepInterval = get().cancelSleepInterval;
+          // if (cancelSleepInterval) {
+          //   cancelSleepInterval();
+          // }
+
           const sleepInterval = setInterval(() => {
             const { secondsBetween, minutesInt, secondsInt } = timeBetween(
               new Date(),
@@ -167,11 +202,11 @@ export const useSettingsStore = create<SettingsStore>()(
           }, 1000);
 
           set({
-            intervalActive: true,
+            sleepIntervalActive: true,
             cancelSleepInterval: () => {
               clearInterval(sleepInterval);
               set({
-                intervalActive: false,
+                sleepIntervalActive: false,
                 sleepCountDown: {
                   secondsLeft: undefined,
                   formattedOutput: undefined,

@@ -7,7 +7,7 @@ import {
   useBookPlaybackSpeed,
   useBooksStore,
 } from "../store/store-books";
-import { usePlaybackSession, usePlaybackStore } from "../store/store-playback";
+import { usePlaybackActions, usePlaybackSession, usePlaybackStore } from "../store/store-playback";
 import { getAbsAuth } from "../utils/AudiobookShelf/absInit";
 
 //###
@@ -25,12 +25,16 @@ export const useSmartPosition = (libraryItemId: string) => {
   const progress = useProgress();
   const activeTrack = useActiveTrack();
   const update = useSmartPositionStore((s) => s.updateForActiveBook);
+  const { updateCurrentChapterIndex } = usePlaybackActions();
 
   useEffect(() => {
     // console.log("USESMPOS", progress.position, book?.currentPosition, book?.title);
     if (isBookActive && isLoaded && progress.position !== 0) {
       const newPos = Math.round((activeTrack?.trackOffset ?? 0) + progress.position);
       const curr = getChapterFromProgress(chapters, newPos);
+      // update playlist store
+      updateCurrentChapterIndex(curr?.chapterIndex);
+      // update smart positions store
       update(libraryItemId, newPos, duration, {
         chapterPosition: newPos - (curr?.startSeconds ?? 0),
         chapterStart: curr?.startSeconds || 0,
@@ -45,6 +49,9 @@ export const useSmartPosition = (libraryItemId: string) => {
       // console.log("Pulling from stored book", book?.title, book?.currentPosition);
       const pos = book?.currentPosition ?? 0;
       const curr = getChapterFromProgress(chapters, pos);
+      // update playlist store
+      updateCurrentChapterIndex(curr?.chapterIndex);
+      // update smart positions store
       update(libraryItemId, pos, duration, {
         chapterPosition: pos - (curr?.startSeconds ?? 0),
         chapterStart: curr?.startSeconds || 0,

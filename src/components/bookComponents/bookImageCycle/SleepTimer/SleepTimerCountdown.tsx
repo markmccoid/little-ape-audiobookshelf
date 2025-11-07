@@ -7,8 +7,8 @@ import { MotiText, MotiView } from "moti";
 
 const SleepTimerCountdown = () => {
   const { secondsLeft, formattedOutput } = useSleepTimer();
+  const countdownActive = useSettingsStore((state) => state.sleepCountdownActive);
 
-  const countdownActive = useSettingsStore((state) => state.countdownActive);
   const [viewWidth, setViewWidth] = useState(undefined);
   const viewRef = useRef<View>(null);
   const textRef = useRef<Text>(null);

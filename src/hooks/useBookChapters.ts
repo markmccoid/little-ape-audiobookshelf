@@ -1,9 +1,10 @@
 import { useBookData } from "@/src/hooks/trackPlayerHooks";
 import { EnhancedChapter } from "@/src/store/store-books";
-import { usePlaybackActions, usePlaybackIsPlaying } from "@/src/store/store-playback";
+import { usePlaybackActions } from "@/src/store/store-playback";
 import { useSmartPositions } from "@/src/store/store-smartposition";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { FlatList } from "react-native";
+import useSleeperSetup from "./useSleeperSetup";
 
 export const useBookChapters = (
   libraryItemId: string,
@@ -14,7 +15,7 @@ export const useBookChapters = (
     chapterInfo: { chapterIndex },
   } = useSmartPositions(libraryItemId);
   const playbackActions = usePlaybackActions();
-  const isPlaying = usePlaybackIsPlaying(libraryItemId);
+  const sleeperSetup = useSleeperSetup();
   const [localChapterIndex, setLocalChapterIndex] = useState(chapterIndex);
 
   const wasActiveRef = useRef(isBookActive);
@@ -64,7 +65,11 @@ export const useBookChapters = (
         await playbackActions.loadBook(libraryItemId);
       }
       await playbackActions.seekTo(chapterStart);
-
+      console.log("SleeperSetup useBookChap", sleeperSetup.sleepCountdownActive);
+      if (!sleeperSetup.sleepCountdownActive && sleeperSetup.sleepEndOfChapterActive) {
+        // Turn off sleep after chapter
+        sleeperSetup.setSleepChapterIndex(undefined);
+      }
       if (!isBookActive) playbackActions.play();
     },
     [libraryItemId, isBookActive, playbackActions]

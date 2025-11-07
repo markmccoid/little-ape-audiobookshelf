@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { reverse, sortBy } from "lodash";
+import { sortBy } from "es-toolkit";
+
 import { useEffect, useMemo, useState } from "react";
 import { useSafeAbsAPI } from "../contexts/AuthContext";
 import { useBooksActions } from "../store/store-books";
@@ -335,7 +336,8 @@ export const useSafeGetBooks = (searchValue?: string) => {
     if (!filteredData?.length) return filteredData;
     const sorted = sortBy(filteredData, [sortedBy]);
     // reverse if desc
-    if (sortDirection === "desc") return reverse(sorted);
+    if (sortDirection === "desc") return sorted.reverse();
+    // if (sortDirection === "desc") return reverse(sorted);
 
     return sorted;
   }, [filteredData, sortedBy]);

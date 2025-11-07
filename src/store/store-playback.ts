@@ -7,6 +7,7 @@ import TrackPlayer, { Event, State, Track } from "react-native-track-player";
 import { create } from "zustand";
 import { getCurrentChapter, waitForReadyState } from "../utils/rn-trackplayer/trackPlayerUtils";
 import { useBooksStore } from "./store-books";
+import { useSettingsStore } from "./store-settings";
 
 // Extend Track to reflect extra fields we attach from ABS
 export type ABSQueuedTrack = Track & {
@@ -36,6 +37,8 @@ interface PlaybackState {
   queue: ABSQueuedTrack[];
   isPlaying: boolean;
   seeking: boolean;
+  currentChapterIndex: number | undefined;
+  sleepChapterIndex: number | undefined;
   //! Only will be true once book has been loaded and playing has started
   //! isBookActive function returns as SOON as book session has been loaded
   //! However, it takes Track Player about 1 second to finish init as start playing.
@@ -53,6 +56,9 @@ interface PlaybackActions {
   initFromABS: () => Promise<void>;
   bindEvents: () => void;
 
+  // Info
+  updateCurrentChapterIndex: (currentChapterIndex: number | undefined) => void;
+  updateSleepChapterIndex: (sleepChapterIndex: number | undefined) => void;
   // Controls
   loadBook: (itemId: string) => Promise<void>;
   loadBookAndPlay: (itemId: string) => Promise<void>;
@@ -86,6 +92,8 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
   queue: [],
   isPlaying: false,
   isLoaded: false,
+  currentChapterIndex: undefined,
+  sleepChapterIndex: undefined,
   seeking: false,
   playbackState: State.None,
   position: 0,
@@ -153,6 +161,25 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       });
 
       listeners.push(l1 as any, l2 as any);
+    },
+
+    updateCurrentChapterIndex: (currentChapterIndex) => {
+      set({ currentChapterIndex });
+      const sleepChapterIndex = get().sleepChapterIndex;
+
+      if (sleepChapterIndex === undefined || !currentChapterIndex) return;
+      if (sleepChapterIndex < currentChapterIndex) {
+        get().actions.pause();
+        // Clear sleepChapterIndex
+        set({ sleepChapterIndex: undefined });
+        useSettingsStore.getState().actions.updateSleepChapter(undefined);
+        // Reset whatever we need to in settings so that app knows that sleep timer is off
+      }
+    },
+    updateSleepChapterIndex: (sleepChapterIndex) => {
+      set({ sleepChapterIndex });
+      // Set whatever we need to in settings so that app knows that sleep timer is either ON or OFF
+      // useSettingsStore.getState().actions.updateSleepChapter(sleepChapterIndex)
     },
 
     loadBook: async (itemId: string) => {
@@ -396,7 +423,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       const trackIndex = await TrackPlayer.getActiveTrackIndex();
       const qLength = get().queue.length;
       const newPos = currPos + forwardSeconds;
-      console.log("[jumpForward]", trackIndex, qLength);
+
       // console.log("[jumpForward]", currPos, forwardSeconds, currDuration, newPos);
       if (newPos > currDuration) {
         // go to next track.   calculate how much "seekTo" is in

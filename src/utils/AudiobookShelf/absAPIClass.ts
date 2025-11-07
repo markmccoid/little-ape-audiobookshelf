@@ -1,4 +1,4 @@
-import { reverse, sortBy } from "lodash";
+import { sortBy } from "es-toolkit";
 import {
   AuthorsItemsResponse,
   BookPersonalizedView,
@@ -832,7 +832,7 @@ export class AudiobookshelfAPI {
     }
 
     // Keep sorted in last time position was updated in descending order
-    return reverse(sortBy(itemsInProgress, ["lastUpdate"]));
+    return sortBy(itemsInProgress, ["lastUpdate"]).reverse();
   }
 
   //## -------------------------------------
