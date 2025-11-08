@@ -23,6 +23,18 @@ export const NetworkProvider: React.FC<NetworkProviderProps> = ({ children }) =>
   const wasOfflineRef = useRef<boolean>(false);
 
   useEffect(() => {
+    // Configure NetInfo to actively check internet reachability
+    // This enables detection of internet connectivity issues (firewall blocks, captive portals, etc.)
+    // Without this, NetInfo only detects network interface changes (WiFi on/off)
+    NetInfo.configure({
+      reachabilityUrl: 'https://clients3.google.com/generate_204',
+      reachabilityTest: async (response) => response.status === 204,
+      reachabilityShortTimeout: 5 * 1000, // 5 seconds
+      reachabilityLongTimeout: 60 * 1000, // 60 seconds  
+      reachabilityRequestTimeout: 15 * 1000, // 15 seconds
+      useNativeReachability: false, // Use HTTP check instead of native for more reliable detection
+    });
+
     // Get initial network state
     NetInfo.fetch().then((state) => {
       setNetworkState(state);
@@ -75,11 +87,12 @@ export const NetworkProvider: React.FC<NetworkProviderProps> = ({ children }) =>
   }, []);
 
   // Determine if we're truly offline
-  // Primary check: are we connected to a network (WiFi/cellular)?
-  // We primarily trust isConnected because isInternetReachable can be slow to update or remain false after reconnecting
-  // Note: isInternetReachable is often null (unknown) on Android, and can lag behind actual connectivity state
-  // By trusting isConnected primarily, the app becomes responsive as soon as network connects
-  const isOffline = !isConnected;
+  // Now that we have reachability configured, we can trust both signals:
+  // - isConnected: tells us if device has network connection (WiFi/cellular)
+  // - isInternetReachable: tells us if internet is actually accessible (checks Google's 204 endpoint)
+  // We're offline if: no network connection OR internet is definitely unreachable
+  // Note: null means reachability check hasn't completed yet, we assume online in that case
+  const isOffline = !isConnected || isInternetReachable === false;
 
   // Determine connection quality based on network type and state
   const getConnectionQuality = (): "excellent" | "good" | "poor" | "offline" => {
