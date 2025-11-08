@@ -301,7 +301,7 @@ export const useSafeGetBooks = (searchValue?: string) => {
 
   // Always get the library ID, even if null
   const activeLibraryId = absAPI?.getActiveLibraryId() || null;
-
+  console.log("GETTING BOOKS");
   // Always call useQuery, but disable it when not authenticated
   const {
     data: rawData,

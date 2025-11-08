@@ -13,13 +13,14 @@ const BANNER_HEIGHT = 36;
 const RECONNECTED_DURATION = 3000; // Show "Reconnected" for 3 seconds
 
 export const NetworkStatusBanner: React.FC = () => {
-  const { isOffline } = useNetwork();
+  const { isOffline, isConnected } = useNetwork();
   const [wasOffline, setWasOffline] = useState(false);
   const { top } = useSafeAreaInsets();
   const translateY = useSharedValue(-BANNER_HEIGHT);
   const opacity = useSharedValue(0);
-  console.log("IS OFFLINE?", isOffline);
+
   useEffect(() => {
+    console.log("🎌 Banner state:", { isOffline, wasOffline, isConnected });
     if (isOffline) {
       // Going offline - show banner immediately
       setWasOffline(true);

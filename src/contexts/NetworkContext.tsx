@@ -41,10 +41,11 @@ export const NetworkProvider: React.FC<NetworkProviderProps> = ({ children }) =>
       setIsInternetReachable(state.isInternetReachable ?? null);
 
       // Log network changes for debugging
-      console.log("Network state changed:", {
+      console.log("🌐 Network state changed:", {
         isConnected: state.isConnected,
         isInternetReachable: state.isInternetReachable,
         type: state.type,
+        calculatedOffline: !(state.isConnected ?? false),
       });
 
       // If we just reconnected after being offline, process sync queue
@@ -74,7 +75,11 @@ export const NetworkProvider: React.FC<NetworkProviderProps> = ({ children }) =>
   }, []);
 
   // Determine if we're truly offline
-  const isOffline = !isConnected || isInternetReachable === false;
+  // Primary check: are we connected to a network (WiFi/cellular)?
+  // We primarily trust isConnected because isInternetReachable can be slow to update or remain false after reconnecting
+  // Note: isInternetReachable is often null (unknown) on Android, and can lag behind actual connectivity state
+  // By trusting isConnected primarily, the app becomes responsive as soon as network connects
+  const isOffline = !isConnected;
 
   // Determine connection quality based on network type and state
   const getConnectionQuality = (): "excellent" | "good" | "poor" | "offline" => {
