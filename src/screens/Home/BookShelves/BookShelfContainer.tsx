@@ -20,6 +20,7 @@ export type EnhancedBookItem = BookShelfItemType["books"][0] & {
   isPlaying: boolean;
   currentTime: number;
   shelfId: string;
+  isDownloaded?: boolean; // For future download feature
 };
 type Props = {
   shelfData: BookShelfItemType;

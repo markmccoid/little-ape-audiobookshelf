@@ -27,11 +27,11 @@ export const queryClient = new QueryClient({
       },
       // Serve stale data when offline
       networkMode: "offlineFirst",
-      // Don't refetch on window focus when offline
-      refetchOnWindowFocus: (query) => {
-        // You can customize this per query if needed
-        return query.state.data !== undefined;
-      },
+      // // Don't refetch on window focus when offline
+      // refetchOnWindowFocus: (query) => {
+      //   // You can customize this per query if needed
+      //   return query.state.data !== undefined;
+      // },
     },
     mutations: {
       retry: 1,

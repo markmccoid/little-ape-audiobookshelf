@@ -1,10 +1,14 @@
+import { OfflineBadge } from "@/src/components/OfflineBadge";
 import { useSafeAbsAPI } from "@/src/contexts/AuthContext";
+import { useNetwork } from "@/src/contexts/NetworkContext";
+import { usePlaybackStore } from "@/src/store/store-playback";
+import { canPlayBookOffline } from "@/src/utils/bookAvailability";
 import { formatSeconds } from "@/src/utils/formatUtils";
 import { useThemeColors } from "@/src/utils/theme";
 import { Image } from "expo-image";
 import { Link } from "expo-router";
 import React, { useCallback } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Alert, StyleSheet, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { EnhancedBookItem } from "./BookShelfContainer";
 
@@ -27,14 +31,33 @@ const BookShelfItem = React.memo<BookShelfItemProps>(
     const imageSize = isContinueListeningShelf ? 210 : 175;
     const itemSize = isContinueListeningShelf ? 220 : 190;
 
+    // Check network state and book availability
+    const { isOffline } = useNetwork();
+    const currentSession = usePlaybackStore((state) => state.session);
+    const isPlayable = canPlayBookOffline(
+      { libraryItemId: item.libraryItemId, isDownloaded: item.isDownloaded },
+      !isOffline,
+      currentSession?.libraryItemId
+    );
+
     const playPause = useCallback(async () => {
+      // Check if book is playable offline
+      if (!isPlayable) {
+        Alert.alert(
+          "Offline",
+          "You're offline. This book requires an internet connection.\n\nDownload feature coming soon!",
+          [{ text: "OK" }]
+        );
+        return;
+      }
+
       if (item.isCurrentlyLoaded) {
         await togglePlayPause();
       } else {
         //Will automatically start playing
         await onInitBook(item.libraryItemId);
       }
-    }, [item.isCurrentlyLoaded]);
+    }, [item.isCurrentlyLoaded, isPlayable, onInitBook, togglePlayPause, item.libraryItemId]);
     // console.log(
     //   "ProgressItem",
     //   item.title,
@@ -78,35 +101,52 @@ const BookShelfItem = React.memo<BookShelfItemProps>(
                   height: imageSize,
                   borderRadius: 10,
                   borderWidth: StyleSheet.hairlineWidth,
+                  opacity: isPlayable ? 1 : 0.5, // Gray out when not playable
                 }}
                 className="border-hairline"
                 contentFit="cover"
               />
+              {/* Show offline badge when book is not playable */}
+              <OfflineBadge isVisible={!isPlayable} />
             </Link.Trigger>
             <Link.Preview style={{ width: 250, height: 250 }}>
               <Image source={item.coverURL} style={{ width: "100%", height: "100%" }} />
             </Link.Preview>
             <Link.Menu>
-              <Link.MenuAction
-                title={item.isPlaying ? "Pause" : "Play"}
-                onPress={playPause}
-                icon={item.isPlaying ? "pause" : "play"}
-              />
-              {/* <Link.MenuAction
-                title="Hide"
-                onPress={() => absAPI?.hideFromContinueListening(item.progressId || "")}
-                icon="eye.slash"
-              /> */}
-              <Link.MenuAction
-                title="Mark as Finished"
-                onPress={() => absAPI?.setBookFinished(item.libraryItemId, true)}
-                icon="flag"
-              />
-              <Link.MenuAction
-                title="Mark as Unfinished"
-                onPress={() => absAPI?.setBookFinished(item.libraryItemId, false)}
-                icon="flag.slash"
-              />
+              {/* Only show play/pause and server actions when online or book is playable */}
+              {isPlayable && (
+                <>
+                  <Link.MenuAction
+                    title={item.isPlaying ? "Pause" : "Play"}
+                    onPress={playPause}
+                    icon={item.isPlaying ? "pause" : "play"}
+                  />
+                  <Link.MenuAction
+                    title="Mark as Finished"
+                    onPress={() => absAPI?.setBookFinished(item.libraryItemId, true)}
+                    icon="flag"
+                  />
+                  <Link.MenuAction
+                    title="Mark as Unfinished"
+                    onPress={() => absAPI?.setBookFinished(item.libraryItemId, false)}
+                    icon="flag.slash"
+                  />
+                </>
+              )}
+              {/* Show offline message when not playable */}
+              {!isPlayable && (
+                <Link.MenuAction
+                  title="Offline - Book Unavailable"
+                  onPress={() => {
+                    Alert.alert(
+                      "Offline",
+                      "You're offline. This book requires an internet connection.\n\nDownload feature coming soon!",
+                      [{ text: "OK" }]
+                    );
+                  }}
+                  icon="wifi.slash"
+                />
+              )}
             </Link.Menu>
           </Link>
         </View>

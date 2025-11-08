@@ -35,6 +35,8 @@ export type Book = {
   publishedYear?: string;
   playbackRate: number;
   isDownloaded: boolean;
+  downloadProgress?: number; // 0-100, for future download UI
+  localPath?: string; // Local file path for downloaded books
   currentPosition: number;
   duration?: number;
   lastUpdated?: number;

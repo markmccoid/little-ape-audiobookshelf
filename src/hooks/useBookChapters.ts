@@ -11,6 +11,8 @@ export const useBookChapters = (
   flashListRef: React.RefObject<FlatList<EnhancedChapter> | null>
 ) => {
   const { book, duration, isBookActive } = useBookData(libraryItemId);
+  const renderTimesRef = useRef(0);
+
   const {
     chapterInfo: { chapterIndex },
   } = useSmartPositions(libraryItemId);
@@ -18,7 +20,6 @@ export const useBookChapters = (
   const sleeperSetup = useSleeperSetup();
   const [localChapterIndex, setLocalChapterIndex] = useState(() => chapterIndex);
 
-  const wasActiveRef = useRef(isBookActive);
   // Add ref for FlashList
   // Function to scroll to a specific chapter
   const scrollToChapter = useCallback(
@@ -57,14 +58,20 @@ export const useBookChapters = (
     }
   }, [book?.chapters]); // Only run when chapters are loaded
 
+  useEffect(() => {
+    if (renderTimesRef.current <= 1) {
+      setLocalChapterIndex(chapterIndex);
+      renderTimesRef.current++;
+    }
+  }, [chapterIndex]);
+
   const loadChapter = useCallback(
     async (chapterStart: number) => {
-      console.log("isBookAct (useBookChapters", isBookActive);
       if (!isBookActive) {
         await playbackActions.loadBook(libraryItemId);
       }
       await playbackActions.seekTo(chapterStart);
-      console.log("SleeperSetup useBookChap", sleeperSetup.sleepCountdownActive);
+
       if (!sleeperSetup.sleepCountdownActive && sleeperSetup.sleepEndOfChapterActive) {
         // Turn off sleep after chapter
         sleeperSetup.setSleepChapterIndex(undefined);

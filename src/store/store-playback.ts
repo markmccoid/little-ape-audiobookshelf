@@ -1,8 +1,11 @@
 import type { AudiobookshelfAPI } from "@/src/utils/AudiobookShelf/absAPIClass";
 import { getAbsAPI, getAbsAuth } from "@/src/utils/AudiobookShelf/absInit";
 import type { AudiobookSession } from "@/src/utils/AudiobookShelf/abstypes";
+import { NetworkError } from "@/src/utils/AudiobookShelf/abstypes";
+import { checkIsOnline } from "@/src/utils/networkHelper";
 import AudiobookStreamer from "@/src/utils/rn-trackplayer/AudiobookStreamer";
 import { trackPlayerInit } from "@/src/utils/rn-trackplayer/rn-trackplayerInit";
+import { Alert } from "react-native";
 import TrackPlayer, { Event, State, Track } from "react-native-track-player";
 import { create } from "zustand";
 import { getCurrentChapter, waitForReadyState } from "../utils/rn-trackplayer/trackPlayerUtils";
@@ -198,6 +201,28 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
         // console.log(`PlaybackStore: Book ${itemId} already loaded. Skipping reload.`);
         return;
       }
+
+      // Check if book is downloaded (future feature)
+      const bookActions = useBooksStore.getState().actions;
+      const book = useBooksStore.getState().books[itemId];
+      
+      if (book?.isDownloaded) {
+        // TODO: Load from local path when download feature is implemented
+        console.log("Loading downloaded book:", itemId);
+        // return await loadDownloadedBook(itemId);
+      }
+
+      // Check network connectivity before attempting to stream
+      const isOnline = await checkIsOnline();
+      if (!isOnline) {
+        Alert.alert(
+          "Offline",
+          "You're offline. This book requires an internet connection.\n\nDownload feature coming soon!",
+          [{ text: "OK" }]
+        );
+        throw new Error("Cannot load book while offline - not downloaded");
+      }
+
       set({ isLoaded: false });
       let streamer: AudiobookStreamer;
       try {
@@ -211,7 +236,32 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       if (!streamer.isReady()) {
         throw new Error("Playback not initialized. Call actions.init/initFromABS first.");
       }
-      const { tracks, sessionData } = await streamer.setupAudioPlayback(itemId);
+
+      // Wrap setupAudioPlayback in try-catch for better error handling
+      let tracks, sessionData;
+      try {
+        const result = await streamer.setupAudioPlayback(itemId);
+        tracks = result.tracks;
+        sessionData = result.sessionData;
+      } catch (error) {
+        // Handle network errors specifically
+        if (error instanceof NetworkError) {
+          Alert.alert(
+            "Network Error",
+            "Unable to load book. Please check your internet connection and try again.",
+            [{ text: "OK" }]
+          );
+        } else {
+          // Handle other errors
+          console.error("Error loading book:", error);
+          Alert.alert(
+            "Error Loading Book",
+            "An unexpected error occurred while loading the book. Please try again.",
+            [{ text: "OK" }]
+          );
+        }
+        throw error;
+      }
       // set({ position: sessionData.startTime });
       // setTimeout(() => {}, 0);
 

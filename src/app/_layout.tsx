@@ -74,6 +74,7 @@ function AppContent() {
 
   return (
     <>
+      {/* <NetworkStatusBanner /> */}
       <NetworkStatusBanner />
       <Stack
         screenOptions={{
@@ -123,6 +124,7 @@ export default function RootLayout() {
           <AuthProvider>
             <ThemeProvider value={colorScheme === "dark" ? NAV_THEME.dark : NAV_THEME.light}>
               <AppContent />
+
               <PortalHost />
             </ThemeProvider>
           </AuthProvider>
