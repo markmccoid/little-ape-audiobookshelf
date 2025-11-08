@@ -197,17 +197,11 @@ const InProgressItem = React.memo<InProgressItemProps>(
         </View>
       </Animated.View>
     );
-  },
-  // Optimized comparison - only re-render when critical props change
-  (prevProps, nextProps) => {
-    const same =
-      prevProps.item.libraryItemId === nextProps.item.libraryItemId &&
-      prevProps.item.isPlaying === nextProps.item.isPlaying &&
-      prevProps.item.isCurrentlyLoaded === nextProps.item.isCurrentlyLoaded &&
-      Math.floor(prevProps.item.currentTime) === Math.floor(nextProps.item.currentTime);
-
-    return same;
   }
+  // Note: Removed custom comparison function to allow re-rendering when NetworkContext updates.
+  // React.memo will still optimize re-renders using default shallow comparison of props.
+  // This is necessary because useNetwork() hook inside the component needs to re-evaluate
+  // when network state changes, which won't happen if React.memo blocks the re-render.
 );
 
 InProgressItem.displayName = "InProgressItem";

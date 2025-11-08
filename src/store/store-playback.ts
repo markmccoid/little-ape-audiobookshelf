@@ -205,7 +205,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       // Check if book is downloaded (future feature)
       const bookActions = useBooksStore.getState().actions;
       const book = useBooksStore.getState().books[itemId];
-      
+
       if (book?.isDownloaded) {
         // TODO: Load from local path when download feature is implemented
         console.log("Loading downloaded book:", itemId);
@@ -283,7 +283,6 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
 
       //!!
       //~ Look into books store to find out if we have this book saved
-      const bookActions = useBooksStore.getState().actions;
       const savedBook = await bookActions.getOrFetchBook({
         userId: userId,
         libraryItemId: sessionData.libraryItemId,
