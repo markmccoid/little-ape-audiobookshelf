@@ -177,7 +177,6 @@ export const useBookData = (libraryItemId: string) => {
     queryKey: ["book", libraryItemId, userId],
     queryFn: async () => {
       if (!userId) throw new Error("User not authenticated");
-      console.log("In useBookDataHook queryFN");
       return await getOrFetchBook({ userId, libraryItemId });
     },
     staleTime: 5 * 60 * 1000, // 5 minutes

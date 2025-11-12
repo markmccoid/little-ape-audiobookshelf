@@ -27,7 +27,7 @@ interface BookShelfItemProps {
  */
 const BookShelfItem = React.memo<BookShelfItemProps>(
   ({ item, onInitBook, togglePlayPause }) => {
-    const isContinueListeningShelf = item.shelfId === "continue-listening";
+    const isContinueListeningShelf = item.id === "continue-listening";
     const imageSize = isContinueListeningShelf ? 210 : 175;
     const itemSize = isContinueListeningShelf ? 220 : 190;
 
@@ -86,7 +86,7 @@ const BookShelfItem = React.memo<BookShelfItemProps>(
               pathname: `/(tabs)/(home)/[libraryItemId]`,
               params: {
                 libraryItemId: item.libraryItemId,
-                cover: item.coverURL,
+                cover: item.coverURI,
                 title: item.title,
               },
             }}
@@ -95,7 +95,7 @@ const BookShelfItem = React.memo<BookShelfItemProps>(
               {/* <SwiftImage systemName="line.3.horizontal.decrease.circle" size={24} /> */}
 
               <Image
-                source={item.coverURL}
+                source={item.coverURI}
                 style={{
                   width: imageSize,
                   height: imageSize,
@@ -110,11 +110,27 @@ const BookShelfItem = React.memo<BookShelfItemProps>(
               <OfflineBadge isVisible={!isPlayable} />
             </Link.Trigger>
             <Link.Preview style={{ width: 250, height: 250 }}>
-              <Image source={item.coverURL} style={{ width: "100%", height: "100%" }} />
+              <Image source={item.coverURI} style={{ width: "100%", height: "100%" }} />
             </Link.Preview>
             <Link.Menu>
-              {/* Only show play/pause and server actions when online or book is playable */}
-              {isPlayable && (
+              <>
+                <Link.MenuAction
+                  title={item.isPlaying ? "Pause" : "Play"}
+                  onPress={playPause}
+                  icon={item.isPlaying ? "pause" : "play"}
+                />
+                <Link.MenuAction
+                  title="Mark as Finished"
+                  onPress={() => absAPI?.setBookFinished(item.libraryItemId, true)}
+                  icon="flag"
+                />
+                <Link.MenuAction
+                  title="Mark as Unfinished"
+                  onPress={() => absAPI?.setBookFinished(item.libraryItemId, false)}
+                  icon="flag.slash"
+                />
+              </>
+              {isPlayable ? (
                 <>
                   <Link.MenuAction
                     title={item.isPlaying ? "Pause" : "Play"}
@@ -132,9 +148,7 @@ const BookShelfItem = React.memo<BookShelfItemProps>(
                     icon="flag.slash"
                   />
                 </>
-              )}
-              {/* Show offline message when not playable */}
-              {!isPlayable && (
+              ) : (
                 <Link.MenuAction
                   title="Offline - Book Unavailable"
                   onPress={() => {
@@ -159,7 +173,7 @@ const BookShelfItem = React.memo<BookShelfItemProps>(
             {item.title}
           </Text>
 
-          {item.shelfId === "continue-listening" && (
+          {item.id === "continue-listening" && (
             <Text className="text-sm text-muted mt-1 font-firacode font-semibold">
               {formatSeconds((item.duration || 0) - item.currentTime)} left
               {/* {formatSeconds(item.currentTime)} / {formatSeconds(item.duration || 0)} */}

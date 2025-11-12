@@ -1,11 +1,13 @@
+import { Book } from "@/src/store/store-books";
 import { TypedPersonalizedView } from "./abstypes";
 
 export type BookShelfItemType = {
-  shelfId: string;
-  shelfLabel: string;
-  books: BookShelfBook[];
+  id: string;
+  label: string;
+  key: string;
+  books: Book[];
 };
-type BookShelfBook = {
+export type BookShelfBook = {
   libraryItemId: string;
   title: string;
   author?: string;
@@ -29,7 +31,7 @@ export const buildBookShelf = <T extends TypedPersonalizedView>(
         coverURL: buildCoverURLSync(book.id, token, absURL).coverFull,
         duration: book.media.duration,
       }));
-      return { ...baseInfo, books };
+      return { ...baseInfo, books: books as BookShelfBook[] };
 
     // case "series":
     //   return bookShelfItem.entities.map((series) => ({

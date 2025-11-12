@@ -1,6 +1,11 @@
 import TrackPlayer from "react-native-track-player";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import {
+  BookShelf,
+  defaultBookshelves,
+  DefaultShelfId,
+} from "../utils/AudiobookShelf/bookshelfTypes";
 import { formatSeconds, timeBetween } from "../utils/formatUtils";
 import { mmkvStorage } from "./mmkv-storage";
 
@@ -9,6 +14,10 @@ interface SettingsState {
   seekForwardSeconds: number;
   seekBackwardSeconds: number;
   syncIntervalSeconds: number;
+  // all available bookshelves, this will include the default and any custom shelves
+  allBookshelves: BookShelf[];
+  // Bookshelves to display - order of array is order of display
+  bookshelvesToDisplay: (DefaultShelfId | string)[];
   // Sleep Timer ----
   sleepTimeMinutes: number;
   sleepStartDateTime: Date | undefined;
@@ -28,6 +37,8 @@ interface SettingsActions {
   setSeekForwardSeconds: (seconds: number) => void;
   setSeekBackwardSeconds: (seconds: number) => void;
   setSyncIntervalSeconds: (seconds: number) => void;
+  // bookshelves
+  updateBookshelfDisplay: (newBookshelves: DefaultShelfId[]) => void;
   resetToDefaults: () => void;
   updateSleepTime: (sleepTime: number) => void;
   updateSleepChapter: (chapterIndex: number | undefined) => void;
@@ -54,6 +65,9 @@ export const useSettingsStore = create<SettingsStore>()(
       seekForwardSeconds: DEFAULT_SEEK_FORWARD_SECONDS,
       seekBackwardSeconds: DEFAULT_SEEK_BACKWARD_SECONDS,
       syncIntervalSeconds: DEFAULT_SYNC_INTERVAL_SECONDS,
+      //Bookshelves
+      allBookshelves: defaultBookshelves,
+      bookshelvesToDisplay: ["continue-listening", "recently-added", "discover", "listen-again"],
       // Sleep Timer START
       sleepTimeMinutes: 0,
       sleepStartDateTime: undefined,
@@ -83,6 +97,9 @@ export const useSettingsStore = create<SettingsStore>()(
             syncIntervalSeconds: DEFAULT_SYNC_INTERVAL_SECONDS,
           }),
 
+        updateBookshelfDisplay: (newBookshelves) => {
+          set({ bookshelvesToDisplay: newBookshelves });
+        },
         updateSleepTime: (sleepTime) => {
           if (sleepTime < 0) {
             sleepTime = 0;

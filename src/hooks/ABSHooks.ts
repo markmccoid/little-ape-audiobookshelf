@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { sortBy } from "es-toolkit";
 
 import { useEffect, useMemo, useState } from "react";
-import { useSafeAbsAPI } from "../contexts/AuthContext";
+import { useAuth, useSafeAbsAPI } from "../contexts/AuthContext";
 import { useBooksActions } from "../store/store-books";
 import { useSortDirection, useSortedBy } from "../store/store-filters";
 import {
@@ -12,6 +12,12 @@ import {
   ABSGetLibraryItems,
 } from "../utils/AudiobookShelf/absAPIClass";
 import { getAbsAPI, useAbsAPI } from "../utils/AudiobookShelf/absInit";
+import { BookShelfBook } from "../utils/AudiobookShelf/absUtils";
+import {
+  BookShelfIdByKey,
+  defaultBookshelves,
+  DefaultShelfKey,
+} from "../utils/AudiobookShelf/bookshelfTypes";
 import { queryClient } from "../utils/queryClient";
 
 //# ----------------------------------------------
@@ -163,47 +169,53 @@ export const useGetBooks = (searchValue?: string) => {
 //# ----------------------------------------------
 //# useGetBookShelves
 //# ----------------------------------------------
+
 export const useGetBookShelves = () => {
   const absAPI = useSafeAbsAPI();
   const queryClient = useQueryClient();
-  const activeLibraryId = absAPI?.getActiveLibraryId() || null;
+  // const activeLibraryId = absAPI?.getActiveLibraryId() || null;
+  const activeLibraryId = useMemo(() => {
+    return absAPI?.getActiveLibraryId() ?? null;
+  }, []);
   const bookStoreActions = useBooksActions();
+  const { authInfo } = useAuth();
 
-  const { data, isError, ...rest } = useQuery({
+  const query = useQuery({
     queryKey: ["bookShelves", activeLibraryId],
     queryFn: async () => {
+      //# ------------------------------------------------------------------
       if (!absAPI) throw new Error("Not authenticated");
-
-      // Get cached data
-      const cachedData = queryClient.getQueryData<{
-        continueListening: any;
-        discover: any;
-      }>(["bookShelves", activeLibraryId]);
-
       // Fetch new data
-      const newData = await absAPI.getBookShelves();
-
-      // Check if enough time has passed (e.g., 5 minutes)
-      const DISCOVER_REFRESH_INTERVAL = 60 * 60 * 1000; // 60 minutes in ms
-      const lastDiscoverUpdate =
-        queryClient.getQueryState(["bookShelves", activeLibraryId])?.dataUpdatedAt || 0;
-
-      const shouldRefreshDiscover = Date.now() - lastDiscoverUpdate > DISCOVER_REFRESH_INTERVAL;
-
-      // Return combined data: always use fresh continueListening,
-      // conditionally refresh discover
-      return {
-        ...newData,
-        discover: shouldRefreshDiscover
-          ? newData?.discover
-          : cachedData?.discover || newData?.discover,
-      };
+      return await absAPI.getBookShelves();
+      //# ------------------------------------------------------------------
     },
     enabled: !!absAPI && !!activeLibraryId,
-    staleTime: 10000,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000, // Keep cache longer when unmounted
   });
 
-  return { data, isError, ...rest };
+  // derive the default keys from the source-of-truth array (keeps compile-time narrowness)
+  const shelvesToProcess = useMemo(
+    () => defaultBookshelves.map((s) => s.key) as DefaultShelfKey[],
+    []
+  );
+  // small helper to safely add books for a default shelf key
+  const safeAddBooksForDefaultKey = (key: DefaultShelfKey, books?: BookShelfBook[]) => {
+    if (!books || books.length === 0) return;
+    const shelfId = BookShelfIdByKey[key]; // strongly-typed mapping key -> id
+    bookStoreActions.addBooks(authInfo.userId, books, shelfId);
+  };
+  useEffect(() => {
+    if (!query.isSuccess || !query.data || !authInfo.userId) return;
+    // Just fire them off, don't wait
+    // process the known default shelves only
+    for (const shelfKey of shelvesToProcess) {
+      if (!shelfKey) continue;
+      safeAddBooksForDefaultKey(shelfKey, query.data[shelfKey]?.books);
+    }
+  }, [query.isSuccess, query.data, authInfo.userId, shelvesToProcess]);
+
+  return query;
 };
 
 //# ----------------------------------------------

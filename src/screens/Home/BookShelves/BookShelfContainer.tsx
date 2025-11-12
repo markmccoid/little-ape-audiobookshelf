@@ -19,7 +19,7 @@ export type EnhancedBookItem = BookShelfItemType["books"][0] & {
   isCurrentlyLoaded: boolean;
   isPlaying: boolean;
   currentTime: number;
-  shelfId: string;
+  id: string;
   isDownloaded?: boolean; // For future download feature
 };
 type Props = {
@@ -64,11 +64,10 @@ const BookShelfContainer = ({ shelfData, isLoading, isError }: Props) => {
   //# Enhance data with current progress info
 
   // Check if this is the continue-listening shelf that needs real-time progress updates
-  const isContinueListeningShelf = shelfData.shelfId === "continue-listening";
+  const isContinueListeningShelf = shelfData.id === "continue-listening";
 
   const enhancedBooks = useMemo((): EnhancedBookItem[] => {
-    if (!shelfData) return [];
-
+    if (!shelfData?.books) return [];
     return shelfData.books
       .map((book) => {
         const isCurrentlyLoaded = session?.libraryItemId === book.libraryItemId;
@@ -101,7 +100,7 @@ const BookShelfContainer = ({ shelfData, isLoading, isError }: Props) => {
           isCurrentlyLoaded,
           currentTime,
           isPlaying: bookIsPlaying,
-          shelfId: shelfData.shelfId,
+          id: shelfData.id,
         };
       })
       .filter((el: any): el is EnhancedBookItem => el !== undefined);
@@ -150,9 +149,9 @@ const BookShelfContainer = ({ shelfData, isLoading, isError }: Props) => {
       <ScrollView className="flex-1" contentInsetAdjustmentBehavior="automatic">
         <View className="mt-2">
           <View className="flex-row gap-2 px-2">
-            <Text className="text-lg font-bold text-accent">{shelfData.shelfLabel}</Text>
+            <Text className="text-lg font-bold text-accent">{shelfData.label}</Text>
             {/* Does nothing here --- Take out and use in full list of IN PROGRESS */}
-            {shelfData.shelfId === "continue-listening" && (
+            {shelfData.id === "continue-listening" && (
               <Pressable onPress={toggleShowHidden}>
                 {showHidden ? (
                   <SymbolView name="eye" tintColor={themeColors.accent} />

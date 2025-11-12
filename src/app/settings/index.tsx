@@ -1,4 +1,5 @@
 import { useAuth } from "@/src/contexts/AuthContext";
+import { useBooksActions } from "@/src/store/store-books";
 import {
   useSeekBackwardSeconds,
   useSeekForwardSeconds,
@@ -29,7 +30,7 @@ export default function SettingsView() {
   const seekForward = useSeekForwardSeconds();
   const seekBackward = useSeekBackwardSeconds();
   const { isAuthenticated, hasStoredCredentials, authInfo } = useAuth();
-
+  const bookActions = useBooksActions();
   // Format auth info for display
   const displayInfo = {
     absURL: authInfo.serverUrl || (hasStoredCredentials ? "Configured" : "Not configured"),
@@ -187,6 +188,22 @@ export default function SettingsView() {
             <Text size={14}>Airplane Mode</Text>
             <Spacer />
             <Switch value={isAirplaneMode} onValueChange={setIsAirplaneMode} />
+          </HStack>
+          <HStack spacing={4}>
+            <Image
+              systemName="airplane"
+              color="white"
+              size={14}
+              modifiers={[
+                frame({ width: 28, height: 28 }),
+                background("#ffa500"),
+                clipShape("roundedRectangle"),
+              ]}
+            />
+            <Button onPress={() => bookActions.clearBooks()}>
+              <Text size={14}>Clear Books</Text>
+            </Button>
+            <Spacer />
           </HStack>
         </Section>
       </Form>

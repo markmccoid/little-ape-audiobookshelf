@@ -16,6 +16,7 @@ import { Alert, Image } from "react-native";
 import { kv } from "@store/mmkv/mmkv";
 import { Keys } from "@store/mmkv/storageKeys";
 
+import { BookShelfKey } from "@/src/store/store-books";
 import { PitchAlgorithm } from "react-native-track-player";
 import { queryClient } from "../queryClient";
 import { AudiobookshelfAuth } from "./absAuthClass";
@@ -32,7 +33,7 @@ import {
   NetworkError,
   User,
 } from "./abstypes";
-import { buildBookShelf, buildCoverURLSync } from "./absUtils";
+import { BookShelfBook, buildBookShelf, buildCoverURLSync } from "./absUtils";
 
 // Types
 export type FilterType = "genres" | "tags" | "authors" | "series" | "progress";
@@ -528,6 +529,7 @@ export class AudiobookshelfAPI {
       userMediaProgress: libraryItem?.userMediaProgress,
       coverURI: coverURL.coverFull,
       authorBookCount,
+      updatedAt: libraryItem.updatedAt,
       libraryFiles: libraryItem.libraryFiles,
     };
   }
@@ -749,16 +751,39 @@ export class AudiobookshelfAPI {
       this.auth.absURL
     );
 
-    //~ Recently Added Shelf
+    //~ Discover Shelf
     const discoverShelf = resp.find((el): el is BookPersonalizedView => el.id === "discover");
     if (!discoverShelf) return;
     const discover = buildBookShelf<BookPersonalizedView>(discoverShelf, token, this.auth.absURL);
 
-    const recentSeries = resp.find((el): el is SeriesPersonalizedView => el.id === "recent-series");
-    const listenAgain = resp.find((el): el is BookPersonalizedView => el.id === "listen-again");
-    // const recommended = resp.find((el) => el.id === "recommended");
+    //~ Listen Again Shelf
+    const listenAgainShelf = resp.find(
+      (el): el is BookPersonalizedView => el.id === "listen-again"
+    );
+    if (!listenAgainShelf) return;
+    const listenAgain = buildBookShelf<BookPersonalizedView>(
+      listenAgainShelf,
+      token,
+      this.auth.absURL
+    );
 
-    return { continueListening, recentSeries, recentlyAdded, discover, listenAgain };
+    const recentSeries = resp.find((el): el is SeriesPersonalizedView => el.id === "recent-series");
+
+    type Shelf = {
+      books: BookShelfBook[];
+      shelfId: string;
+      shelfLabel: string;
+    };
+
+    const shelves: Partial<Record<BookShelfKey, Shelf>> = {
+      ...(continueListening ? { continueListening } : {}),
+      ...(recentlyAdded ? { recentlyAdded } : {}),
+      ...(discover ? { discover } : {}),
+      ...(listenAgain ? { listenAgain } : {}),
+    };
+
+    // return { continueListening, recentSeries, recentlyAdded, discover, listenAgain } ;
+    return { ...shelves };
   }
 
   //## -------------------------------------

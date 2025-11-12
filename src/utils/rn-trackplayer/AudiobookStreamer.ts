@@ -756,7 +756,7 @@ export default class AudiobookStreamer {
       }
 
       const { sessionId, timeListened, currentTime } = item.data;
-      
+
       try {
         await this.apiClient.syncProgressToServer(sessionId!, {
           timeListened: timeListened!,
@@ -785,7 +785,7 @@ export default class AudiobookStreamer {
     // Check if we have internet connectivity
     const networkState = await NetInfo.fetch();
     const isConnected = networkState.isConnected && networkState.isInternetReachable !== false;
-    
+
     if (!isConnected) {
       console.log("Cannot process queue - still offline");
       return;

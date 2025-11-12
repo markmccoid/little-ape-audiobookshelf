@@ -1,4 +1,3 @@
-import type { AudiobookshelfAPI } from "@/src/utils/AudiobookShelf/absAPIClass";
 import { getAbsAPI, getAbsAuth } from "@/src/utils/AudiobookShelf/absInit";
 import type { AudiobookSession } from "@/src/utils/AudiobookShelf/abstypes";
 import { NetworkError } from "@/src/utils/AudiobookShelf/abstypes";
@@ -55,7 +54,7 @@ interface PlaybackState {
 
 interface PlaybackActions {
   // Initialization
-  init: (serverUrl: string, api: AudiobookshelfAPI) => Promise<void>;
+  // init: (serverUrl: string, api: AudiobookshelfAPI) => Promise<void>;
   initFromABS: () => Promise<void>;
   bindEvents: () => void;
 
@@ -106,15 +105,15 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
 
   // ---- Actions
   actions: {
-    init: async (serverUrl: string, api: AudiobookshelfAPI) => {
-      if (!playerInitialized) {
-        await trackPlayerInit().catch(() => {});
-        playerInitialized = true;
-      }
-      // Use singleton pattern with default sync interval
-      const syncInterval = 5; // Default value, could be parameterized
-      AudiobookStreamer.getInstance(serverUrl, api, syncInterval);
-    },
+    // init: async (serverUrl: string, api: AudiobookshelfAPI) => {
+    //   if (!playerInitialized) {
+    //     await trackPlayerInit().catch(() => {});
+    //     playerInitialized = true;
+    //   }
+    //   // Use singleton pattern with default sync interval
+    //   const syncInterval = 5; // Default value, could be parameterized
+    //   AudiobookStreamer.getInstance(serverUrl, api, syncInterval);
+    // },
 
     initFromABS: async () => {
       if (!playerInitialized) {
@@ -127,7 +126,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
         // const { getAbsAuth, getAbsAPI } = require("@/src/ABS/absInit");
         const absAuth = getAbsAuth();
         const absAPI = getAbsAPI();
-        const syncInterval = 5; // Default value, could use settings hook here
+        const syncInterval = 60; // Default value, could use settings hook here
         AudiobookStreamer.getInstance(absAuth.absURL, absAPI, syncInterval);
       } catch (error) {
         console.error("Failed to initialize from ABS - auth not available:", error);
