@@ -518,7 +518,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       const queue = await TrackPlayer.getQueue();
 
       if (trackIndex === undefined) return;
-      console.log("NEXT", queue.length, queue[trackIndex]?.chapters);
+
       if (queue.length === 1 && queue[trackIndex].chapters.length === 0) return;
 
       const currentTrack = queue[trackIndex] as ABSQueuedTrack;
