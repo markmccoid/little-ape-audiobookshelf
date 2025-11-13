@@ -113,54 +113,24 @@ const BookShelfItem = React.memo<BookShelfItemProps>(
               <Image source={item.coverURI} style={{ width: "100%", height: "100%" }} />
             </Link.Preview>
             <Link.Menu>
-              <>
-                <Link.MenuAction
-                  title={item.isPlaying ? "Pause" : "Play"}
-                  onPress={playPause}
-                  icon={item.isPlaying ? "pause" : "play"}
-                />
-                <Link.MenuAction
-                  title="Mark as Finished"
-                  onPress={() => absAPI?.setBookFinished(item.libraryItemId, true)}
-                  icon="flag"
-                />
-                <Link.MenuAction
-                  title="Mark as Unfinished"
-                  onPress={() => absAPI?.setBookFinished(item.libraryItemId, false)}
-                  icon="flag.slash"
-                />
-              </>
-              {isPlayable ? (
-                <>
-                  <Link.MenuAction
-                    title={item.isPlaying ? "Pause" : "Play"}
-                    onPress={playPause}
-                    icon={item.isPlaying ? "pause" : "play"}
-                  />
-                  <Link.MenuAction
-                    title="Mark as Finished"
-                    onPress={() => absAPI?.setBookFinished(item.libraryItemId, true)}
-                    icon="flag"
-                  />
-                  <Link.MenuAction
-                    title="Mark as Unfinished"
-                    onPress={() => absAPI?.setBookFinished(item.libraryItemId, false)}
-                    icon="flag.slash"
-                  />
-                </>
-              ) : (
-                <Link.MenuAction
-                  title="Offline - Book Unavailable"
-                  onPress={() => {
-                    Alert.alert(
-                      "Offline",
-                      "You're offline. This book requires an internet connection.\n\nDownload feature coming soon!",
-                      [{ text: "OK" }]
-                    );
-                  }}
-                  icon="wifi.slash"
-                />
-              )}
+              <Link.MenuAction
+                title={item.isPlaying ? "Pause" : "Play"}
+                onPress={playPause}
+                disabled={!isPlayable}
+                icon={item.isPlaying ? "pause" : "play"}
+              />
+              <Link.MenuAction
+                title="Mark as Finished"
+                onPress={() => absAPI?.setBookFinished(item.libraryItemId, true)}
+                disabled={!isPlayable}
+                icon="flag"
+              />
+              <Link.MenuAction
+                title="Mark as Unfinished"
+                onPress={() => absAPI?.setBookFinished(item.libraryItemId, false)}
+                disabled={!isPlayable}
+                icon="flag.slash"
+              />
             </Link.Menu>
           </Link>
         </View>

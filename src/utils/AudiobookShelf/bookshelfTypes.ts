@@ -1,16 +1,21 @@
 // 1) source of truth
 export const defaultBookshelves = [
-  { id: "continue-listening", key: "continueListening", label: "Continue Listening" },
-  { id: "recently-added", key: "recentlyAdded", label: "Recently Added" },
-  { id: "discover", key: "discover", label: "Discover" },
-  { id: "listen-again", key: "listenAgain", label: "Listen Again" },
+  { id: "continue-listening", key: "continueListening", label: "Continue Listening", type: "ABS" },
+  { id: "recently-added", key: "recentlyAdded", label: "Recently Added", type: "ABS" },
+  { id: "discover", key: "discover", label: "Discover", type: "ABS" },
+  { id: "listen-again", key: "listenAgain", label: "Listen Again", type: "ABS" },
 ] as const;
 
 export type ABookShelf = (typeof defaultBookshelves)[number];
 export type DefaultShelfId = ABookShelf["id"];
 export type DefaultShelfKey = ABookShelf["key"];
 // runtime/general shapes
-export type CustomBookShelf = { id: string; key: string; label: string };
+export type CustomBookShelf = {
+  id: string;
+  key: string;
+  label: string;
+  type: "downloaded" | "custom";
+};
 // union used inside the store
 export type BookShelf = ABookShelf | CustomBookShelf;
 

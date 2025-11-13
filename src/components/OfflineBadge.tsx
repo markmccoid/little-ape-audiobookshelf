@@ -26,7 +26,7 @@ export const OfflineBadge: React.FC<OfflineBadgeProps> = ({ isVisible, style }) 
 const styles = StyleSheet.create({
   badge: {
     position: "absolute",
-    bottom: 0,
+    top: 0,
     left: 0,
     right: 0,
     backgroundColor: "rgba(0, 0, 0, 0.75)",

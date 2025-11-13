@@ -1,6 +1,6 @@
 import { getAbsAPI, getAbsAuth } from "@/src/utils/AudiobookShelf/absInit";
 import type { AudiobookSession } from "@/src/utils/AudiobookShelf/abstypes";
-import { NetworkError } from "@/src/utils/AudiobookShelf/abstypes";
+import { Chapter, NetworkError } from "@/src/utils/AudiobookShelf/abstypes";
 import { checkIsOnline } from "@/src/utils/networkHelper";
 import AudiobookStreamer from "@/src/utils/rn-trackplayer/AudiobookStreamer";
 import { trackPlayerInit } from "@/src/utils/rn-trackplayer/rn-trackplayerInit";
@@ -516,27 +516,33 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
     next: async () => {
       const trackIndex = await TrackPlayer.getActiveTrackIndex();
       const queue = await TrackPlayer.getQueue();
-      // const { currentTrack, currentChapterIndex } = get();
-      //! NO CHAPTERS YET Need to determine if we are moving to the next track or the next chapter
-      //! the Queue has tracks in it and each track may or may NOT have chapters.
-      // let moveToAction = "track";
-      // let nextChapter = {} as Chapter;
 
-      // if (currentTrack?.chapters?.length > 0) {
-      //   if (currentTrack?.chapters?.length - 1 !== currentChapterIndex) {
-      //     moveToAction = "chapter";
-      //     nextChapter = currentTrack.chapters[currentChapterIndex + 1];
-      //   }
-      // }
+      if (trackIndex === undefined) return;
+      console.log("NEXT", queue.length, queue[trackIndex]?.chapters);
+      if (queue.length === 1 && queue[trackIndex].chapters.length === 0) return;
+
+      const currentTrack = queue[trackIndex] as ABSQueuedTrack;
+      const { currentChapterIndex = 0 } = get();
+
+      let moveToAction = "track";
+      let nextChapter = {} as Chapter;
+
+      if (currentTrack?.chapters && currentTrack?.chapters?.length > 0) {
+        if (currentTrack?.chapters?.length - 1 !== currentChapterIndex) {
+          moveToAction = "chapter";
+          nextChapter = currentTrack.chapters[currentChapterIndex + 1];
+        }
+      }
       // // console.log("NEXT Chapt", nextChapter);
       // // console.log("movetoaction", moveToAction, currentTrack?.chapters?.length, currentChapterIndex);
-      // if (moveToAction === "chapter") {
-      //   await TrackPlayer.seekTo(nextChapter.startSeconds);
-      //   return;
-      // }
+      if (moveToAction === "chapter") {
+        await get().actions.seekTo(nextChapter.start);
+        return;
+      }
       // Check if we are on the last track of the queue
       // If so, go to first track and pause
       //!! If only one track we should give option to go to next or at least don't do anything.
+
       if (queue.length - 1 === trackIndex) {
         await TrackPlayer.skip(0);
         await TrackPlayer.pause();
@@ -548,24 +554,27 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
     prev: async () => {
       const trackIndex = await TrackPlayer.getActiveTrackIndex();
       const queue = await TrackPlayer.getQueue();
-      // const { currentTrack, currentChapterIndex } = get();
-      //!! NO CHAPTERS YET Need to determine if we are moving to the next track or the next chapter
+
+      if (trackIndex === undefined) return;
+
+      const currentTrack = queue[trackIndex] as ABSQueuedTrack;
+      const { currentChapterIndex = 0 } = get();
+
       // the Queue has tracks in it and each track may or may NOT have chapters.
       let moveToAction = "track";
-      // let prevChapter = {} as Chapter;
+      let prevChapter = {} as Chapter;
 
-      // if (currentTrack?.chapters?.length > 0) {
-      //   if (currentChapterIndex !== 0) {
-      //     moveToAction = "chapter";
-      //     prevChapter = currentTrack.chapters[currentChapterIndex - 1];
-      //   }
-      // }
-      // console.log("PREV Chapt", prevChapter);
+      if (currentTrack?.chapters && currentTrack?.chapters?.length > 0) {
+        if (currentChapterIndex !== 0) {
+          moveToAction = "chapter";
+          prevChapter = currentTrack.chapters[currentChapterIndex - 1];
+        }
+      }
 
-      // if (moveToAction === "chapter") {
-      //   await TrackPlayer.seekTo(prevChapter.startSeconds);
-      //   return;
-      // }
+      if (moveToAction === "chapter") {
+        await get().actions.seekTo(prevChapter.start);
+        return;
+      }
 
       if (trackIndex === 0) {
         await TrackPlayer.seekTo(0);

@@ -7,6 +7,7 @@ import {
 import { useSeekBackwardSeconds, useSeekForwardSeconds } from "@/src/store/store-settings";
 import { THEME, useThemeColors } from "@/src/utils/theme";
 import { SymbolView } from "expo-symbols";
+import { PressableScale } from "pressto";
 import React from "react";
 import { Pressable, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
@@ -16,7 +17,7 @@ type Props = {
   libraryItemId: string;
 };
 const BookControls = ({ libraryItemId }: Props) => {
-  const { jumpForwardSeconds, jumpBackwardSeconds, togglePlayPause, loadBookAndPlay } =
+  const { jumpForwardSeconds, jumpBackwardSeconds, togglePlayPause, loadBookAndPlay, next, prev } =
     usePlaybackActions();
   const themeColors = useThemeColors();
   const seekForward = useSeekForwardSeconds();
@@ -43,7 +44,9 @@ const BookControls = ({ libraryItemId }: Props) => {
         className="flex-row rounded-2xl overflow-hidden justify-center"
         // style={{ width: 200 }}
       > */}
-
+        <PressableScale onPress={prev}>
+          <SymbolView name="chevron.compact.backward" size={50} tintColor={THEME.light.accent} />
+        </PressableScale>
         <Animated.View style={[]}>
           <Pressable
             onPress={() => jumpBackwardSeconds(seekBackward)}
@@ -92,7 +95,9 @@ const BookControls = ({ libraryItemId }: Props) => {
             />
           </Pressable>
         </Animated.View>
-
+        <PressableScale onPress={async () => await next()}>
+          <SymbolView name="chevron.compact.forward" size={50} tintColor={THEME.light.accent} />
+        </PressableScale>
         {/* </AnimatedBlurView> */}
       </Animated.View>
     </View>

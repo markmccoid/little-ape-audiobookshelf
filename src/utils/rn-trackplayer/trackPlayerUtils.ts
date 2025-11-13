@@ -1,17 +1,18 @@
+import { Chapter } from "@/src/utils/AudiobookShelf/abstypes";
 import TrackPlayer, { State } from "react-native-track-player";
 
-export type Chapter = {
-  id: number;
-  title: string;
-  // start position in seconds
-  start: number;
-  // end position in seconds
-  end: number;
-  // durationSeconds: number;
-  // startMilliSeconds?: number;
-  // endMilliSeconds?: number;
-  // lengthMilliSeconds?: number;
-};
+// export type Chapter = {
+//   id: number;
+//   title: string;
+//   // start position in seconds
+//   start: number;
+//   // end position in seconds
+//   end: number;
+//   // durationSeconds: number;
+//   // startMilliSeconds?: number;
+//   // endMilliSeconds?: number;
+//   // lengthMilliSeconds?: number;
+// };
 
 type Params = { chapters: Chapter[]; position: number };
 
