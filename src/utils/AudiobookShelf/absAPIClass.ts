@@ -16,7 +16,7 @@ import { Alert, Image } from "react-native";
 import { kv } from "@store/mmkv/mmkv";
 import { Keys } from "@store/mmkv/storageKeys";
 
-import { BookShelfKey } from "@/src/store/store-books";
+import { DefaultShelfKey } from "@/src/utils/AudiobookShelf/bookshelfTypes";
 import { PitchAlgorithm } from "react-native-track-player";
 import { queryClient } from "../queryClient";
 import { AudiobookshelfAuth } from "./absAuthClass";
@@ -291,10 +291,10 @@ export class AudiobookshelfAPI {
   //## -------------------------------------
   //## saveBookmark
   //## -------------------------------------
-  async saveBookmark(bookmark: Bookmark) {
-    const { absBookId: itemId, positionSeconds, name } = bookmark;
-    const data = { time: positionSeconds, title: name };
-    return this.makeAuthenticatedRequest(`/api/me/item/${itemId}/bookmark`, {
+  async saveBookmark(libraryItemId: string, bookmark: Bookmark) {
+    const { time, title } = bookmark;
+    const data = { time, title };
+    return this.makeAuthenticatedRequest(`/api/me/item/${libraryItemId}/bookmark`, {
       method: "POST",
       data: JSON.stringify(data),
     });
@@ -775,7 +775,7 @@ export class AudiobookshelfAPI {
       shelfLabel: string;
     };
 
-    const shelves: Partial<Record<BookShelfKey, Shelf>> = {
+    const shelves: Partial<Record<DefaultShelfKey, Shelf>> = {
       ...(continueListening ? { continueListening } : {}),
       ...(recentlyAdded ? { recentlyAdded } : {}),
       ...(discover ? { discover } : {}),

@@ -91,9 +91,9 @@ export interface Bookmark {
   time: number;
   title: string;
   createdAt: number;
-  absBookId?: string;
-  positionSeconds?: number;
-  name?: string;
+  // absBookId?: string;
+  // positionSeconds?: number;
+  // name?: string;
 }
 
 export interface User {

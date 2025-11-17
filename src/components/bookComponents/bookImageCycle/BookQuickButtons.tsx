@@ -25,17 +25,17 @@ const BookQuickButtons = ({ pagerRef }: BookQuickButtonsProps) => {
         <SymbolView name="house" tintColor={THEME.light.accent} size={35} />
       </PressableScale>
       <PressableScale onPress={() => pagerRef?.current?.setPage(1)}>
+        <SymbolView name="hare.fill" tintColor={THEME.light.accent} size={35} />
+      </PressableScale>
+      <PressableScale onPress={() => pagerRef?.current?.setPage(2)}>
+        <SymbolView name="bookmark.fill" tintColor={THEME.light.accent} size={35} />
+      </PressableScale>
+      <PressableScale onPress={() => pagerRef?.current?.setPage(3)}>
         <SymbolView
           name="list.bullet.rectangle.portrait.fill"
           tintColor={THEME.light.accent}
           size={35}
         />
-      </PressableScale>
-      <PressableScale onPress={() => pagerRef?.current?.setPage(2)}>
-        <SymbolView name="hare.fill" tintColor={THEME.light.accent} size={35} />
-      </PressableScale>
-      <PressableScale onPress={() => pagerRef?.current?.setPage(3)}>
-        <SymbolView name="bookmark.fill" tintColor={THEME.light.accent} size={35} />
       </PressableScale>
 
       {/* <SymbolView name="house" tintColor={themeColors.accent} size={35} /> */}

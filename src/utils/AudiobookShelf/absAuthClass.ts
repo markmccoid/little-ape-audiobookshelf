@@ -135,11 +135,11 @@ export class AudiobookshelfAuth {
     try {
       const networkState = await NetInfo.fetch();
       const isConnected = networkState.isConnected && networkState.isInternetReachable !== false;
-      
+
       if (!isConnected) {
         console.warn("No internet connection available");
       }
-      
+
       return isConnected;
     } catch (error) {
       console.error("Error checking network connection:", error);
@@ -168,7 +168,8 @@ export class AudiobookshelfAuth {
         },
         body: JSON.stringify(credentials),
       });
-      console.log("login resp", credentials, response);
+
+      // console.log("login resp", credentials, response);
       if (!response.ok) {
         if (response.status === 401) {
           throw new AuthenticationError("Invalid username or password");
@@ -234,8 +235,9 @@ export class AudiobookshelfAuth {
 
       if (!response.ok) {
         // Token refresh failed - attempt automatic re-authentication with stored credentials
-        const storedCredentials = this.credentials || await AudiobookshelfAuth.getStoredCredentials();
-        
+        const storedCredentials =
+          this.credentials || (await AudiobookshelfAuth.getStoredCredentials());
+
         if (storedCredentials) {
           console.log("Token refresh failed, attempting automatic re-authentication...");
           try {
@@ -248,7 +250,9 @@ export class AudiobookshelfAuth {
             // Only clear tokens but keep credentials for manual retry
             await this.clearTokens(false);
             AudiobookshelfAuth.reset();
-            throw new AuthenticationError("Session expired. Automatic re-login failed. Please login again.");
+            throw new AuthenticationError(
+              "Session expired. Automatic re-login failed. Please login again."
+            );
           }
         } else {
           // No stored credentials, can't auto re-authenticate
@@ -298,7 +302,7 @@ export class AudiobookshelfAuth {
         return token;
       } catch (error) {
         this.retryCount = attempt + 1;
-        
+
         // If this was the last attempt, or if it's an auth error (not network), don't retry
         if (attempt === this.maxRetries || error instanceof AuthenticationError) {
           console.error(`Token refresh failed after ${attempt + 1} attempts`);
@@ -310,12 +314,12 @@ export class AudiobookshelfAuth {
         // Calculate exponential backoff delay
         const delayMs = this.baseRetryDelayMs * Math.pow(2, attempt);
         console.log(`Token refresh attempt ${attempt + 1} failed, retrying in ${delayMs}ms...`);
-        
+
         // Wait before retrying
-        await new Promise(resolve => setTimeout(resolve, delayMs));
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
       }
     }
-    
+
     return null;
   }
 
@@ -423,7 +427,7 @@ export class AudiobookshelfAuth {
     this.userEmail = undefined;
     this.userId = undefined;
     await SecureStore.deleteItemAsync(AudiobookshelfAuth.USERINFO_KEY);
-    
+
     // Only clear credentials on explicit logout
     if (clearCredentials) {
       this.credentials = null;

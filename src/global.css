@@ -15,6 +15,7 @@
   --destructive: #ef4444;
   --success: #22c55e;
   --warning: #f97316;
+  --radius: 10;
 }
 
  @media (prefers-color-scheme: dark) {
@@ -30,5 +31,6 @@
       --destructive: #f87171;
       --success: #4ade80;
       --warning: #fb923c;
+      --radius: 10;
   }
 }

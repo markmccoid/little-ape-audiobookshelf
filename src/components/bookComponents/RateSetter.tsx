@@ -166,13 +166,14 @@ export default function RateSetter() {
 
       <GestureDetector gesture={pan}>
         <Animated.View
-          className="w-50 h-50 rounded-full justify-center items-center shadow-lg"
+          className="w-[55] h-50 justify-center items-center shadow-lg bg-white rounded-r-full"
           style={animatedStyle}
         >
           <SymbolView
             name="hare.circle.fill"
             size={45}
             type="palette"
+            style={{ marginLeft: 10 }}
             colors={[themeColors.accent, "white"]}
           />
         </Animated.View>

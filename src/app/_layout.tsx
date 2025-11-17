@@ -15,6 +15,7 @@ import { AuthProvider, useAuth } from "../contexts/AuthContext";
 import { NetworkProvider } from "../contexts/NetworkContext";
 import "../global.css";
 import "../lib/polyfills";
+import { storeInit } from "../store/storeInit";
 import { absInitalize } from "../utils/AudiobookShelf/absInit";
 import { queryClient } from "../utils/queryClient";
 import { trackPlayerInit } from "../utils/rn-trackplayer/rn-trackplayerInit";
@@ -29,7 +30,7 @@ export const unstable_settings = {
 };
 
 function AppContent() {
-  const { colorScheme, setColorScheme } = useColorScheme();
+  // const { colorScheme, setColorScheme } = useColorScheme();
   let [isReady, setIsReady] = useState(false);
   const router = useRouter();
   const { hasStoredCredentials, checkAuthStatus } = useAuth();
@@ -47,6 +48,9 @@ function AppContent() {
       const initSuccess = await absInitalize(queryClient);
       if (!initSuccess) {
         console.log("NO SUCCESS FOR YOU");
+      } else {
+        console.log("before storeInit");
+        await storeInit();
       }
       // Refresh auth status after initialization attempt
       await checkAuthStatus();

@@ -3,7 +3,7 @@ export default {
   expo: {
     name: "laabs",
     slug: "laabs",
-    version: "1.1.6",
+    version: "1.1.7",
     orientation: "portrait",
     icon: "./assets/LAABABS-Icon.icon",
     scheme: "laabs",

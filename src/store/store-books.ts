@@ -1,7 +1,8 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { immer } from "zustand/middleware/immer";
 import { getAbsAPI } from "../utils/AudiobookShelf/absInit";
-import { Author } from "../utils/AudiobookShelf/abstypes";
+import { Author, Bookmark } from "../utils/AudiobookShelf/abstypes";
 import { BookShelfBook, BookShelfItemType } from "../utils/AudiobookShelf/absUtils";
 import {
   BookShelfKeyById,
@@ -67,9 +68,23 @@ export type Book = {
   type: "bookshelf" | "downloaded" | "temporary";
 };
 
+// export type SavedBookMark = {
+//   time: number;
+//   title: string;
+//   createdAt: number;
+// };
+type BookInfoRecord = {
+  bookmarks: Omit<Bookmark, "libraryItemId">[];
+};
+type LibraryItemId = string;
+export type BookInfo = Record<LibraryItemId, BookInfoRecord>;
+
 // Define the state interface
 interface BooksState {
+  // Holds the base information about a book needed to display the book
   books: Book[];
+  // Holds additional information -- Bookkmarks
+  bookInfo: BookInfo;
   bookshelves: BookShelves;
 }
 
@@ -82,6 +97,11 @@ interface BooksActions {
   addBooks: (userId: string, books: BookShelfBook[], bookshelfId: DefaultShelfId) => Promise<void>;
   clearBooks: () => void;
   getBook: (libraryItemId: string) => Book | undefined;
+  addBookmark: (
+    libraryItemId: string,
+    { time, title }: Pick<Bookmark, "time" | "title">
+  ) => Promise<void>;
+  deleteBookmark: (LibraryItemId: string, time: number) => Promise<void>;
   updateBookPlaybackRate: (libraryItemId: string, speed: number) => void;
   updateIsDownloaded: (libraryItemId: string, isDownloaded: boolean) => void;
   updateCurrentPosition: (libraryItemId: string, position: number, duration?: number) => void;
@@ -98,9 +118,10 @@ const DEFAULT_BOOKS: Book[] = [];
 // Create the store (not exported directly - following best practices)
 export const useBooksStore = create<BooksStore>()(
   persist(
-    (set, get) => ({
+    immer((set, get) => ({
       // State
       books: DEFAULT_BOOKS,
+      bookInfo: {},
       bookshelves: undefined,
       // Actions grouped in a separate namespace
       actions: {
@@ -123,6 +144,69 @@ export const useBooksStore = create<BooksStore>()(
         getBook: (libraryItemId: string) => {
           const state = get();
           return state.books.find((book) => book.libraryItemId === libraryItemId);
+        },
+
+        addBookmark: async (libraryItemId, { time, title }) => {
+          const absAPI = getAbsAPI();
+          const currentBookInfo = get().bookInfo;
+          // Ensure the libraryItemId entry exists
+          const existingRecord = currentBookInfo?.[libraryItemId]?.bookmarks
+            ? currentBookInfo?.[libraryItemId]
+            : { bookmarks: [] };
+          const existingBookmarks = existingRecord.bookmarks;
+
+          // Check if a bookmark with the same time already exists
+          const bookmarkExists = existingBookmarks.some((b) => b.time === time);
+
+          let updatedBookmarks: typeof existingBookmarks;
+
+          const newBookmark = { time, title, createdAt: Date.now() };
+          if (bookmarkExists) {
+            // Overwrite: replace the bookmark with the same time
+            updatedBookmarks = existingBookmarks.map((b) => (b.time === time ? newBookmark : b));
+          } else {
+            // Add new bookmark
+            updatedBookmarks = [...existingBookmarks, newBookmark];
+          }
+
+          // Update state immutably
+          set({
+            bookInfo: {
+              ...currentBookInfo,
+              [libraryItemId]: {
+                bookmarks: updatedBookmarks,
+              },
+            },
+          });
+
+          //~ Post to ABS database
+          try {
+            absAPI.saveBookmark(libraryItemId, newBookmark);
+          } catch (e) {
+            console.log("Error saving Bookmark", e);
+          }
+        },
+
+        deleteBookmark: async (libraryItemId, time) => {
+          const absAPI = getAbsAPI();
+
+          // Update state optimistically FIRST
+          set((state) => {
+            const bookmarks = state.bookInfo?.[libraryItemId]?.bookmarks;
+            if (bookmarks) {
+              state.bookInfo[libraryItemId].bookmarks = bookmarks.filter(
+                (bookmark: Omit<Bookmark, "libraryItemId">) => bookmark.time !== time
+              );
+            }
+          });
+
+          // Then make the API call
+          try {
+            await absAPI.deleteBookmark(libraryItemId, time);
+          } catch (error) {
+            // Optionally: rollback or handle error
+            console.error("Failed to delete bookmark:", error);
+          }
         },
 
         updateBookPlaybackRate: (libraryItemId: string, speed: number) => {
@@ -165,7 +249,7 @@ export const useBooksStore = create<BooksStore>()(
                 ];
               }
             }
-            const foundBook = storeBooks.find((el) => el.libraryItemId === liveBook.libraryItemId);
+            let foundBook = storeBooks.find((el) => el.libraryItemId === liveBook.libraryItemId);
             if (foundBook) {
               //! Add the bookshelf type (merge with existing types)
               // Using Set so that we don't get dups.
@@ -299,10 +383,10 @@ export const useBooksStore = create<BooksStore>()(
               books: [...s.books.filter((b) => b.libraryItemId !== libraryItemId), updated],
             }));
 
-            console.log(
-              `[BooksStore] Background refresh complete: ${libraryItemId}`,
-              itemDetails?.media?.tags
-            );
+            // console.log(
+            //   `[BooksStore] Background refresh complete: ${libraryItemId}`,
+            //   itemDetails?.media?.tags
+            // );
           } catch (err) {
             console.warn(`[BooksStore] Background refresh failed: ${libraryItemId}`, err);
           }
@@ -333,13 +417,15 @@ export const useBooksStore = create<BooksStore>()(
           const updatedBook = get().books.find((b) => b.libraryItemId === libraryItemId);
         },
       },
-    }),
+    })),
     {
       name: "books-storage", // Storage key
       storage: createJSONStorage(() => mmkvStorage),
       // Persist the entire books array
       partialize: (state) => ({
         books: state.books,
+        bookInfo: state.bookInfo,
+        bookshelves: state.bookshelves,
       }),
     }
   )

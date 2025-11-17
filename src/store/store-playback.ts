@@ -26,10 +26,6 @@ let eventsBound = false;
 let playerInitialized = false;
 const listeners: { remove: () => void }[] = [];
 
-// Throttling for books store updates
-let lastBookStoreUpdate = 0;
-const BOOK_STORE_UPDATE_INTERVAL = 10000; // 10 seconds
-
 // ---- Store Types
 type PlaybackAudioBookSession = AudiobookSession & {
   coverURL: string;
@@ -126,7 +122,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
         // const { getAbsAuth, getAbsAPI } = require("@/src/ABS/absInit");
         const absAuth = getAbsAuth();
         const absAPI = getAbsAPI();
-        const syncInterval = 60; // Default value, could use settings hook here
+        const syncInterval = 60 * 5; // Default value, could use settings hook here
         AudiobookStreamer.getInstance(absAuth.absURL, absAPI, syncInterval);
       } catch (error) {
         console.error("Failed to initialize from ABS - auth not available:", error);

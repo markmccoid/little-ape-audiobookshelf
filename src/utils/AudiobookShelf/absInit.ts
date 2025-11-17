@@ -80,7 +80,6 @@ export const absInitalize = async (queryClient?: QueryClient) => {
       console.log("PREWARM Book Cache Error", e);
     }
   }
-
   return true;
 };
 
