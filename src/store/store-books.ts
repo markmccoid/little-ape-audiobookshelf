@@ -46,7 +46,7 @@ export type Book = {
   isDownloaded: boolean;
   downloadProgress?: number; // 0-100, for future download UI
   localPath?: string; // Local file path for downloaded books
-  currentPosition: number;
+  // currentPosition: number;
   lastProgressUpdate: number | undefined; // date that progress was last update.  Use to sort in Continue Listening
   duration?: number;
   lastUpdated?: number;
@@ -73,8 +73,13 @@ export type Book = {
 //   title: string;
 //   createdAt: number;
 // };
+type PositionInformation = {
+  currentPosition: number;
+  lastProgressUpdate: number | undefined;
+};
 type BookInfoRecord = {
   bookmarks: Omit<Bookmark, "libraryItemId">[];
+  positionInfo: PositionInformation;
 };
 type LibraryItemId = string;
 export type BookInfo = Record<LibraryItemId, BookInfoRecord>;
@@ -139,7 +144,7 @@ export const useBooksStore = create<BooksStore>()(
             books: state.books.filter((book) => book.libraryItemId !== libraryItemId),
           })),
 
-        clearBooks: () => set({ books: DEFAULT_BOOKS }),
+        clearBooks: () => set({ books: DEFAULT_BOOKS, bookInfo: {} }),
 
         getBook: (libraryItemId: string) => {
           const state = get();
@@ -169,15 +174,14 @@ export const useBooksStore = create<BooksStore>()(
             updatedBookmarks = [...existingBookmarks, newBookmark];
           }
 
-          // Update state immutably
-          set({
-            bookInfo: {
-              ...currentBookInfo,
-              [libraryItemId]: {
-                bookmarks: updatedBookmarks,
-              },
-            },
+          // Update state immer syntax
+          set((state) => {
+            state.bookInfo[libraryItemId].bookmarks = updatedBookmarks;
           });
+          // Update state immutably
+          // set({
+          //   bookInfo: { ...currentBookInfo, [libraryItemId]: { bookmarks: updatedBookmarks } },
+          // });
 
           //~ Post to ABS database
           try {
@@ -228,35 +232,13 @@ export const useBooksStore = create<BooksStore>()(
         //! -- ADD BOOKS for BookShelves
         addBooks: async (userId, books, bookshelfId) => {
           const storeBooks = get().books;
-          const storeBookIdsForType = new Set(
-            storeBooks
-              .filter((el) => el.bookShelfTypes?.includes(bookshelfId))
-              .map((item) => item.libraryItemId)
-          );
 
           let libItemIdsToFetch = [];
-          // Loop through user's personalized feed that is sent
+          // Loop through user's personalized feed that is sent (Continue Listening, Recently Added, etc)
           for (let liveBook of books) {
-            //~ Remove any books from bookshelf that no longer exist in live shelf
-            if (!storeBookIdsForType.has(liveBook.libraryItemId)) {
-              const bookToRemove = storeBooks.find(
-                (el) => el.libraryItemId === liveBook.libraryItemId
-              );
-              // update book and remove the type
-              if (bookToRemove) {
-                bookToRemove.bookShelfTypes = [
-                  ...(bookToRemove.bookShelfTypes || []).filter((el) => el === bookshelfId),
-                ];
-              }
-            }
+            // If we don't have the book in our local store-books, then queue it up to load.
             let foundBook = storeBooks.find((el) => el.libraryItemId === liveBook.libraryItemId);
-            if (foundBook) {
-              //! Add the bookshelf type (merge with existing types)
-              // Using Set so that we don't get dups.
-              const currTypes = new Set(foundBook.bookShelfTypes);
-              currTypes.add(bookshelfId);
-              foundBook.bookShelfTypes = [...currTypes];
-            } else {
+            if (!foundBook) {
               libItemIdsToFetch.push(liveBook.libraryItemId);
             }
           }
@@ -268,10 +250,13 @@ export const useBooksStore = create<BooksStore>()(
           );
 
           //!! Update the bookshelves key
+          // NOTE: This function receives and array of books for a specific shelf
+          // This is adding those books (libraryItemId(s)) to the shelf
           const bookshelves = get().bookshelves || {};
           const booksForShelf = books.map((el) => el.libraryItemId);
           const updatedBookshelves = {
             ...bookshelves,
+            // plucks out continueListening, rencentlyAdded, etc from our helpers
             [BookShelfKeyById[bookshelfId]]: booksForShelf,
           } as BookShelves;
           set({ bookshelves: updatedBookshelves });
@@ -292,7 +277,7 @@ export const useBooksStore = create<BooksStore>()(
             libraryItemId,
             playbackRate: 1,
             isDownloaded: false,
-            currentPosition: 0,
+            // currentPosition: 0,
             duration: 0,
             lastUpdated: now,
             lastProgressUpdate: undefined,
@@ -355,11 +340,11 @@ export const useBooksStore = create<BooksStore>()(
                 ? chapterFallback
                 : absLoadedChapters;
             // create a new book record or update an existing one
-            console.log(
-              "--getOrFetchBook--",
-              itemDetails?.media.metadata.title,
-              itemDetails.userMediaProgress?.lastUpdate
-            );
+            // console.log(
+            //   "--getOrFetchBook--",
+            //   itemDetails?.media.metadata.title,
+            //   itemDetails.userMediaProgress?.lastUpdate
+            // );
             const updated: Book = {
               ...book, // If new, the fallback has the libraryItemId & userId in it
               title: itemDetails?.media?.metadata?.title || "",
@@ -369,7 +354,7 @@ export const useBooksStore = create<BooksStore>()(
               genre: itemDetails?.media?.metadata?.genres.join(", "),
               genres: itemDetails?.media?.metadata?.genres,
               tags: itemDetails?.media?.tags,
-              currentPosition: itemDetails?.userMediaProgress?.currentTime || 0,
+              // currentPosition: itemDetails?.userMediaProgress?.currentTime || 0,
               lastProgressUpdate: itemDetails?.userMediaProgress?.lastUpdate || undefined,
               duration: itemDetails?.media.duration || 0,
               coverURI: itemDetails?.coverURI,
@@ -382,11 +367,21 @@ export const useBooksStore = create<BooksStore>()(
             set((s) => ({
               books: [...s.books.filter((b) => b.libraryItemId !== libraryItemId), updated],
             }));
-
-            // console.log(
-            //   `[BooksStore] Background refresh complete: ${libraryItemId}`,
-            //   itemDetails?.media?.tags
-            // );
+            // Use immer syntax to update position info
+            set((state) => {
+              state.bookInfo[libraryItemId] = {
+                ...state.bookInfo[libraryItemId],
+                positionInfo: {
+                  currentPosition: itemDetails?.userMediaProgress?.currentTime || 0,
+                  lastProgressUpdate: itemDetails?.userMediaProgress?.lastUpdate || undefined,
+                },
+              };
+            });
+            // libraryItemId === "b3204480-9e1d-493f-8d18-2b31d3bca76d" &&
+            //   console.log(
+            //     `[BooksStore] Background refresh complete: ${libraryItemId}`,
+            //     get().bookInfo[libraryItemId]
+            //   );
           } catch (err) {
             console.warn(`[BooksStore] Background refresh failed: ${libraryItemId}`, err);
           }
@@ -400,7 +395,14 @@ export const useBooksStore = create<BooksStore>()(
           //   position,
           //   duration,
           // });
-
+          // Update the bookInfo Object
+          set((state) => {
+            state.bookInfo[libraryItemId] = {
+              ...state.bookInfo[libraryItemId],
+              positionInfo: { currentPosition: position, lastProgressUpdate: Date.now() },
+            };
+          });
+          //!! REMOVE
           set((state) => ({
             books: state.books.map((book) =>
               book.libraryItemId === libraryItemId
@@ -412,9 +414,6 @@ export const useBooksStore = create<BooksStore>()(
                 : book
             ),
           }));
-
-          // Log the updated book
-          const updatedBook = get().books.find((b) => b.libraryItemId === libraryItemId);
         },
       },
     })),

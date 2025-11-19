@@ -1,4 +1,3 @@
-import { usePlaybackActions } from "@/src/store/store-playback";
 import { Bookmark } from "@/src/utils/AudiobookShelf/abstypes";
 import { formatSeconds } from "@/src/utils/formatUtils";
 import { useThemeColors } from "@/src/utils/theme";
@@ -9,18 +8,18 @@ import { Text, View } from "react-native";
 
 type Props = {
   bookmark: Omit<Bookmark, "libraryItemId">;
+  isBookActive: boolean;
   handleDeleteBookmark: () => Promise<void>;
+  handleGoToBookmark: () => Promise<void>;
 };
 
-const BookmarkItem = ({ bookmark, handleDeleteBookmark }: Props) => {
+const BookmarkItem = ({
+  bookmark,
+  isBookActive,
+  handleDeleteBookmark,
+  handleGoToBookmark,
+}: Props) => {
   const themeColors = useThemeColors();
-  const playbackActions = usePlaybackActions();
-
-  const handleGoToBookmark = (time: number) => {
-    //!! NEED TO INCLUDE
-    //!! check to see if book is active.  If not then before seeking, ACTIVATE/PLAY BOOK
-    playbackActions.seekTo(time);
-  };
 
   // const handleDeleteBookmark = async (time: number, title: string) => {
   //   const shouldDelete = await showConfirmationPrompt(
@@ -48,8 +47,9 @@ const BookmarkItem = ({ bookmark, handleDeleteBookmark }: Props) => {
             alignItems: "center",
             justifyContent: "center",
             paddingHorizontal: 12,
+            // opacity: isBookActive ? 1 : 0,
           }}
-          onPress={() => handleGoToBookmark(bookmark.time)}
+          onPress={handleGoToBookmark}
         >
           <SymbolView name="checkmark.rectangle.fill" tintColor={themeColors.accent} size={30} />
         </PressableScale>

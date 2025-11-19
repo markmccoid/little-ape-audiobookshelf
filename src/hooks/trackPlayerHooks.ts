@@ -21,6 +21,8 @@ export const useSmartPosition = (libraryItemId: string) => {
   const isBookActive = sessionId === libraryItemId;
   // const isPlaying = usePlaybackIsPlaying(libraryItemId);
   const { book, duration = 0 } = useBookData(libraryItemId);
+  // Get the bookInfo for specific libraryItemId
+  const bookInfo = useBooksStore((state) => state.bookInfo[libraryItemId]);
   const chapters = book?.chapters || [];
   const progress = useProgress();
   const activeTrack = useActiveTrack();
@@ -47,7 +49,7 @@ export const useSmartPosition = (libraryItemId: string) => {
       });
     } else if (!isBookActive || progress.position == 0) {
       // console.log("Pulling from stored book", book?.title, book?.currentPosition);
-      const pos = book?.currentPosition ?? 0;
+      const pos = bookInfo?.positionInfo?.currentPosition ?? 0;
       const curr = getChapterFromProgress(chapters, pos);
       // update playlist store
       updateCurrentChapterIndex(curr?.chapterIndex);
@@ -63,7 +65,13 @@ export const useSmartPosition = (libraryItemId: string) => {
         chapterIndex: curr?.chapterIndex || 0,
       });
     }
-  }, [progress.position, isLoaded, sessionId, libraryItemId, book?.currentPosition]);
+  }, [
+    progress.position,
+    isLoaded,
+    sessionId,
+    libraryItemId,
+    bookInfo?.positionInfo?.currentPosition,
+  ]);
 };
 
 /**

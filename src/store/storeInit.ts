@@ -18,7 +18,7 @@ export const storeInit = async () => {
 
   //~ merge bookmarks from server and store with server being the truth (store will be overwritten if bm the same time on server)
   const newStoreBookInfo = mergeBookmarks(storeBookinfo, absBookmarks);
-  console.log("NEW BOOK", newStoreBookInfo);
+  // console.log("NEW BOOK", newStoreBookInfo?.["b3204480-9e1d-493f-8d18-2b31d3bca76d"]);
   // update the store
   useBooksStore.setState({ bookInfo: newStoreBookInfo });
 };
@@ -26,9 +26,9 @@ export const storeInit = async () => {
 //# ---------------------------------------------------------------
 //# Merge ABS server bookmarks with store-books bookInfo bookmarks
 //# ---------------------------------------------------------------
-function mergeBookmarks(store: BookInfo, absBMs: Bookmark[]) {
+function mergeBookmarks(bookInfo: BookInfo, absBMs: Bookmark[]) {
   // deep clone store so we don't mutate the original
-  const storeBookinfoFinal = JSON.parse(JSON.stringify(store || {}));
+  const storeBookinfoFinal = JSON.parse(JSON.stringify(bookInfo || {}));
   // Must transform the absBMs from and array of Bookmarks into an object with same shape of the Bookinfo coming from the store.
   const absTransformed = transformABSBMs(absBMs);
 
@@ -60,7 +60,11 @@ function transformABSBMs(absBookmarks: Bookmark[]): BookInfo {
   return absBookmarks.reduce((acc: BookInfo, item) => {
     const { libraryItemId, time, title, createdAt } = item;
 
-    if (!acc[libraryItemId]) acc[libraryItemId] = { bookmarks: [] };
+    if (!acc[libraryItemId])
+      acc[libraryItemId] = {
+        bookmarks: [],
+        positionInfo: { currentPosition: 0, lastProgressUpdate: undefined },
+      };
 
     acc[libraryItemId].bookmarks.push({ time, title, createdAt });
 

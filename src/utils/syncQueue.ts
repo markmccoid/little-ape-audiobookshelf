@@ -18,13 +18,13 @@ export interface QueuedSyncItem {
     sessionId?: string;
     timeListened?: number;
     currentTime?: number;
-    
+
     // Bookmark data
     bookmarkId?: string;
     libraryItemId?: string;
     time?: number;
     title?: string;
-    
+
     // Generic data for future operations
     [key: string]: any;
   };
@@ -84,7 +84,7 @@ export class SyncQueueManager {
    */
   addToQueue(item: Omit<QueuedSyncItem, "id" | "timestamp" | "retryCount">): void {
     const queue = this.getQueue();
-    
+
     const newItem: QueuedSyncItem = {
       ...item,
       id: `${item.type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -94,7 +94,7 @@ export class SyncQueueManager {
 
     queue.push(newItem);
     this.saveQueue(queue);
-    
+
     console.log(`Queued sync operation: ${item.type}`, newItem.id);
   }
 
@@ -120,10 +120,10 @@ export class SyncQueueManager {
   incrementRetryCount(itemId: string): void {
     const queue = this.getQueue();
     const item = queue.find((i) => i.id === itemId);
-    
+
     if (item) {
       item.retryCount += 1;
-      
+
       // Remove if exceeded max retries
       if (item.retryCount >= MAX_RETRIES) {
         console.warn(`Max retries reached for sync item ${itemId}, removing from queue`);
@@ -150,14 +150,14 @@ export class SyncQueueManager {
     processFn: (item: QueuedSyncItem) => Promise<boolean>
   ): Promise<{ success: number; failed: number }> {
     const queue = this.getQueue();
-    
+
     if (queue.length === 0) {
-      console.log("No items in sync queue to process");
+      // console.log("No items in sync queue to process");
       return { success: 0, failed: 0 };
     }
 
     console.log(`Processing ${queue.length} queued sync operations...`);
-    
+
     let successCount = 0;
     let failedCount = 0;
 
@@ -165,7 +165,7 @@ export class SyncQueueManager {
     for (const item of queue) {
       try {
         const success = await processFn(item);
-        
+
         if (success) {
           this.removeFromQueue(item.id);
           successCount++;
@@ -210,7 +210,7 @@ export class SyncQueueManager {
     oldestTimestamp: number | null;
   } {
     const queue = this.getQueue();
-    
+
     const stats = {
       total: queue.length,
       byType: {

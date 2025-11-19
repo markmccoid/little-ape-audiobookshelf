@@ -11,6 +11,8 @@ import PagerView from "react-native-pager-view";
 import BookBlurView from "./BookBlurView";
 import BookChapters from "./BookChapters";
 import BookDescription from "./BookDescription";
+import BookmarkList from "./bookImageCycle/BookmarkList";
+
 function BookDetails() {
   const themeColors = useThemeColors();
   const { libraryItemId } = useLocalSearchParams<BookContainerRoute>();
@@ -20,12 +22,6 @@ function BookDetails() {
   const pagerRef = useRef<PagerView>(null);
   const x = useSmartPositions(libraryItemId);
   const numChapters = book?.chapters?.length ?? 0;
-
-  const Bookmarks = () => (
-    <View style={{ padding: 20 }}>
-      <Text style={{ color: themeColors.foreground }}>Bookmarks Placeholder</Text>
-    </View>
-  );
 
   const handleSegmentChange = (index: number) => {
     setSelectedIndex(index);
@@ -102,7 +98,7 @@ function BookDetails() {
 
         {/* ===== PAGE 2: Bookmarks ===== */}
         <View key="bookmarks" style={{ width }}>
-          <Bookmarks />
+          <BookmarkList libraryItemId={libraryItemId} />
         </View>
       </PagerView>
     </View>

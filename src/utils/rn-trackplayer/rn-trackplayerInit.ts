@@ -1,12 +1,15 @@
 import { useSettingsStore } from "@/src/store/store-settings";
-import TrackPlayer, { Capability } from "react-native-track-player";
+import TrackPlayer, { Capability, IOSCategoryMode } from "react-native-track-player";
 
 export const trackPlayerInit = async () => {
   const seekBackwardSeconds = useSettingsStore.getState().seekBackwardSeconds;
   const seekForwardSeconds = useSettingsStore.getState().seekForwardSeconds;
 
   try {
-    await TrackPlayer.setupPlayer();
+    await TrackPlayer.setupPlayer({
+      iosCategoryMode: IOSCategoryMode.SpokenAudio,
+      autoHandleInterruptions: true,
+    });
     await TrackPlayer.updateOptions({
       progressUpdateEventInterval: 5,
       forwardJumpInterval: seekForwardSeconds,

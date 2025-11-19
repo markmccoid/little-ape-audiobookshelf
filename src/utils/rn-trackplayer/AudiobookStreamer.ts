@@ -239,11 +239,11 @@ export default class AudiobookStreamer {
     // ✅ Reset session closed flag for new session
     this.sessionClosed = false;
 
-    console.log(
-      `AudiobookStreamer: Session changed from ${previousSessionId || "none"} to ${
-        response.id
-      } for item ${itemId}`
-    );
+    // console.log(
+    //   `AudiobookStreamer: Session changed from ${previousSessionId || "none"} to ${
+    //     response.id
+    //   } for item ${itemId}`
+    // );
     if (previousSessionId && previousSessionId !== response.id) {
       console.log(
         `⚠️  Session switch detected - TrackPlayer events may still reference old session ${previousSessionId}`

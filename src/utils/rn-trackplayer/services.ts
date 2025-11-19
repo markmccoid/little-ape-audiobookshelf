@@ -44,7 +44,7 @@ export const handleRemoteJumpForward = async () => {
 };
 export const handleRemoteJumpBackward = async () => {
   const { position: currPos } = await TrackPlayer.getProgress();
-  const { seekBackwardSeconds, seekForwardSeconds } = useSeekSettings();
+  const { seekBackwardSeconds } = useSeekSettings();
 
   const newPos = currPos - seekBackwardSeconds;
   if (newPos < 0) {
@@ -63,7 +63,6 @@ export const PlaybackService = async function () {
   TrackPlayer.addEventListener(Event.RemoteJumpForward, handleRemoteJumpForward);
   TrackPlayer.addEventListener(Event.RemoteJumpBackward, handleRemoteJumpBackward);
   TrackPlayer.addEventListener(Event.RemotePrevious, handleRemotePrev);
-  TrackPlayer.addEventListener(Event.RemoteBookmark, handleRemotePrev);
   TrackPlayer.addEventListener(Event.RemoteSeek, (seek) => TrackPlayer.seekTo(seek.position));
   TrackPlayer.addEventListener(Event.RemoteDuck, async (event) => {
     const { paused, permanent } = event;
