@@ -11,6 +11,13 @@ export const trackPlayerInit = async () => {
       autoHandleInterruptions: true,
     });
     await TrackPlayer.updateOptions({
+      notificationCapabilities: [
+        Capability.Play,
+        Capability.Pause,
+        Capability.SkipToNext,
+        Capability.SkipToPrevious,
+        Capability.SeekTo,
+      ],
       progressUpdateEventInterval: 5,
       forwardJumpInterval: seekForwardSeconds,
       backwardJumpInterval: seekBackwardSeconds,
