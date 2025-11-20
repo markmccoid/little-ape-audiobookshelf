@@ -1,4 +1,5 @@
 import NetInfo from "@react-native-community/netinfo";
+import PQueue from "p-queue";
 import { AudiobookshelfAPI } from "../AudiobookShelf/absAPIClass";
 import { syncQueue } from "../syncQueue";
 
@@ -9,7 +10,7 @@ export class SyncManager {
   private syncTimer: NodeJS.Timeout | null = null;
   private syncIntervalSeconds: number = 60;
   private lastSyncTime: number | null = null;
-  private isSyncing: boolean = false;
+  private requestQueue = new PQueue({ concurrency: 1 });
   private lastSyncAttempt: number = 0;
   private syncDebounceMs: number = 1000;
   
@@ -73,35 +74,34 @@ export class SyncManager {
     globalPosition: number,
     isSessionClosed: boolean
   ): Promise<void> {
-    if (this.isSyncing || isSessionClosed) return;
+    if (isSessionClosed) return;
 
-    const syncId = Math.random().toString(36).substring(7);
-    this.isSyncing = true;
-
-    try {
-      const now = Date.now();
-      const timeListened = this.lastSyncTime ? Math.floor((now - this.lastSyncTime) / 1000) : 0;
-
-      const syncData: SyncData = {
-        timeListened: timeListened,
-        currentTime: globalPosition,
-      };
-
+    await this.requestQueue.add(async () => {
       try {
-        const syncResult = await this.apiClient.syncProgressToServer(sessionId, syncData);
-        this.lastSyncTime = now;
+        const now = Date.now();
+        const timeListened = this.lastSyncTime ? Math.floor((now - this.lastSyncTime) / 1000) : 0;
 
-        if (syncResult.success) {
-          this.updateBooksStore(libraryItemId, syncResult.currentTime);
+        const syncData: SyncData = {
+          timeListened: timeListened,
+          currentTime: globalPosition,
+        };
+
+        try {
+          const syncResult = await this.apiClient.syncProgressToServer(sessionId, syncData);
+          this.lastSyncTime = now;
+
+          if (syncResult.success) {
+            this.updateBooksStore(libraryItemId, syncResult.currentTime);
+          }
+
+          await this.processQueuedSyncs();
+        } catch (serverError) {
+          this.handleSyncError(serverError, sessionId, syncData);
         }
-
-        await this.processQueuedSyncs();
-      } catch (serverError) {
-        this.handleSyncError(serverError, sessionId, syncData);
+      } catch (error) {
+        console.error("Error in syncProgress queue task:", error);
       }
-    } finally {
-      this.isSyncing = false;
-    }
+    });
   }
 
   public async syncPosition(
@@ -118,24 +118,28 @@ export class SyncManager {
     }
     this.lastSyncAttempt = now;
 
-    try {
-      const syncData: SyncData = {
-        timeListened: 0,
-        currentTime: globalPosition,
-      };
+    await this.requestQueue.add(async () => {
+      try {
+        const syncData: SyncData = {
+          timeListened: 0,
+          currentTime: globalPosition,
+        };
 
-      const syncResult = await this.apiClient.syncProgressToServer(sessionId, syncData);
+        const syncResult = await this.apiClient.syncProgressToServer(sessionId, syncData);
 
-      if (syncResult.success) {
-        const { useBooksStore } = require("../../store/store-books");
-        const bookActions = useBooksStore.getState().actions;
-        bookActions.updateCurrentPosition(libraryItemId, syncResult.currentTime);
+        if (syncResult.success) {
+          const { useBooksStore } = require("../../store/store-books");
+          const bookActions = useBooksStore.getState().actions;
+          bookActions.updateCurrentPosition(libraryItemId, syncResult.currentTime);
+        }
+      } catch (error) {
+        console.error("Failed to sync position:", error);
       }
-    } catch (error) {
-      console.error("Failed to sync position:", error);
-      // Handle 404 etc if needed, but maybe let caller handle session closed logic?
-      // For now, just log.
-    }
+    });
+  }
+
+  public async waitForAllSyncs(): Promise<void> {
+    await this.requestQueue.onIdle();
   }
 
   private updateBooksStore(libraryItemId: string, currentTime: number) {
@@ -198,6 +202,10 @@ export class SyncManager {
         currentTime: syncData.currentTime,
       },
     });
+  }
+
+  public async executeOnQueue(task: () => Promise<void>): Promise<void> {
+    await this.requestQueue.add(task);
   }
 
   public async processQueuedSyncs(): Promise<void> {

@@ -155,9 +155,12 @@ export default class AudiobookStreamer {
     if (this.sessionClosed) return;
 
     if (this.pendingSessionClose) {
-      await this.apiClient.syncProgressToServer(this.pendingSessionClose.sessionId, {
-        timeListened: this.pendingSessionClose.timeListened,
-        currentTime: this.pendingSessionClose.position,
+      const pending = this.pendingSessionClose;
+      await this.syncManager.executeOnQueue(async () => {
+        await this.apiClient.syncProgressToServer(pending.sessionId, {
+          timeListened: pending.timeListened,
+          currentTime: pending.position,
+        });
       });
       this.pendingSessionClose = null;
       return;
@@ -218,6 +221,9 @@ export default class AudiobookStreamer {
 
     this.syncManager.stopRealTimeSyncTimer();
     this.syncManager.setForceBooksStoreUpdate(true);
+
+    // Wait for any pending syncs to complete before calculating final stats
+    await this.syncManager.waitForAllSyncs();
 
     try {
       const activeSessionId = await this.sessionManager.getActiveSessionId();
