@@ -4,16 +4,17 @@ import { formatSeconds } from "@/src/utils/formatUtils";
 import { useThemeColors } from "@/src/utils/theme";
 import { LiquidGlassView } from "@callstack/liquid-glass";
 import {
+  useIsBookActive,
   usePlaybackActions,
   usePlaybackDuration,
   usePlaybackIsPlaying,
   usePlaybackPosition,
   usePlaybackSession,
+  usePlaybackStore,
   useShowMiniPlayer,
 } from "@store/store-playback";
 import { Image } from "expo-image";
 import { Link } from "expo-router";
-import { SymbolView } from "expo-symbols";
 import React, { useCallback, useMemo, useState } from "react";
 import { Dimensions, Pressable, StyleSheet, Text, View } from "react-native";
 import { GestureDetector } from "react-native-gesture-handler";
@@ -23,11 +24,13 @@ import Animated, {
   SlideOutDown,
   useAnimatedReaction,
 } from "react-native-reanimated";
+import PlayPauseAnimation from "../bookComponents/PlayPauseAnimation";
 
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 
 export default function MiniPlayer() {
   const { width, height } = Dimensions.get("window");
+  
   const showMini = useShowMiniPlayer();
   const themeColors = useThemeColors();
   const position = usePlaybackPosition() || 0;
@@ -39,7 +42,11 @@ export default function MiniPlayer() {
   const isPlaying = usePlaybackIsPlaying(session?.libraryItemId || "");
   const duration = usePlaybackDuration(session?.libraryItemId || "");
 
-  const { play, pause, closeSession, setIsOnBookScreen } = usePlaybackActions();
+const isBookActive = useIsBookActive(session?.libraryItemId || "");
+const showPlayingState = isBookActive && isPlaying;
+const isBookLoaded = usePlaybackStore((state) => state.isLoaded);
+  
+const { play, pause, closeSession, setIsOnBookScreen } = usePlaybackActions();
 
   // Drag functionality with swipe down to close
   const { gesture, animatedStyle, isDragging } = useMiniPlayerDrag(closeSession);
@@ -105,12 +112,19 @@ export default function MiniPlayer() {
               <View className="flex-row items-center gap-3 justify-between">
                 {/* Play/Pause Button */}
                 <Pressable onPress={onToggle} disabled={isDraggingState}>
-                  <SymbolView
+                  <PlayPauseAnimation
+              isPlaying={showPlayingState}
+              size={50}
+              duration={600}
+              isBookActive={isBookActive }
+              isBookLoaded={isBookLoaded}
+            />
+                  {/* <SymbolView
                     name={isPlaying ? "pause.circle.fill" : "play.circle.fill"}
                     type="palette"
                     colors={[themeColors.accentForeground, themeColors.accent]}
                     size={50}
-                  />
+                  /> */}
                 </Pressable>
 
                 {/* Book info - flexible container */}

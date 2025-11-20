@@ -143,6 +143,7 @@ export class AudiobookshelfAPI {
     // console.log("ENDPOINT", url);
     try {
       const response = await axios({ url, headers, ...options });
+
       return response.data;
     } catch (error: any) {
       if (error.response?.status === 401) {

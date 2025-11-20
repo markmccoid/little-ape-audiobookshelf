@@ -169,6 +169,9 @@ export const useGetBooks = (searchValue?: string) => {
 //# ----------------------------------------------
 //# useGetBookShelves
 //# ----------------------------------------------
+// Module-level variable - persists across component mount/unmount but resets on app restart
+const DISCOVER_UPDATE_INTERVAL = 3 * 60 * 60 * 1000; // 3 hours in ms
+let lastDiscoverUpdate = 0; // Initialized to 0 (epoch) means it will update on first run
 
 export const useGetBookShelves = () => {
   const absAPI = useSafeAbsAPI();
@@ -207,11 +210,27 @@ export const useGetBookShelves = () => {
   };
   useEffect(() => {
     if (!query.isSuccess || !query.data || !authInfo.userId) return;
-    // Just fire them off, don't wait
-    // process the known default shelves only
+    
+    const now = Date.now();
+    const shouldUpdateDiscover = (now - lastDiscoverUpdate) >= DISCOVER_UPDATE_INTERVAL;
+    
+    // Process the known default shelves
     for (const shelfKey of shelvesToProcess) {
       if (!shelfKey) continue;
+      
+      // Skip discover if not enough time has passed
+      if (shelfKey === 'discover' && !shouldUpdateDiscover) {
+        console.log('Skipping discover update - not enough time has passed');
+        continue;
+      }
+      
       safeAddBooksForDefaultKey(shelfKey, query.data[shelfKey]?.books);
+    }
+    
+    // Update timestamp if discover was processed
+    if (shouldUpdateDiscover) {
+      lastDiscoverUpdate = now;
+      console.log('Discover updated at:', new Date(now).toISOString());
     }
   }, [query.isSuccess, query.data, authInfo.userId, shelvesToProcess]);
 
@@ -313,7 +332,7 @@ export const useSafeGetBooks = (searchValue?: string) => {
 
   // Always get the library ID, even if null
   const activeLibraryId = absAPI?.getActiveLibraryId() || null;
-  console.log("GETTING BOOKS");
+  
   // Always call useQuery, but disable it when not authenticated
   const {
     data: rawData,
@@ -325,7 +344,7 @@ export const useSafeGetBooks = (searchValue?: string) => {
     queryKey: ["books", activeLibraryId],
     queryFn: async () => {
       if (!absAPI) throw new Error("Not authenticated");
-      return await absAPI.getLibraryItems({ libraryId: activeLibraryId });
+      return await absAPI.getLibraryItems({ libraryId: activeLibraryId ?? undefined });
     },
     enabled: !!absAPI && !!activeLibraryId, // Only run when authenticated and have library ID
     staleTime: 1000 * 60 * 5, // Stale Minutes
