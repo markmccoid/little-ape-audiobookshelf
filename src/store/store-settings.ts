@@ -66,7 +66,10 @@ export const useSettingsStore = create<SettingsStore>()(
       seekBackwardSeconds: DEFAULT_SEEK_BACKWARD_SECONDS,
       syncIntervalSeconds: DEFAULT_SYNC_INTERVAL_SECONDS,
       //Bookshelves
-      allBookshelves: defaultBookshelves,
+      allBookshelves: [
+        ...defaultBookshelves,
+        { id: "myFavs", key: "myFavs", label: "My Favs", type: "custom" },
+      ],
       bookshelvesToDisplay: ["continue-listening", "recently-added", "discover", "listen-again"],
       // Sleep Timer START
       sleepTimeMinutes: 0,

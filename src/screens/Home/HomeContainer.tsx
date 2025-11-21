@@ -19,7 +19,7 @@ const HomeContainer = () => {
   const bookShelves = useBookShelves();
 
   const otherShelves = bookShelves?.filter((el) => el.id !== "continue-listening");
-
+  console.log("OTHER", otherShelves);
   // Augment bookShelves with progress data
   const continueListeningData = useMemo(() => {
     const continueListeningBookshelf = bookShelves?.find((el) => el.id === "continue-listening");

@@ -257,7 +257,7 @@ export const useBooksStore = create<BooksStore>()(
           const updatedBookshelves = {
             ...bookshelves,
             // plucks out continueListening, rencentlyAdded, etc from our helpers
-            [BookShelfKeyById[bookshelfId]]: booksForShelf,
+            [BookShelfKeyById[bookshelfId] || bookshelfId]: booksForShelf,
           } as BookShelves;
           set({ bookshelves: updatedBookshelves });
         },
@@ -446,7 +446,8 @@ export const useBookShelves = () => {
   const allBookshelves = useSettingsStore((state) => state.allBookshelves);
   // Settings has a list of chosen bookshelves to display (in order to be displayed)
   const bookshelvesToRender = useSettingsStore((state) => state.bookshelvesToDisplay);
-
+  console.log("ALL BOS", allBookshelves);
+  console.log("BS", Object.keys(bookshelves));
   if (!bookshelves) return;
 
   // list of bookshelves in format UI is expecting

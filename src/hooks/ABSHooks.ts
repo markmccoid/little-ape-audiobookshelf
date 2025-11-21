@@ -210,27 +210,28 @@ export const useGetBookShelves = () => {
   };
   useEffect(() => {
     if (!query.isSuccess || !query.data || !authInfo.userId) return;
-    
+
     const now = Date.now();
-    const shouldUpdateDiscover = (now - lastDiscoverUpdate) >= DISCOVER_UPDATE_INTERVAL;
-    
+    const shouldUpdateDiscover = now - lastDiscoverUpdate >= DISCOVER_UPDATE_INTERVAL;
+
     // Process the known default shelves
     for (const shelfKey of shelvesToProcess) {
       if (!shelfKey) continue;
-      
+
       // Skip discover if not enough time has passed
-      if (shelfKey === 'discover' && !shouldUpdateDiscover) {
-        console.log('Skipping discover update - not enough time has passed');
+      if (shelfKey === "discover" && !shouldUpdateDiscover) {
+        console.log("Skipping discover update - not enough time has passed");
         continue;
       }
-      
+
       safeAddBooksForDefaultKey(shelfKey, query.data[shelfKey]?.books);
+      bookStoreActions.addBooks(authInfo.userId, [query.data[shelfKey]?.books[0]], "myFavs");
     }
-    
+
     // Update timestamp if discover was processed
     if (shouldUpdateDiscover) {
       lastDiscoverUpdate = now;
-      console.log('Discover updated at:', new Date(now).toISOString());
+      console.log("Discover updated at:", new Date(now).toISOString());
     }
   }, [query.isSuccess, query.data, authInfo.userId, shelvesToProcess]);
 
@@ -332,7 +333,7 @@ export const useSafeGetBooks = (searchValue?: string) => {
 
   // Always get the library ID, even if null
   const activeLibraryId = absAPI?.getActiveLibraryId() || null;
-  
+
   // Always call useQuery, but disable it when not authenticated
   const {
     data: rawData,
