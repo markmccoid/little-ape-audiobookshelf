@@ -1,8 +1,8 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { sortBy } from "es-toolkit";
 
 import { useEffect, useMemo, useState } from "react";
-import { useAuth, useSafeAbsAPI } from "../contexts/AuthContext";
+import { useSafeAbsAPI } from "../contexts/AuthContext";
 import { useBooksActions } from "../store/store-books";
 import { useSortDirection, useSortedBy } from "../store/store-filters";
 import {
@@ -13,11 +13,7 @@ import {
 } from "../utils/AudiobookShelf/absAPIClass";
 import { getAbsAPI, useAbsAPI } from "../utils/AudiobookShelf/absInit";
 import { BookShelfBook } from "../utils/AudiobookShelf/absUtils";
-import {
-  BookShelfIdByKey,
-  defaultBookshelves,
-  DefaultShelfKey,
-} from "../utils/AudiobookShelf/bookshelfTypes";
+import { defaultBookshelves } from "../utils/AudiobookShelf/bookshelfTypes";
 import { queryClient } from "../utils/queryClient";
 
 //# ----------------------------------------------
@@ -175,13 +171,12 @@ let lastDiscoverUpdate = 0; // Initialized to 0 (epoch) means it will update on 
 
 export const useGetBookShelves = () => {
   const absAPI = useSafeAbsAPI();
-  const queryClient = useQueryClient();
   // const activeLibraryId = absAPI?.getActiveLibraryId() || null;
   const activeLibraryId = useMemo(() => {
     return absAPI?.getActiveLibraryId() ?? null;
   }, []);
   const bookStoreActions = useBooksActions();
-  const { authInfo } = useAuth();
+  // const { authInfo } = useAuth();
 
   const query = useQuery({
     queryKey: ["bookShelves", activeLibraryId],
@@ -197,35 +192,32 @@ export const useGetBookShelves = () => {
     gcTime: 10 * 60 * 1000, // Keep cache longer when unmounted
   });
 
-  // derive the default keys from the source-of-truth array (keeps compile-time narrowness)
-  const shelvesToProcess = useMemo(
-    () => defaultBookshelves.map((s) => s.key) as DefaultShelfKey[],
-    []
-  );
-  // small helper to safely add books for a default shelf key
-  const safeAddBooksForDefaultKey = (key: DefaultShelfKey, books?: BookShelfBook[]) => {
+  // derive the default shelf IDs from the source-of-truth array
+  const shelvesToProcess = useMemo(() => defaultBookshelves.map((s) => s.id), []);
+  // small helper to safely add books for a default shelf ID
+  const safeAddBooksForDefaultKey = (shelfId: string, books?: BookShelfBook[]) => {
     if (!books || books.length === 0) return;
-    const shelfId = BookShelfIdByKey[key]; // strongly-typed mapping key -> id
-    bookStoreActions.addBooks(authInfo.userId, books, shelfId);
+    bookStoreActions.addBooks(books, shelfId);
   };
   useEffect(() => {
-    if (!query.isSuccess || !query.data || !authInfo.userId) return;
+    if (!query.isSuccess || !query.data) return;
 
     const now = Date.now();
     const shouldUpdateDiscover = now - lastDiscoverUpdate >= DISCOVER_UPDATE_INTERVAL;
 
     // Process the known default shelves
-    for (const shelfKey of shelvesToProcess) {
-      if (!shelfKey) continue;
+    for (const shelfId of shelvesToProcess) {
+      if (!shelfId) continue;
 
       // Skip discover if not enough time has passed
-      if (shelfKey === "discover" && !shouldUpdateDiscover) {
+      if (shelfId === "discover" && !shouldUpdateDiscover) {
         console.log("Skipping discover update - not enough time has passed");
         continue;
       }
 
-      safeAddBooksForDefaultKey(shelfKey, query.data[shelfKey]?.books);
-      bookStoreActions.addBooks(authInfo.userId, [query.data[shelfKey]?.books[0]], "myFavs");
+      // The API returns data keyed by IDs, so use the ID directly
+      safeAddBooksForDefaultKey(shelfId, query.data[shelfId]?.books);
+      bookStoreActions.addBooks([query.data[shelfId]?.books[0]], "myFavs");
     }
 
     // Update timestamp if discover was processed
@@ -233,13 +225,15 @@ export const useGetBookShelves = () => {
       lastDiscoverUpdate = now;
       console.log("Discover updated at:", new Date(now).toISOString());
     }
-  }, [query.isSuccess, query.data, authInfo.userId, shelvesToProcess]);
+  }, [query.isSuccess, query.data, shelvesToProcess]);
 
   return query;
 };
 
 //# ----------------------------------------------
 //# useGetBooksInProgress
+//# Returns data as { libraryItemId: {bookinfo}, ...}
+//# to facilitate quick lookup
 //# ----------------------------------------------
 export const useGetBooksInProgress = (enabled = true) => {
   const absAPI = useSafeAbsAPI();
@@ -255,15 +249,14 @@ export const useGetBooksInProgress = (enabled = true) => {
     },
     enabled: enabled && !!absAPI && !!activeLibraryId,
     staleTime: 0,
-    // refetchOnWindowFocus: false, // Prevent 404s during navigation
-    // refetchOnReconnect: false, // Prevent unnecessary refetches
-    // retry: (failureCount, error) => {
-    //   // Don't retry on 404s as they're likely not transient
-    //   if (error && typeof error === "object" && "status" in error && error.status === 404) {
-    //     return false;
-    //   }
-    //   return failureCount < 3;
-    // },
+    select: (data) => {
+      // Build lookup map once
+      const progressById = data.reduce<Record<string, ABSGetItemsInProgress[0]>>((acc, p) => {
+        acc[p.bookId] = p;
+        return acc;
+      }, {});
+      return { list: data, map: progressById };
+    },
   });
 
   return { data, isError, ...rest };

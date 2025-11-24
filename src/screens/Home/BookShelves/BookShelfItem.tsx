@@ -1,6 +1,7 @@
 import { OfflineBadge } from "@/src/components/OfflineBadge";
 import { useSafeAbsAPI } from "@/src/contexts/AuthContext";
 import { useNetwork } from "@/src/contexts/NetworkContext";
+import { useBookPosition } from "@/src/store/store-books";
 import { usePlaybackStore } from "@/src/store/store-playback";
 import { canPlayBookOffline } from "@/src/utils/bookAvailability";
 import { formatSeconds } from "@/src/utils/formatUtils";
@@ -30,7 +31,6 @@ const BookShelfItem = React.memo<BookShelfItemProps>(
     const isContinueListeningShelf = item.id === "continue-listening";
     const imageSize = isContinueListeningShelf ? 210 : 175;
     const itemSize = isContinueListeningShelf ? 220 : 190;
-
     // Check network state and book availability
     const { isOffline } = useNetwork();
     const currentSession = usePlaybackStore((state) => state.session);
@@ -40,6 +40,9 @@ const BookShelfItem = React.memo<BookShelfItemProps>(
       currentSession?.libraryItemId
     );
 
+    const bookPosition = useBookPosition(item.libraryItemId);
+
+    const percentBookWidth = Math.ceil((bookPosition.currentPosition / (item.duration || 0)) * 190);
     const playPause = useCallback(async () => {
       // Check if book is playable offline
       if (!isPlayable) {
@@ -73,6 +76,10 @@ const BookShelfItem = React.memo<BookShelfItemProps>(
         className={`flex-col py-2 justify-center items-center rounded-lg`}
         style={{ width: itemSize }}
       >
+        <View
+          className="absolute bottom-0 left-0 h-[10] bg-yellow-400 z-40 mx-2"
+          style={{ width: percentBookWidth }}
+        ></View>
         <View
           className="mx-2"
           style={{
@@ -142,35 +149,12 @@ const BookShelfItem = React.memo<BookShelfItemProps>(
           >
             {item.title}
           </Text>
-
           {item.id === "continue-listening" && (
             <Text className="text-sm text-muted mt-1 font-firacode font-semibold">
-              {formatSeconds((item.duration || 0) - item.currentTime)} left
+              {formatSeconds((item.duration || 0) - bookPosition.currentPosition)} left
               {/* {formatSeconds(item.currentTime)} / {formatSeconds(item.duration || 0)} */}
             </Text>
           )}
-
-          {/* <View className="flex-row w-full justify-center">
-            <Pressable
-              onPress={async () => {
-                if (item.isCurrentlyLoaded) {
-                  await togglePlayPause();
-                } else {
-                  
-                  await onInitBook(item.id);
-                  await togglePlayPause();
-                }
-              }}
-              className="mt-2 py-2 px-8 rounded-md"
-              style={{
-                backgroundColor: item.isPlaying ? "#f87171" : "#3b82f6",
-              }}
-            >
-              <Text style={{ color: "white", fontWeight: "600", textAlign: "center" }}>
-                {item.isPlaying ? "Pause" : "Play"}
-              </Text>
-            </Pressable>
-          </View> */}
         </View>
       </Animated.View>
     );

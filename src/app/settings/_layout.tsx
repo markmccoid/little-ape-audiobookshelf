@@ -43,6 +43,23 @@ export default function SettingsLayout() {
           },
         }}
       />
+      <Stack.Screen
+        name="managebookshelves"
+        options={{
+          // title: "Settings",
+          headerTitle: "Manage Bookshelves",
+          // headerLargeTitle: true,
+          headerTransparent: true,
+          headerBlurEffect: "systemUltraThinMaterialLight",
+          headerRight: () => {
+            return (
+              <Pressable onPress={() => router.dismissTo("/(tabs)/(home)")}>
+                <Text className="text-foreground">Home</Text>
+              </Pressable>
+            );
+          },
+        }}
+      />
     </Stack>
   );
 }

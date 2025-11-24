@@ -9,10 +9,11 @@ import { BlurView } from "expo-blur";
 import { Image, ImageBackground } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { Stack, useLocalSearchParams } from "expo-router";
+import { useColorScheme } from "nativewind";
 import React, { useReducer } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useColorScheme } from "nativewind";
+import AddToShelfMenu from "./AddToShelfMenu";
 
 export type BookContainerRoute = {
   libraryItemId: string;
@@ -28,11 +29,6 @@ const BookContainer = () => {
   const { book, isLoading } = useBookData(libraryItemId);
   //!!
   useSmartPosition(libraryItemId);
-  // console.log("BOOK DATA", isBookActive, book?.title, book?.chapters, book?.authors);
-  // const { data, isPending } = useGetItemDetails(libraryItemId);
-  // console.log("GET DATA", data?.media?.metadata.authorName);
-  // console.log("BOOK ACTIVe", isBookActive, isLoaded);
-  // const { position, isLoading, error } = useSmartPosition(bookid);
 
   return (
     // Enclosing View for Image Background and BlurView
@@ -69,7 +65,13 @@ const BookContainer = () => {
           />
         </ImageBackground>
       )}
-      <Stack.Screen options={{ title: title }} />
+      <Stack.Screen
+        options={{
+          title: title,
+
+          headerRight: () => <AddToShelfMenu libraryItemId={libraryItemId} />,
+        }}
+      />
       {/* Native iOS Blur Effect */}
       <BlurView
         intensity={90}

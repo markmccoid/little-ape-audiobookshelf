@@ -4,7 +4,9 @@ import { TypedPersonalizedView } from "./abstypes";
 export type BookShelfItemType = {
   id: string;
   label: string;
-  key: string;
+  key?: string;
+  position?: number;
+  displayed?: boolean;
   books: Book[];
 };
 export type BookShelfBook = {

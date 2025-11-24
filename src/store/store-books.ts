@@ -1,14 +1,11 @@
+import { sortBy } from "es-toolkit";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 import { getAbsAPI } from "../utils/AudiobookShelf/absInit";
 import { Author, Bookmark } from "../utils/AudiobookShelf/abstypes";
 import { BookShelfBook, BookShelfItemType } from "../utils/AudiobookShelf/absUtils";
-import {
-  BookShelfKeyById,
-  BookShelves,
-  DefaultShelfId,
-} from "../utils/AudiobookShelf/bookshelfTypes";
+import { BookshelvesState } from "../utils/AudiobookShelf/bookshelfTypes";
 import { formatSeconds } from "../utils/formatUtils";
 import { mmkvStorage } from "./mmkv-storage";
 import { useSettingsStore } from "./store-settings";
@@ -52,7 +49,7 @@ export type Book = {
   lastUpdated?: number;
   chapters?: EnhancedChapter[];
   //continue-listening, discover, etc
-  bookShelfTypes?: DefaultShelfId[];
+  bookShelfTypes?: string[];
 
   // bookshelf - see bookShelfType for specific type
   // downloaded - downloaded book
@@ -90,16 +87,18 @@ interface BooksState {
   books: Book[];
   // Holds additional information -- Bookkmarks
   bookInfo: BookInfo;
-  bookshelves: BookShelves;
+  bookshelves: BookshelvesState;
 }
 
 // Define the actions interface
 interface BooksActions {
   setBooks: (books: Book[]) => void;
-  getOrFetchBook: (params: { userId: string; libraryItemId: string }) => Promise<Book>;
+  getOrFetchBook: (params: { libraryItemId: string }) => Promise<Book>;
   updateBook: (libraryItemId: string, updates: Partial<Omit<Book, "libraryItemId">>) => void;
   removeBook: (libraryItemId: string) => void;
-  addBooks: (userId: string, books: BookShelfBook[], bookshelfId: DefaultShelfId) => Promise<void>;
+  addBooks: (books: Pick<BookShelfBook, "libraryItemId">[], bookshelfId: string) => Promise<void>;
+  removeBookFromBookshelf: (libraryItemId: string, bookshelfId: string) => Promise<void>;
+  addBookToBookshelf: (libraryItemId: string, bookshelfId: string) => Promise<void>;
   clearBooks: () => void;
   getBook: (libraryItemId: string) => Book | undefined;
   addBookmark: (
@@ -127,7 +126,7 @@ export const useBooksStore = create<BooksStore>()(
       // State
       books: DEFAULT_BOOKS,
       bookInfo: {},
-      bookshelves: undefined,
+      bookshelves: {},
       // Actions grouped in a separate namespace
       actions: {
         setBooks: (books: Book[]) => set({ books }),
@@ -229,8 +228,32 @@ export const useBooksStore = create<BooksStore>()(
             ),
           })),
 
+        //#
+        removeBookFromBookshelf: async (libraryItemId, bookshelfId) => {
+          set((state) => {
+            state.bookshelves[bookshelfId] = state.bookshelves[bookshelfId].filter(
+              (bookId) => bookId !== libraryItemId
+            );
+          });
+        },
+
+        addBookToBookshelf: async (libraryItemId, bookshelfId) => {
+          const storeBooks = get().books;
+          // If we don't have the book in our local store-books, then queue it up to load.
+          const foundBook = storeBooks.find((el) => el.libraryItemId === libraryItemId);
+          if (!foundBook) {
+            await get().actions.getOrFetchBook({ libraryItemId });
+          }
+
+          set((state) => {
+            // add book as first item in set then store as array in bookshelves
+            let currBookshelfSet = new Set(state.bookshelves[bookshelfId]);
+            const currSet = new Set([libraryItemId, ...currBookshelfSet]);
+            state.bookshelves[bookshelfId] = [...currSet];
+          });
+        },
         //! -- ADD BOOKS for BookShelves
-        addBooks: async (userId, books, bookshelfId) => {
+        addBooks: async (books, bookshelfId) => {
           const storeBooks = get().books;
 
           let libItemIdsToFetch = [];
@@ -245,7 +268,7 @@ export const useBooksStore = create<BooksStore>()(
 
           await Promise.all(
             libItemIdsToFetch.map((libraryItemId) =>
-              get().actions.getOrFetchBook({ userId, libraryItemId })
+              get().actions.getOrFetchBook({ libraryItemId })
             )
           );
 
@@ -256,24 +279,21 @@ export const useBooksStore = create<BooksStore>()(
           const booksForShelf = books.map((el) => el.libraryItemId);
           const updatedBookshelves = {
             ...bookshelves,
-            // plucks out continueListening, rencentlyAdded, etc from our helpers
-            [BookShelfKeyById[bookshelfId] || bookshelfId]: booksForShelf,
-          } as BookShelves;
+            // Use bookshelf ID directly
+            [bookshelfId]: booksForShelf,
+          } as BookshelvesState;
           set({ bookshelves: updatedBookshelves });
         },
 
-        getOrFetchBook: async ({ userId, libraryItemId }) => {
+        getOrFetchBook: async ({ libraryItemId }) => {
           // console.log(`[BooksStore] getOrFetchBook called for: ${libraryItemId}--${userId}`);
 
           const { books } = get();
           const now = Date.now();
 
-          const existingBook = books.find(
-            (b) => b.libraryItemId === libraryItemId && b.userId === userId
-          );
+          const existingBook = books.find((b) => b.libraryItemId === libraryItemId);
 
           const fallback: Book = {
-            userId,
             libraryItemId,
             playbackRate: 1,
             isDownloaded: false,
@@ -403,17 +423,17 @@ export const useBooksStore = create<BooksStore>()(
             };
           });
           //!! REMOVE
-          set((state) => ({
-            books: state.books.map((book) =>
-              book.libraryItemId === libraryItemId
-                ? {
-                    ...book,
-                    currentPosition: position,
-                    lastUpdated: Date.now(),
-                  }
-                : book
-            ),
-          }));
+          // set((state) => ({
+          //   books: state.books.map((book) =>
+          //     book.libraryItemId === libraryItemId
+          //       ? {
+          //           ...book,
+          //           currentPosition: position,
+          //           lastUpdated: Date.now(),
+          //         }
+          //       : book
+          //   ),
+          // }));
         },
       },
     })),
@@ -441,35 +461,37 @@ export const useBooksStore = create<BooksStore>()(
 //# -------------------------------------------
 export const useBookShelves = () => {
   const books = useBooksStore((state) => state.books);
+  const bookActions = useBooksActions();
   const bookshelves = useBooksStore((state) => state.bookshelves);
   // Settings has a list of all bookshelves available
   const allBookshelves = useSettingsStore((state) => state.allBookshelves);
   // Settings has a list of chosen bookshelves to display (in order to be displayed)
   const bookshelvesToRender = useSettingsStore((state) => state.bookshelvesToDisplay);
-  console.log("ALL BOS", allBookshelves);
-  console.log("BS", Object.keys(bookshelves));
+  // console.log(
+  //   "ALL BOS",
+  //   allBookshelves.map((el) => el.label)
+  // );
+  // console.log("BS", Object.keys(bookshelves));
   if (!bookshelves) return;
 
   // list of bookshelves in format UI is expecting
-  let finalBookshelves: BookShelfItemType[] = [];
-  for (let bookshelfId of bookshelvesToRender) {
-    const currBookshelf = allBookshelves.find((el) => el.id === bookshelfId);
-
-    if (!currBookshelf) continue;
-    const currBookshelfKey = currBookshelf?.key;
-
-    const currObj = {
-      id: currBookshelf.id,
-      label: currBookshelf.label,
-      key: currBookshelf.key,
-      books: (bookshelves[currBookshelfKey] || [])
-        .map((bookId) => {
-          return books.find((el) => el.libraryItemId === bookId);
-        })
-        .filter((book): book is Book => !!book),
+  // sorting by position field and only showing those with displayed = true
+  // lastly adding books for the shelf from the store-books -> bookshelves state variable
+  const finalBookshelves = sortBy(
+    allBookshelves.filter((el) => el.displayed === true),
+    ["position"]
+  ).map((bookshelf) => {
+    return {
+      ...bookshelf,
+      books: (bookshelves[bookshelf.id] || []).map((bookId: string) => {
+        const foundBook = books.find((el) => el.libraryItemId === bookId);
+        if (!foundBook) {
+          bookActions.addBooks([{ libraryItemId: bookId }], bookshelf.id);
+        }
+        return foundBook || {};
+      }),
     };
-    finalBookshelves.push(currObj);
-  }
+  }) as BookShelfItemType[] | [];
   return finalBookshelves;
 };
 
@@ -479,6 +501,10 @@ export const useBookShelves = () => {
 export const useBook = (libraryItemId: string) =>
   useBooksStore((state) => state.books.find((book) => book.libraryItemId === libraryItemId));
 
+export const useBookInfo = (libraryItemId: string) =>
+  useBooksStore((state) => state.bookInfo[libraryItemId]);
+export const useBookPosition = (libraryItemId: string) =>
+  useBooksStore((state) => state.bookInfo[libraryItemId]?.positionInfo);
 /**
  * Hook to get all book actions
  * Since actions never change, it's safe to return all of them

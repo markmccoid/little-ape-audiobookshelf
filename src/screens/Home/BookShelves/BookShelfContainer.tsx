@@ -5,14 +5,12 @@ import {
   usePlaybackSession,
   usePlaybackStore,
 } from "@/src/store/store-playback";
-import { useSmartPositionStore } from "@/src/store/store-smartposition";
 import { BookShelfItemType } from "@/src/utils/AudiobookShelf/absUtils";
 import { useThemeColors } from "@/src/utils/theme";
 import { SymbolView } from "expo-symbols";
 import React, { useCallback, useMemo, useReducer } from "react";
 import { ListRenderItem, Pressable, ScrollView, Text, View } from "react-native";
 import Animated, { LinearTransition } from "react-native-reanimated";
-import { useProgress } from "react-native-track-player";
 import BookShelfItem from "./BookShelfItem";
 
 export type EnhancedBookItem = BookShelfItemType["books"][0] & {
@@ -36,10 +34,12 @@ const BookShelfContainer = ({ shelfData, isLoading, isError }: Props) => {
   // in the render item.
   const isPlaying = usePlaybackStore((state) => state.isPlaying);
   const session = usePlaybackSession();
-  const progress = useProgress();
+
+  // const { position } = useProgress(5000);
+  // const pos = useBookPosition(session?.libraryItemId);
 
   const absAPI = useSafeAbsAPI();
-  const activeLibraryId = absAPI?.getActiveLibraryId() || null;
+
   //!! Does nothing here --- Take out and use in full list of IN PROGRESS
   const [showHidden, toggleShowHidden] = useReducer((state) => !state, false);
   // Refetch books in progress when home tab gains focus
@@ -49,56 +49,33 @@ const BookShelfContainer = ({ shelfData, isLoading, isError }: Props) => {
   // checks to see if there is an existing session and if so, it it matches the book
   // trying to be played.  If it matches, then we just want to toggle play/pause
   // if not then render item will call this function and then the play/pause toggle function
-  const handleInitBookWithOptimisticUpdate = useCallback(
-    async (itemId: string) => {
-      // First, load the book
-      await handleInitBook(itemId);
-      // Have to wait for first sync operation so that when we requery the book is moved to beginning
-      setTimeout(() => invalidateQuery("bookshelves"), 7000);
-      // Then, optimistically move it to the top of the in-progress list
-      // moveBookToTopOfInProgress(itemId, activeLibraryId);
-    },
-    [handleInitBook, activeLibraryId]
-  );
+  const handleInitBookWithOptimisticUpdate = async (itemId: string) => {
+    // First, load the book
+    await handleInitBook(itemId);
+    // Have to wait for first sync operation so that when we requery the book is moved to beginning
+    setTimeout(() => invalidateQuery("bookshelves"), 7000);
+  };
 
   //# Enhance data with current progress info
 
   // Check if this is the continue-listening shelf that needs real-time progress updates
   const isContinueListeningShelf = shelfData.id === "continue-listening";
-
+  //!! How to display time information across all books with it
+  //!! RESIZE continue listening to be regular size.
+  //!! Maybe top/first shelf is big
   const enhancedBooks = useMemo((): EnhancedBookItem[] => {
+    // console.log("SHelf Data", shelfData);
     if (!shelfData?.books) return [];
     return shelfData.books
       .map((book) => {
         const isCurrentlyLoaded = session?.libraryItemId === book.libraryItemId;
 
-        // Determine current time with priority:
-        // 1. If loaded and playing and this is continue-listening shelf: use live progress.position
-        // 2. If unloaded but we have cached position: use cached position
-        // 3. Otherwise: fall back to server data (book.currentTime)
-        let currentTime: number;
-        if (
-          isCurrentlyLoaded &&
-          isContinueListeningShelf &&
-          progress?.position != null &&
-          progress.position !== 0
-        ) {
-          // Book is loaded and this is continue-listening shelf: use live position and update cache
-          // Need to fallback to book.currentTime if progress.position is zero
-          // it isn't
-          const smartPos = useSmartPositionStore.getState().getSmartPosition(book.libraryItemId);
-
-          currentTime = smartPos.globalPosition || 0; //progress.position;
-        } else {
-          currentTime = book.currentTime || 0;
-        }
-
+        // If book is loaded, pass the isPlaying var pulled from main hook
         const bookIsPlaying = isCurrentlyLoaded ? isPlaying : false;
 
         return {
           ...book,
           isCurrentlyLoaded,
-          currentTime,
           isPlaying: bookIsPlaying,
           id: shelfData.id,
         };
@@ -107,10 +84,8 @@ const BookShelfContainer = ({ shelfData, isLoading, isError }: Props) => {
   }, [
     shelfData,
     session?.libraryItemId,
-    isContinueListeningShelf ? progress?.position : undefined,
+    // isContinueListeningShelf ? progress?.position : undefined,
     isPlaying,
-    showHidden,
-    isContinueListeningShelf,
   ]);
 
   const renderItem: ListRenderItem<EnhancedBookItem> = useCallback(

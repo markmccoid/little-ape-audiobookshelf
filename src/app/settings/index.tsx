@@ -126,6 +126,30 @@ export default function SettingsView() {
               </HStack>
             </Button>
           </Link>
+          {/* Manage Bookshelves */}
+          <Link href="/settings/managebookshelves" asChild>
+            <Button>
+              <HStack spacing={4} alignment="center">
+                <Image
+                  systemName="wifi"
+                  color="white"
+                  size={14}
+                  modifiers={[
+                    frame({ width: 28, height: 28 }),
+                    background("#007aff"),
+                    clipShape("roundedRectangle"),
+                  ]}
+                />
+                <VStack alignment="leading">
+                  <Text color="primary" size={14}>
+                    Manage Bookshelves
+                  </Text>
+                </VStack>
+                <Spacer />
+                <Image systemName="chevron.right" size={14} color="secondary" />
+              </HStack>
+            </Button>
+          </Link>
           <Button onPress={handleSeekForwardPress}>
             <HStack spacing={4} alignment="center">
               <Image

@@ -17,11 +17,11 @@ type OfflineListenSession = {
 
 export default class AudiobookStreamer {
   private static instance: AudiobookStreamer | null = null;
-  
+
   // Managers
   private sessionManager: SessionManager;
   private syncManager: SyncManager;
-  
+
   // Event listeners
   private playbackStateListener: any = null;
   private isInitialized: boolean = false;
@@ -33,7 +33,7 @@ export default class AudiobookStreamer {
     position: number;
     timeListened: number;
   } | null = null;
-  
+
   private lastPauseTime: number = 0;
   private pauseDebounceMs: number = 500;
 
@@ -168,7 +168,7 @@ export default class AudiobookStreamer {
 
     const activeSessionId = await this.sessionManager.getActiveSessionId();
     const activeLibraryItemId = await this.sessionManager.getActiveLibraryItemId();
-    
+
     if (!activeSessionId || !activeLibraryItemId) {
       console.warn("No active session/library ID found, skipping sync");
       return;
@@ -196,16 +196,16 @@ export default class AudiobookStreamer {
   }
 
   async syncPosition(globalPosIn?: number): Promise<void> {
+    console.log("Audiobook STREAMER book stroe pos update");
     if (!this.sessionManager.hasSession() || this.sessionClosed) return;
 
     const activeSessionId = await this.sessionManager.getActiveSessionId();
     const activeLibraryItemId = await this.sessionManager.getActiveLibraryItemId();
-    
+
     if (!activeSessionId || !activeLibraryItemId) return;
 
-    const globalPosition = globalPosIn !== undefined 
-      ? globalPosIn 
-      : await this.sessionManager.getGlobalPosition();
+    const globalPosition =
+      globalPosIn !== undefined ? globalPosIn : await this.sessionManager.getGlobalPosition();
 
     await this.syncManager.syncPosition(
       activeSessionId,
@@ -246,9 +246,7 @@ export default class AudiobookStreamer {
       } else {
         finalPosition = await this.sessionManager.getGlobalPosition();
         const lastSyncTime = this.syncManager.getLastSyncTime();
-        finalTimeListened = lastSyncTime
-          ? Math.floor((Date.now() - lastSyncTime) / 1000)
-          : 0;
+        finalTimeListened = lastSyncTime ? Math.floor((Date.now() - lastSyncTime) / 1000) : 0;
       }
 
       await this.apiClient.closeSession(sessionId, {
@@ -299,9 +297,7 @@ export default class AudiobookStreamer {
         timeListened: timeListened,
       };
 
-      console.log(
-        `Captured session ${session.id} at position ${globalPosition}s for final sync`
-      );
+      console.log(`Captured session ${session.id} at position ${globalPosition}s for final sync`);
     } catch (error) {
       console.error("Failed to capture current session state:", error);
     }
@@ -378,4 +374,3 @@ export default class AudiobookStreamer {
     await this.syncManager.processQueueOnReconnection();
   }
 }
-

@@ -13,7 +13,7 @@ export class SyncManager {
   private requestQueue = new PQueue({ concurrency: 1 });
   private lastSyncAttempt: number = 0;
   private syncDebounceMs: number = 1000;
-  
+
   // Books store update throttling
   private lastBookStoreUpdate: number = 0;
   private bookStoreUpdateIntervalMs: number = 30000;
@@ -30,7 +30,7 @@ export class SyncManager {
       newIntervalSeconds = 60;
     }
     this.syncIntervalSeconds = newIntervalSeconds;
-    
+
     // Restart timer if running
     if (this.syncTimer) {
       this.stopRealTimeSyncTimer();
@@ -110,6 +110,7 @@ export class SyncManager {
     globalPosition: number,
     isSessionClosed: boolean
   ): Promise<void> {
+    console.log("SyncManager book stroe pos update");
     if (isSessionClosed) return;
 
     const now = Date.now();
@@ -130,6 +131,7 @@ export class SyncManager {
         if (syncResult.success) {
           const { useBooksStore } = require("../../store/store-books");
           const bookActions = useBooksStore.getState().actions;
+
           bookActions.updateCurrentPosition(libraryItemId, syncResult.currentTime);
         }
       } catch (error) {
@@ -155,7 +157,7 @@ export class SyncManager {
       const bookActions = useBooksStore.getState().actions;
       bookActions.updateCurrentPosition(libraryItemId, currentTime);
       this.lastBookStoreUpdate = now;
-      
+
       if (this.forceBooksStoreUpdate) {
         this.forceBooksStoreUpdate = false;
       }
@@ -183,8 +185,7 @@ export class SyncManager {
         networkError.statusCode === 0 ||
         networkError.statusCode >= 500 ||
         (typeof networkError.message === "string" &&
-          (networkError.message.includes("Network") ||
-            networkError.message.includes("timeout"))))
+          (networkError.message.includes("Network") || networkError.message.includes("timeout"))))
     ) {
       console.warn("Network error detected, queuing sync for later:", error);
       await this.queueSyncForLater(sessionId, syncData);
@@ -194,6 +195,7 @@ export class SyncManager {
   }
 
   private async queueSyncForLater(sessionId: string, syncData: SyncData): Promise<void> {
+    console.log("QUEUE Sync");
     syncQueue.addToQueue({
       type: "playback-progress",
       data: {
@@ -234,7 +236,7 @@ export class SyncManager {
       await this.processQueuedSyncs();
     }
   }
-  
+
   public getQueuedSyncCount(): number {
     return syncQueue.getQueueCount();
   }

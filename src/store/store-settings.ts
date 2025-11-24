@@ -1,11 +1,9 @@
 import TrackPlayer from "react-native-track-player";
+import uuid from "react-native-uuid";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import {
-  BookShelf,
-  defaultBookshelves,
-  DefaultShelfId,
-} from "../utils/AudiobookShelf/bookshelfTypes";
+import { immer } from "zustand/middleware/immer";
+import { Bookshelf, defaultBookshelves } from "../utils/AudiobookShelf/bookshelfTypes";
 import { formatSeconds, timeBetween } from "../utils/formatUtils";
 import { mmkvStorage } from "./mmkv-storage";
 
@@ -15,9 +13,9 @@ interface SettingsState {
   seekBackwardSeconds: number;
   syncIntervalSeconds: number;
   // all available bookshelves, this will include the default and any custom shelves
-  allBookshelves: BookShelf[];
+  allBookshelves: Bookshelf[];
   // Bookshelves to display - order of array is order of display
-  bookshelvesToDisplay: (DefaultShelfId | string)[];
+  bookshelvesToDisplay: string[];
   // Sleep Timer ----
   sleepTimeMinutes: number;
   sleepStartDateTime: Date | undefined;
@@ -38,7 +36,11 @@ interface SettingsActions {
   setSeekBackwardSeconds: (seconds: number) => void;
   setSyncIntervalSeconds: (seconds: number) => void;
   // bookshelves
-  updateBookshelfDisplay: (newBookshelves: DefaultShelfId[]) => void;
+  updateBookshelfDisplay: (bookshelfId: string, displayed: boolean) => void;
+  addNewBookshelf: (newBookshelf: string) => void;
+  updateBookshelves: (newBookshelves: Bookshelf[]) => void;
+
+  deleteBookshelf: (bookshelfId: string) => void;
   resetToDefaults: () => void;
   updateSleepTime: (sleepTime: number) => void;
   updateSleepChapter: (chapterIndex: number | undefined) => void;
@@ -60,16 +62,13 @@ const DEFAULT_SYNC_INTERVAL_SECONDS = 5;
 // Create the store (not exported directly - following best practices)
 export const useSettingsStore = create<SettingsStore>()(
   persist(
-    (set, get) => ({
+    immer((set, get) => ({
       // State
       seekForwardSeconds: DEFAULT_SEEK_FORWARD_SECONDS,
       seekBackwardSeconds: DEFAULT_SEEK_BACKWARD_SECONDS,
       syncIntervalSeconds: DEFAULT_SYNC_INTERVAL_SECONDS,
       //Bookshelves
-      allBookshelves: [
-        ...defaultBookshelves,
-        { id: "myFavs", key: "myFavs", label: "My Favs", type: "custom" },
-      ],
+      allBookshelves: [...defaultBookshelves],
       bookshelvesToDisplay: ["continue-listening", "recently-added", "discover", "listen-again"],
       // Sleep Timer START
       sleepTimeMinutes: 0,
@@ -100,8 +99,40 @@ export const useSettingsStore = create<SettingsStore>()(
             syncIntervalSeconds: DEFAULT_SYNC_INTERVAL_SECONDS,
           }),
 
-        updateBookshelfDisplay: (newBookshelves) => {
-          set({ bookshelvesToDisplay: newBookshelves });
+        updateBookshelfDisplay: (bookshelfId: string, displayed: boolean) => {
+          set((state) => {
+            state.allBookshelves = state.allBookshelves.map((el) => {
+              if (el.id === bookshelfId) {
+                return { ...el, displayed };
+              }
+              return el;
+            });
+          });
+          // set({ bookshelvesToDisplay: newBookshelves });
+        },
+        updateBookshelves: (newBookshelves: Bookshelf[]) => set({ allBookshelves: newBookshelves }),
+        addNewBookshelf: (newBookshelf) => {
+          console.log("ADDING BOOKSHELF");
+          const id = uuid.v4();
+          const allBS = get().allBookshelves;
+          const found = allBS.findIndex((el) => el.label === newBookshelf);
+
+          if (found !== -1) throw new Error("duplicate");
+
+          set({
+            allBookshelves: [
+              ...allBS,
+              { id, label: newBookshelf, type: "custom", position: allBS.length, displayed: true },
+            ],
+          });
+        },
+        deleteBookshelf: (bookshelfId) => {
+          set((state) => {
+            state.allBookshelves = state.allBookshelves.filter((item) => item.id !== bookshelfId);
+            state.bookshelvesToDisplay = state.bookshelvesToDisplay.filter(
+              (item) => item !== bookshelfId
+            );
+          });
         },
         updateSleepTime: (sleepTime) => {
           if (sleepTime < 0) {
@@ -237,7 +268,7 @@ export const useSettingsStore = create<SettingsStore>()(
           });
         },
       },
-    }),
+    })),
     {
       name: "settings-storage", // Storage key
       storage: createJSONStorage(() => mmkvStorage),
@@ -246,6 +277,8 @@ export const useSettingsStore = create<SettingsStore>()(
         seekForwardSeconds: state.seekForwardSeconds,
         seekBackwardSeconds: state.seekBackwardSeconds,
         syncIntervalSeconds: state.syncIntervalSeconds,
+        allBookshelves: state.allBookshelves,
+        bookshelvesToDisplay: state.bookshelvesToDisplay,
       }),
     }
   )

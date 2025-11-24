@@ -1,10 +1,10 @@
 import { sortBy } from "es-toolkit";
 import {
-  AuthorsItemsResponse,
-  BookPersonalizedView,
-  MediaProgress,
-  PersonalizedViewsResponse,
-  SeriesPersonalizedView,
+    AuthorsItemsResponse,
+    BookPersonalizedView,
+    MediaProgress,
+    PersonalizedViewsResponse,
+    SeriesPersonalizedView,
 } from "./abstypes";
 // services/AudiobookshelfAPI.ts
 import axios, { AxiosRequestConfig } from "axios";
@@ -16,22 +16,22 @@ import { Alert, Image } from "react-native";
 import { kv } from "@store/mmkv/mmkv";
 import { Keys } from "@store/mmkv/storageKeys";
 
-import { DefaultShelfKey } from "@/src/utils/AudiobookShelf/bookshelfTypes";
+
 import { PitchAlgorithm } from "react-native-track-player";
 import { queryClient } from "../queryClient";
 import { AudiobookshelfAuth } from "./absAuthClass";
 import {
-  ABSLoginResponse,
-  AudiobookSession,
-  AuthenticationError,
-  Bookmark,
-  FilterData,
-  GetLibraryItemsResponse,
-  ItemsInProgressResponse,
-  Library,
-  LibraryItem,
-  NetworkError,
-  User,
+    ABSLoginResponse,
+    AudiobookSession,
+    AuthenticationError,
+    Bookmark,
+    FilterData,
+    GetLibraryItemsResponse,
+    ItemsInProgressResponse,
+    Library,
+    LibraryItem,
+    NetworkError,
+    User,
 } from "./abstypes";
 import { BookShelfBook, buildBookShelf, buildCoverURLSync } from "./absUtils";
 
@@ -776,11 +776,12 @@ export class AudiobookshelfAPI {
       shelfLabel: string;
     };
 
-    const shelves: Partial<Record<DefaultShelfKey, Shelf>> = {
-      ...(continueListening ? { continueListening } : {}),
-      ...(recentlyAdded ? { recentlyAdded } : {}),
+    // Use shelf IDs as keys directly (e.g., "continue-listening", "recently-added", etc.)
+    const shelves: Record<string, Shelf> = {
+      ...(continueListening ? { "continue-listening": continueListening } : {}),
+      ...(recentlyAdded ? { "recently-added": recentlyAdded } : {}),
       ...(discover ? { discover } : {}),
-      ...(listenAgain ? { listenAgain } : {}),
+      ...(listenAgain ? { "listen-again": listenAgain } : {}),
     };
 
     // return { continueListening, recentSeries, recentlyAdded, discover, listenAgain } ;

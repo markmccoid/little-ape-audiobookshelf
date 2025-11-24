@@ -9,6 +9,7 @@ import NotAuthedHeader from "./NotAuthedHeader";
 
 const HomeContainer = () => {
   const themeColors = useThemeColors();
+
   const {
     // data: bookShelves,
     isSuccess: bookShelvesLoaded,
@@ -18,25 +19,19 @@ const HomeContainer = () => {
 
   const bookShelves = useBookShelves();
 
-  const otherShelves = bookShelves?.filter((el) => el.id !== "continue-listening");
-  console.log("OTHER", otherShelves);
-  // Augment bookShelves with progress data
-  const continueListeningData = useMemo(() => {
-    const continueListeningBookshelf = bookShelves?.find((el) => el.id === "continue-listening");
-    if (!continueListeningBookshelf) return [];
+  // Merge bookshelf data with inProgress data from ABS
+  const augmentedBookshelves = useMemo(() => {
+    if (!bookShelves) return bookShelves;
+    // We have stored the data for progress in a map for quicker access
+    const progressMap = booksInProgress?.map || {};
 
-    if (!bookShelves || !booksInProgress) return continueListeningBookshelf;
-
-    // Your augmentation logic here
-    const augmentedBooks = continueListeningBookshelf.books.map((shelf) => ({
+    return bookShelves.map((shelf) => ({
       ...shelf,
-      currentTime: booksInProgress.find((p) => p.bookId === shelf.libraryItemId)?.currentTime || 0,
+      books: shelf.books.map((bookData) => ({
+        ...bookData,
+        currentTime: progressMap[bookData.libraryItemId]?.currentTime ?? 0, // from ABS API
+      })),
     }));
-
-    return {
-      ...continueListeningBookshelf,
-      books: augmentedBooks,
-    };
   }, [bookShelves, booksInProgress]);
 
   // Refetch books in progress when home tab gains focus
@@ -51,15 +46,9 @@ const HomeContainer = () => {
       <NotAuthedHeader />
       <ScrollView className="flex-1" contentInsetAdjustmentBehavior="automatic">
         <View className="mt-2">
-          {continueListeningData && <BookShelfContainer shelfData={continueListeningData} />}
-          {otherShelves?.map((bookShelf) => {
+          {augmentedBookshelves?.map((bookShelf) => {
             return <BookShelfContainer shelfData={bookShelf} key={bookShelf.id} />;
           })}
-          {/* {bookShelves?.recentlyAdded && (
-            <BookShelfContainer shelfData={bookShelves.recentlyAdded} />
-          )}
-          {bookShelves?.discover && <BookShelfContainer shelfData={bookShelves.discover} />}
-          {bookShelves?.listenAgain && <BookShelfContainer shelfData={bookShelves.listenAgain} />} */}
         </View>
       </ScrollView>
     </View>

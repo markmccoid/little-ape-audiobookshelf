@@ -109,3 +109,8 @@ export const getImageDimensions = () => {
     borderRadius: 12,
   };
 };
+
+// Removes emojis, symbols, punctuation, spaces — keeps only A–Z, a–z, 0–9
+export const stripSpecial = (str: string) => {
+  return str.replace(/[^a-zA-Z0-9]/g, "");
+};
