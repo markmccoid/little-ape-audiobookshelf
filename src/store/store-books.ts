@@ -4,7 +4,7 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 import { getAbsAPI } from "../utils/AudiobookShelf/absInit";
 import { Author, Bookmark } from "../utils/AudiobookShelf/abstypes";
-import { BookShelfBook, BookShelfItemType } from "../utils/AudiobookShelf/absUtils";
+import { BookShelfItemType } from "../utils/AudiobookShelf/absUtils";
 import { BookshelvesState } from "../utils/AudiobookShelf/bookshelfTypes";
 import { formatSeconds } from "../utils/formatUtils";
 import { mmkvStorage } from "./mmkv-storage";
@@ -108,7 +108,8 @@ interface BooksActions {
   deleteBookmark: (LibraryItemId: string, time: number) => Promise<void>;
   updateBookPlaybackRate: (libraryItemId: string, speed: number) => void;
   updateIsDownloaded: (libraryItemId: string, isDownloaded: boolean) => void;
-  updateCurrentPosition: (libraryItemId: string, position: number, duration?: number) => void;
+  updateCurrentPosition: (libraryItemId: string, position: number) => void;
+  updateMappedProgressPositions: (mappedProgress: Record<string, { currentTime?: number }>) => void;
 }
 
 // Combined store interface
@@ -409,12 +410,41 @@ export const useBooksStore = create<BooksStore>()(
           return book;
         },
 
+        updateMappedProgressPositions: (
+          mappedProgress: Record<string, { currentTime: number | undefined }>
+        ) =>
+          set((state) => {
+            const now = Date.now();
+            // immer allows direct mutation of state here for readability
+            Object.entries(mappedProgress).forEach(([bookId, p]) => {
+              const existing = state.bookInfo[bookId] ?? {};
+              state.bookInfo[bookId] = {
+                ...existing,
+                positionInfo: {
+                  currentPosition: p?.currentTime ?? 0,
+                  lastProgressUpdate: now,
+                },
+              };
+            });
+          }),
+        // updateMappedProgressPositions: (mappedProgress: Record<string, { currentTime: number }>) =>
+        //   set((state) => {
+        //     const newBookInfo = { ...state.bookInfo };
+        //     const now = Date.now();
+        //     Object.keys(mappedProgress).forEach((bookId) => {
+        //       const cur = newBookInfo[bookId] ?? {};
+        //       newBookInfo[bookId] = {
+        //         ...cur,
+        //         positionInfo: {
+        //           currentPosition: mappedProgress[bookId].currentTime || 0,
+        //           lastProgressUpdate: now,
+        //         },
+        //       };
+        //     });
+        //     return { bookInfo: newBookInfo };
+        //   }),
+
         updateCurrentPosition: (libraryItemId, position) => {
-          // console.log(`[BooksStore] updateCurrentPosition called:`, {
-          //   libraryItemId,
-          //   position,
-          //   duration,
-          // });
           // Update the bookInfo Object
           set((state) => {
             state.bookInfo[libraryItemId] = {
@@ -422,18 +452,6 @@ export const useBooksStore = create<BooksStore>()(
               positionInfo: { currentPosition: position, lastProgressUpdate: Date.now() },
             };
           });
-          //!! REMOVE
-          // set((state) => ({
-          //   books: state.books.map((book) =>
-          //     book.libraryItemId === libraryItemId
-          //       ? {
-          //           ...book,
-          //           currentPosition: position,
-          //           lastUpdated: Date.now(),
-          //         }
-          //       : book
-          //   ),
-          // }));
         },
       },
     })),
@@ -461,17 +479,13 @@ export const useBooksStore = create<BooksStore>()(
 //# -------------------------------------------
 export const useBookShelves = () => {
   const books = useBooksStore((state) => state.books);
+  const bookInfo = useBooksStore((state) => state.bookInfo);
+
   const bookActions = useBooksActions();
   const bookshelves = useBooksStore((state) => state.bookshelves);
   // Settings has a list of all bookshelves available
   const allBookshelves = useSettingsStore((state) => state.allBookshelves);
-  // Settings has a list of chosen bookshelves to display (in order to be displayed)
-  const bookshelvesToRender = useSettingsStore((state) => state.bookshelvesToDisplay);
-  // console.log(
-  //   "ALL BOS",
-  //   allBookshelves.map((el) => el.label)
-  // );
-  // console.log("BS", Object.keys(bookshelves));
+
   if (!bookshelves) return;
 
   // list of bookshelves in format UI is expecting
@@ -488,7 +502,7 @@ export const useBookShelves = () => {
         if (!foundBook) {
           bookActions.addBooks([{ libraryItemId: bookId }], bookshelf.id);
         }
-        return foundBook || {};
+        return { ...foundBook, currentTime: bookInfo[bookId].positionInfo.currentPosition };
       }),
     };
   }) as BookShelfItemType[] | [];

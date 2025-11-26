@@ -7,33 +7,28 @@ export type BookShelfItemType = {
   key?: string;
   position?: number;
   displayed?: boolean;
-  books: Book[];
+  books: BookShelfBook[];
 };
-export type BookShelfBook = {
-  libraryItemId: string;
-  title: string;
-  author?: string;
-  coverURL?: string;
-  seriesName?: string;
-  duration?: number;
-  currentTime?: number; // only populated for continue-listening and done in HomeContainer component
+export type BookShelfBook = Book & {
+  currentTime?: number;
 };
+
 export const buildBookShelf = <T extends TypedPersonalizedView>(
-  bookShelfItem: T,
-  token: string,
-  absURL: string
+  bookShelfItem: T
+  // token: string,
+  // absURL: string
 ) => {
   const baseInfo = { shelfId: bookShelfItem.id, shelfLabel: bookShelfItem.label };
   switch (bookShelfItem.type) {
     case "book":
       const books = bookShelfItem.entities.map((book) => ({
         libraryItemId: book.id,
-        title: book.media.metadata.title,
-        author: book.media.metadata.authorName,
-        coverURL: buildCoverURLSync(book.id, token, absURL).coverFull,
-        duration: book.media.duration,
+        // title: book.media.metadata.title,
+        // author: book.media.metadata.authorName,
+        // coverURL: buildCoverURLSync(book.id, token, absURL).coverFull,
+        // duration: book.media.duration,
       }));
-      return { ...baseInfo, books: books as BookShelfBook[] };
+      return { ...baseInfo, books: books as Pick<Book, "libraryItemId">[] };
 
     // case "series":
     //   return bookShelfItem.entities.map((series) => ({

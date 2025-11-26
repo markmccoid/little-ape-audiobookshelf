@@ -21,9 +21,10 @@ const SettingsBookShelfContainer = ({ bookshelf }: Props) => {
 
   return (
     <View
-      className={`${
-        bookshelf.displayed ? "bg-red-300" : "white"
-      } p-2 border-hairline flex-row justify-between items-center mx-2`}
+      className={`p-2 border-hairline flex-row justify-between items-center mx-2 rounded-md`}
+      style={{
+        backgroundColor: bookshelf.displayed ? `${themeColors.accent}dd` : `${themeColors.card}`,
+      }}
     >
       <View className="flex-row">
         <Switch
@@ -37,7 +38,14 @@ const SettingsBookShelfContainer = ({ bookshelf }: Props) => {
           ios_backgroundColor="#d1d1d6"
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         />
-        <Text className="font-semibold text-lg">{bookshelf.label}</Text>
+        <Text
+          className="font-semibold text-lg"
+          style={{
+            color: bookshelf.displayed ? themeColors.accentForeground : themeColors.foreground,
+          }}
+        >
+          {bookshelf.label}
+        </Text>
       </View>
       {bookshelf.type === "custom" && (
         <Sortable.Touchable

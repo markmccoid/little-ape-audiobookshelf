@@ -43,7 +43,7 @@ const ManageBookshelvesContainer = () => {
   return (
     <View className="flex-1" style={{ paddingTop: headerHeight }}>
       <AddNewBookshelf />
-      <ScrollView className="flex-1 mb-[50] " contentContainerClassName="border flex-grow ">
+      <ScrollView className="flex-1 mb-[50] " contentContainerClassName="flex-grow ">
         <Sortable.Grid
           columns={1}
           data={mergedBS}

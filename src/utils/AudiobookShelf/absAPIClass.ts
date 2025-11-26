@@ -1,10 +1,10 @@
 import { sortBy } from "es-toolkit";
 import {
-    AuthorsItemsResponse,
-    BookPersonalizedView,
-    MediaProgress,
-    PersonalizedViewsResponse,
-    SeriesPersonalizedView,
+  AuthorsItemsResponse,
+  BookPersonalizedView,
+  MediaProgress,
+  PersonalizedViewsResponse,
+  SeriesPersonalizedView,
 } from "./abstypes";
 // services/AudiobookshelfAPI.ts
 import axios, { AxiosRequestConfig } from "axios";
@@ -16,24 +16,24 @@ import { Alert, Image } from "react-native";
 import { kv } from "@store/mmkv/mmkv";
 import { Keys } from "@store/mmkv/storageKeys";
 
-
+import { Book } from "@/src/store/store-books";
 import { PitchAlgorithm } from "react-native-track-player";
 import { queryClient } from "../queryClient";
 import { AudiobookshelfAuth } from "./absAuthClass";
 import {
-    ABSLoginResponse,
-    AudiobookSession,
-    AuthenticationError,
-    Bookmark,
-    FilterData,
-    GetLibraryItemsResponse,
-    ItemsInProgressResponse,
-    Library,
-    LibraryItem,
-    NetworkError,
-    User,
+  ABSLoginResponse,
+  AudiobookSession,
+  AuthenticationError,
+  Bookmark,
+  FilterData,
+  GetLibraryItemsResponse,
+  ItemsInProgressResponse,
+  Library,
+  LibraryItem,
+  NetworkError,
+  User,
 } from "./abstypes";
-import { BookShelfBook, buildBookShelf, buildCoverURLSync } from "./absUtils";
+import { buildBookShelf, buildCoverURLSync } from "./absUtils";
 
 // Types
 export type FilterType = "genres" | "tags" | "authors" | "series" | "progress";
@@ -727,51 +727,36 @@ export class AudiobookshelfAPI {
       return null;
     }
 
-    const token = await this.auth.getValidAccessToken();
-    if (!token) return;
-
     //~ Continue Listening Shelf
     const continueListeningShelf = resp.find(
       (el): el is BookPersonalizedView => el.id === "continue-listening"
     );
     if (!continueListeningShelf) return;
-    const continueListening = buildBookShelf<BookPersonalizedView>(
-      continueListeningShelf,
-      token,
-      this.auth.absURL
-    );
+    const continueListening = buildBookShelf<BookPersonalizedView>(continueListeningShelf);
 
     //~ Recently Added Shelf
     const recentlyAddedShelf = resp.find(
       (el): el is BookPersonalizedView => el.id === "recently-added"
     );
     if (!recentlyAddedShelf) return;
-    const recentlyAdded = buildBookShelf<BookPersonalizedView>(
-      recentlyAddedShelf,
-      token,
-      this.auth.absURL
-    );
+    const recentlyAdded = buildBookShelf<BookPersonalizedView>(recentlyAddedShelf);
 
     //~ Discover Shelf
     const discoverShelf = resp.find((el): el is BookPersonalizedView => el.id === "discover");
     if (!discoverShelf) return;
-    const discover = buildBookShelf<BookPersonalizedView>(discoverShelf, token, this.auth.absURL);
+    const discover = buildBookShelf<BookPersonalizedView>(discoverShelf);
 
     //~ Listen Again Shelf
     const listenAgainShelf = resp.find(
       (el): el is BookPersonalizedView => el.id === "listen-again"
     );
     if (!listenAgainShelf) return;
-    const listenAgain = buildBookShelf<BookPersonalizedView>(
-      listenAgainShelf,
-      token,
-      this.auth.absURL
-    );
+    const listenAgain = buildBookShelf<BookPersonalizedView>(listenAgainShelf);
 
     const recentSeries = resp.find((el): el is SeriesPersonalizedView => el.id === "recent-series");
 
     type Shelf = {
-      books: BookShelfBook[];
+      books: Pick<Book, "libraryItemId">[];
       shelfId: string;
       shelfLabel: string;
     };

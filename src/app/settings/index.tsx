@@ -4,7 +4,9 @@ import {
   useSeekBackwardSeconds,
   useSeekForwardSeconds,
   useSettingsActions,
+  useSettingsStore,
 } from "@/src/store/store-settings";
+import { useThemeColors } from "@/src/utils/theme";
 import {
   Button,
   Form,
@@ -25,10 +27,14 @@ import { Alert } from "react-native";
 
 export default function SettingsView() {
   const headerHeight = useHeaderHeight();
+  const themeColors = useThemeColors();
   const [isAirplaneMode, setIsAirplaneMode] = useState(true);
   const settingsActions = useSettingsActions();
   const seekForward = useSeekForwardSeconds();
   const seekBackward = useSeekBackwardSeconds();
+  const homeScreenTimeVariant = useSettingsStore((state) => state.homeScreenTimeVariant);
+  const showTimeLeft = homeScreenTimeVariant === "timeleft";
+
   const { isAuthenticated, hasStoredCredentials, authInfo } = useAuth();
   const bookActions = useBooksActions();
   // Format auth info for display
@@ -131,7 +137,7 @@ export default function SettingsView() {
             <Button>
               <HStack spacing={4} alignment="center">
                 <Image
-                  systemName="wifi"
+                  systemName="book.and.wrench"
                   color="white"
                   size={14}
                   modifiers={[
@@ -150,6 +156,58 @@ export default function SettingsView() {
               </HStack>
             </Button>
           </Link>
+          {/* Time Display */}
+          <Button>
+            <VStack>
+              <HStack spacing={4} alignment="center">
+                <Image
+                  systemName="timelapse"
+                  color="white"
+                  size={14}
+                  modifiers={[
+                    frame({ width: 28, height: 28 }),
+                    background("#007aff"),
+                    clipShape("roundedRectangle"),
+                  ]}
+                />
+                <Text color="primary" size={16}>
+                  Home screen book position display
+                </Text>
+                <Spacer />
+              </HStack>
+              <HStack>
+                <Spacer />
+                <Switch
+                  value={showTimeLeft}
+                  onValueChange={(checked) => {
+                    if (checked) {
+                      settingsActions.setHomeScreenTimeVariant("timeleft");
+                    } else {
+                      settingsActions.setHomeScreenTimeVariant("timeread");
+                    }
+                  }}
+                  label="Time Left"
+                  variant="button"
+                  color={showTimeLeft ? themeColors.destructive : themeColors.muted}
+                />
+                <Spacer />
+                <Switch
+                  value={!showTimeLeft}
+                  onValueChange={(checked) => {
+                    if (checked) {
+                      settingsActions.setHomeScreenTimeVariant("timeread");
+                    } else {
+                      settingsActions.setHomeScreenTimeVariant("timeleft");
+                    }
+                  }}
+                  label="Time Read"
+                  variant="button"
+                  color={!showTimeLeft ? themeColors.accent : themeColors.accentMuted}
+                />
+                <Spacer />
+              </HStack>
+            </VStack>
+          </Button>
           <Button onPress={handleSeekForwardPress}>
             <HStack spacing={4} alignment="center">
               <Image

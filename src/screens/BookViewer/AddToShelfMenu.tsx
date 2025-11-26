@@ -1,10 +1,17 @@
+import {
+  AnimatedMenu,
+  MenuContent,
+  MenuItemData,
+  MenuTrigger,
+} from "@/src/components/AnimatedMenu";
 import { useBooksActions, useBooksStore } from "@/src/store/store-books";
 import { useSettingsStore } from "@/src/store/store-settings";
-import { Button, ContextMenu, Host, Image } from "@expo/ui/swift-ui"; // or '@expo/ui' APIs per SDK
-import { buttonStyle } from "@expo/ui/swift-ui/modifiers";
+import { useThemeColors } from "@/src/utils/theme";
 
 import { useRouter } from "expo-router";
+import { SymbolView } from "expo-symbols";
 import React from "react";
+import { View } from "react-native";
 
 type Props = {
   libraryItemId: string;
@@ -19,46 +26,47 @@ const AddToShelfMenu = ({ libraryItemId }: Props) => {
     (el) => el.type === "custom"
   );
   const router = useRouter();
+  const themeColors = useThemeColors();
+  const shelfMenuItems: MenuItemData[] = shelves.map((shelf) => {
+    const bookInShelf = loadedShelves?.[shelf.id]?.includes(libraryItemId);
+    return {
+      key: shelf.id,
+      label: shelf.label,
+      icon: bookInShelf ? ("checkmark.circle.fill" as const) : undefined,
+      iconColor: bookInShelf ? themeColors.accent : undefined,
+      textColor: bookInShelf ? themeColors.accent : undefined,
+      onPress: () =>
+        bookInShelf
+          ? bookActions.removeBookFromBookshelf(libraryItemId, shelf.id)
+          : bookActions.addBookToBookshelf(libraryItemId, shelf.id),
+    };
+  });
+  const menuItems: MenuItemData[] = [
+    {
+      key: "manageshelves",
+      label: "Manage Bookshelves",
+      icon: "link",
+      onPress: () => router.push("/settings/managebookshelves"),
+    },
+    {
+      key: "separator",
+      label: "",
+    },
+    ...shelfMenuItems,
+  ];
 
   return (
-    <Host
-      style={{
-        width: 44,
-        height: 44,
-        flexDirection: "row",
-        alignItems: "center",
-        transform: [{ translateY: -4 }],
-      }}
-    >
-      <ContextMenu modifiers={[buttonStyle("automatic")]}>
-        <ContextMenu.Items>
-          {shelves.length !== 0 && (
-            <Button onPress={() => router.push("/settings/managebookshelves")}>
-              Add a Custom Shelf
-            </Button>
-          )}
-          {shelves.map((shelf) => {
-            const bookInShelf = loadedShelves[shelf.id].includes(libraryItemId);
-            return (
-              <Button
-                systemImage={shelf.displayed ? "eye" : "eye.slash"}
-                key={shelf.id}
-                onPress={() =>
-                  bookInShelf
-                    ? bookActions.removeBookFromBookshelf(libraryItemId, shelf.id)
-                    : bookActions.addBookToBookshelf(libraryItemId, shelf.id)
-                }
-              >
-                {`${shelf.label} ${bookInShelf ? "🚫" : "✅"} `}
-              </Button>
-            );
-          })}
-        </ContextMenu.Items>
-        <ContextMenu.Trigger>
-          <Image systemName="plus" />
-        </ContextMenu.Trigger>
-      </ContextMenu>
-    </Host>
+    <View>
+      <AnimatedMenu>
+        <MenuTrigger>
+          <View className="w-[44] h-[44] pb-2 justify-center items-center">
+            <SymbolView name="plus" size={32} />
+          </View>
+        </MenuTrigger>
+
+        <MenuContent items={menuItems} />
+      </AnimatedMenu>
+    </View>
   );
 };
 

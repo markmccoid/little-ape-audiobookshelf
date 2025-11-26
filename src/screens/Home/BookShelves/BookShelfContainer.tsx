@@ -1,5 +1,6 @@
 import { useSafeAbsAPI } from "@/src/contexts/AuthContext";
 import { useInvalidateQueries } from "@/src/hooks/ABSHooks";
+import { Book } from "@/src/store/store-books";
 import {
   usePlaybackActions,
   usePlaybackSession,
@@ -88,11 +89,12 @@ const BookShelfContainer = ({ shelfData, isLoading, isError }: Props) => {
     isPlaying,
   ]);
 
-  const renderItem: ListRenderItem<EnhancedBookItem> = useCallback(
+  const renderItem: ListRenderItem<Book> = useCallback(
     ({ item, index }) => {
       return (
         <BookShelfItem
           item={item}
+          shelfId={shelfData.id}
           onInitBook={handleInitBookWithOptimisticUpdate}
           togglePlayPause={storeTogglePlayPause}
         />
@@ -101,8 +103,7 @@ const BookShelfContainer = ({ shelfData, isLoading, isError }: Props) => {
     [handleInitBookWithOptimisticUpdate, storeTogglePlayPause]
   );
 
-  const keyExtractor = useCallback((item: EnhancedBookItem) => `${item.libraryItemId}`, []);
-
+  const keyExtractor = useCallback((item: Book) => `${item.libraryItemId}`, []);
   if (isLoading) {
     return (
       <View className="flex-1 justify-center items-center">
@@ -137,8 +138,8 @@ const BookShelfContainer = ({ shelfData, isLoading, isError }: Props) => {
             )}
           </View>
 
-          <Animated.FlatList<EnhancedBookItem>
-            data={enhancedBooks}
+          <Animated.FlatList<Book>
+            data={shelfData.books}
             horizontal
             showsHorizontalScrollIndicator={false}
             renderItem={renderItem}

@@ -3,7 +3,7 @@ import { sortBy } from "es-toolkit";
 
 import { useEffect, useMemo, useState } from "react";
 import { useSafeAbsAPI } from "../contexts/AuthContext";
-import { useBooksActions } from "../store/store-books";
+import { Book, useBooksActions } from "../store/store-books";
 import { useSortDirection, useSortedBy } from "../store/store-filters";
 import {
   ABSGetItemsInProgress,
@@ -12,7 +12,6 @@ import {
   ABSGetLibraryItems,
 } from "../utils/AudiobookShelf/absAPIClass";
 import { getAbsAPI, useAbsAPI } from "../utils/AudiobookShelf/absInit";
-import { BookShelfBook } from "../utils/AudiobookShelf/absUtils";
 import { defaultBookshelves } from "../utils/AudiobookShelf/bookshelfTypes";
 import { queryClient } from "../utils/queryClient";
 
@@ -195,7 +194,7 @@ export const useGetBookShelves = () => {
   // derive the default shelf IDs from the source-of-truth array
   const shelvesToProcess = useMemo(() => defaultBookshelves.map((s) => s.id), []);
   // small helper to safely add books for a default shelf ID
-  const safeAddBooksForDefaultKey = (shelfId: string, books?: BookShelfBook[]) => {
+  const safeAddBooksForDefaultKey = (shelfId: string, books?: Pick<Book, "libraryItemId">[]) => {
     if (!books || books.length === 0) return;
     bookStoreActions.addBooks(books, shelfId);
   };
@@ -217,7 +216,6 @@ export const useGetBookShelves = () => {
 
       // The API returns data keyed by IDs, so use the ID directly
       safeAddBooksForDefaultKey(shelfId, query.data[shelfId]?.books);
-      bookStoreActions.addBooks([query.data[shelfId]?.books[0]], "myFavs");
     }
 
     // Update timestamp if discover was processed
@@ -237,6 +235,7 @@ export const useGetBookShelves = () => {
 //# ----------------------------------------------
 export const useGetBooksInProgress = (enabled = true) => {
   const absAPI = useSafeAbsAPI();
+  const bookActions = useBooksActions();
   // Always get the library ID, even if null
   const activeLibraryId = absAPI?.getActiveLibraryId() || null;
 
@@ -255,10 +254,17 @@ export const useGetBooksInProgress = (enabled = true) => {
         acc[p.bookId] = p;
         return acc;
       }, {});
-      return { list: data, map: progressById };
+      return { list: data, mapped: progressById };
     },
   });
 
+  //~ update the book store with this new progress information
+  //~ this way we do not need to augment data in the HomeContainer.
+  useEffect(() => {
+    if (!data) return;
+    // update the store-books.bookInfo[].positionInfo
+    bookActions.updateMappedProgressPositions(data.mapped);
+  }, [data, bookActions]);
   return { data, isError, ...rest };
 };
 

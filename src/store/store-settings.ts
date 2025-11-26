@@ -8,10 +8,13 @@ import { formatSeconds, timeBetween } from "../utils/formatUtils";
 import { mmkvStorage } from "./mmkv-storage";
 
 // Define the state interface
+type TimeVariant = "timeleft" | "timeread";
 interface SettingsState {
   seekForwardSeconds: number;
   seekBackwardSeconds: number;
   syncIntervalSeconds: number;
+  // Time variant to show on home screen
+  homeScreenTimeVariant: TimeVariant;
   // all available bookshelves, this will include the default and any custom shelves
   allBookshelves: Bookshelf[];
   // Bookshelves to display - order of array is order of display
@@ -35,6 +38,7 @@ interface SettingsActions {
   setSeekForwardSeconds: (seconds: number) => void;
   setSeekBackwardSeconds: (seconds: number) => void;
   setSyncIntervalSeconds: (seconds: number) => void;
+  setHomeScreenTimeVariant: (variant: TimeVariant) => void;
   // bookshelves
   updateBookshelfDisplay: (bookshelfId: string, displayed: boolean) => void;
   addNewBookshelf: (newBookshelf: string) => void;
@@ -67,6 +71,7 @@ export const useSettingsStore = create<SettingsStore>()(
       seekForwardSeconds: DEFAULT_SEEK_FORWARD_SECONDS,
       seekBackwardSeconds: DEFAULT_SEEK_BACKWARD_SECONDS,
       syncIntervalSeconds: DEFAULT_SYNC_INTERVAL_SECONDS,
+      homeScreenTimeVariant: "timeleft",
       //Bookshelves
       allBookshelves: [...defaultBookshelves],
       bookshelvesToDisplay: ["continue-listening", "recently-added", "discover", "listen-again"],
@@ -91,6 +96,8 @@ export const useSettingsStore = create<SettingsStore>()(
         setSeekBackwardSeconds: (seconds: number) => set({ seekBackwardSeconds: seconds }),
 
         setSyncIntervalSeconds: (seconds: number) => set({ syncIntervalSeconds: seconds }),
+
+        setHomeScreenTimeVariant: (timeVariant) => set({ homeScreenTimeVariant: timeVariant }),
 
         resetToDefaults: () =>
           set({

@@ -17,6 +17,7 @@
     "@expo/metro-runtime": "~6.1.2",
     "@expo/ui": "^0.2.0-beta.7",
     "@expo/vector-icons": "^15.0.2",
+    "@gorhom/portal": "^1.0.14",
     "@legendapp/list": "^2.0.8",
     "@react-native-community/netinfo": "11.4.1",
     "@react-native-community/slider": "5.0.1",

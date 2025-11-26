@@ -20,7 +20,7 @@ export const formatBytes = (bytes: number) => {
 
 export const formatSeconds = (
   secondsIn: number,
-  type?: "minimal" | "verbose" | "verbose_no_seconds" | "compact",
+  type?: "minimal" | "verbose" | "verbose_no_seconds" | "compact" | "minimal-no-seconds",
   showHours?: boolean,
   showSeconds?: boolean
 ) => {
@@ -41,6 +41,12 @@ export const formatSeconds = (
     return `${showHours === true ? hours : ""}${minutes}${showSeconds ? ":" + seconds : ""}`;
   }
 
+  if (type === "minimal-no-seconds") {
+    const hours = `${h > 0 ? h + "h " : "0h "}`;
+    // const seconds = `${s.toString().padStart(2, "0")}`;
+    const minutes = `${m > 0 ? m.toString().padStart(2, "0") : "00"}`;
+    return `${showHours === true ? hours : ""}${minutes}m`;
+  }
   if (type === "compact") {
     // Strip out unused time periods
     if (h > 0) {
