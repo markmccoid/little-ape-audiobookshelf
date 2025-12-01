@@ -182,13 +182,12 @@ export const useBookData = (libraryItemId: string) => {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["book", libraryItemId, userId],
+    queryKey: ["book", libraryItemId],
     queryFn: async () => {
-      if (!userId) throw new Error("User not authenticated");
-      return await getOrFetchBook({ userId, libraryItemId });
+      return await getOrFetchBook({ libraryItemId });
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
-    enabled: !!libraryItemId && !!userId,
+    enabled: !!libraryItemId,
   });
 
   const book = bookFromStore;

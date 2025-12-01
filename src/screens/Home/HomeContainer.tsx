@@ -1,5 +1,6 @@
 import { useGetBookShelves, useGetBooksInProgress } from "@/src/hooks/ABSHooks";
 import { useBookShelves } from "@/src/store/store-books";
+import { AudiobookshelfAuth } from "@/src/utils/AudiobookShelf/absAuthClass";
 import { useThemeColors } from "@/src/utils/theme";
 import { useFocusEffect } from "expo-router";
 import React, { useCallback } from "react";
@@ -9,7 +10,13 @@ import NotAuthedHeader from "./NotAuthedHeader";
 
 const HomeContainer = () => {
   const themeColors = useThemeColors();
-
+  //!! I don't like this.  If a user is not logged in they don't see anything.
+  //!! need to make the useGetBookShelves hook return what is in store even if not logged in.
+  const x = AudiobookshelfAuth.isAssumedAuthedGlobal;
+  console.log("x", x);
+  if (!x) {
+    return <NotAuthedHeader />;
+  }
   const {
     // data: bookShelves,
     isSuccess: bookShelvesLoaded,

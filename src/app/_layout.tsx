@@ -15,6 +15,7 @@ import { AuthProvider, useAuth } from "../contexts/AuthContext";
 import { NetworkProvider } from "../contexts/NetworkContext";
 import "../global.css";
 import "../lib/polyfills";
+import { useBooksActions } from "../store/store-books";
 import { storeInit } from "../store/storeInit";
 import { absInitalize } from "../utils/AudiobookShelf/absInit";
 import { queryClient } from "../utils/queryClient";
@@ -35,7 +36,7 @@ function AppContent() {
   const router = useRouter();
   const { hasStoredCredentials, checkAuthStatus } = useAuth();
   const initializeOnce = useRef(false);
-
+  const bookActions = useBooksActions();
   useEffect(() => {
     // Only initialize once
     if (initializeOnce.current) return;
@@ -127,10 +128,9 @@ export default function RootLayout() {
         <NetworkProvider>
           <AuthProvider>
             <PortalProvider>
-            <ThemeProvider value={colorScheme === "dark" ? NAV_THEME.dark : NAV_THEME.light}>
-              <AppContent />
-
-            </ThemeProvider>
+              <ThemeProvider value={colorScheme === "dark" ? NAV_THEME.dark : NAV_THEME.light}>
+                <AppContent />
+              </ThemeProvider>
             </PortalProvider>
           </AuthProvider>
         </NetworkProvider>

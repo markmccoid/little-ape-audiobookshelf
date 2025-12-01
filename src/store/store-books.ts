@@ -4,7 +4,7 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 import { getAbsAPI } from "../utils/AudiobookShelf/absInit";
 import { Author, Bookmark } from "../utils/AudiobookShelf/abstypes";
-import { BookShelfItemType } from "../utils/AudiobookShelf/absUtils";
+import { BookShelfBook, BookShelfItemType } from "../utils/AudiobookShelf/absUtils";
 import { BookshelvesState } from "../utils/AudiobookShelf/bookshelfTypes";
 import { formatSeconds } from "../utils/formatUtils";
 import { mmkvStorage } from "./mmkv-storage";
@@ -87,18 +87,24 @@ interface BooksState {
   books: Book[];
   // Holds additional information -- Bookkmarks
   bookInfo: BookInfo;
+  // Object mapping bookshelf IDs to arrays of book IDs
   bookshelves: BookshelvesState;
 }
 
 // Define the actions interface
 interface BooksActions {
   setBooks: (books: Book[]) => void;
-  getOrFetchBook: (params: { libraryItemId: string }) => Promise<Book>;
+  getOrFetchBook: ({ libraryItemId }: { libraryItemId: string }) => Promise<Book>;
   updateBook: (libraryItemId: string, updates: Partial<Omit<Book, "libraryItemId">>) => void;
   removeBook: (libraryItemId: string) => void;
-  addBooks: (books: Pick<BookShelfBook, "libraryItemId">[], bookshelfId: string) => Promise<void>;
+  // -- START BOOKSHELF ACTIONS --
+  addBooksToBookshelf: (
+    books: Pick<BookShelfBook, "libraryItemId">[],
+    bookshelfId: string
+  ) => Promise<void>;
   removeBookFromBookshelf: (libraryItemId: string, bookshelfId: string) => Promise<void>;
   addBookToBookshelf: (libraryItemId: string, bookshelfId: string) => Promise<void>;
+  // -- END BOOKSHELF ACTIONS --
   clearBooks: () => void;
   getBook: (libraryItemId: string) => Book | undefined;
   addBookmark: (
@@ -108,7 +114,9 @@ interface BooksActions {
   deleteBookmark: (LibraryItemId: string, time: number) => Promise<void>;
   updateBookPlaybackRate: (libraryItemId: string, speed: number) => void;
   updateIsDownloaded: (libraryItemId: string, isDownloaded: boolean) => void;
+  // updates bookInfo.positionInfo for a specific book
   updateCurrentPosition: (libraryItemId: string, position: number) => void;
+  // updates bookInfo.positionInfo for multiple books
   updateMappedProgressPositions: (mappedProgress: Record<string, { currentTime?: number }>) => void;
 }
 
@@ -254,7 +262,13 @@ export const useBooksStore = create<BooksStore>()(
           });
         },
         //! -- ADD BOOKS for BookShelves
-        addBooks: async (books, bookshelfId) => {
+        addBooksToBookshelf: async (books, bookshelfId) => {
+          console.log(
+            "addBooksToBookshelf",
+            books.map((el) => el)
+          );
+          if (!books || books.length === 0 || books[0].libraryItemId === null) return;
+
           const storeBooks = get().books;
 
           let libItemIdsToFetch = [];
@@ -293,6 +307,8 @@ export const useBooksStore = create<BooksStore>()(
           const now = Date.now();
 
           const existingBook = books.find((b) => b.libraryItemId === libraryItemId);
+          console.log("existingBook", existingBook?.title);
+          console.log("libraryItemId", libraryItemId);
 
           const fallback: Book = {
             libraryItemId,
@@ -410,9 +426,7 @@ export const useBooksStore = create<BooksStore>()(
           return book;
         },
 
-        updateMappedProgressPositions: (
-          mappedProgress: Record<string, { currentTime: number | undefined }>
-        ) =>
+        updateMappedProgressPositions: (mappedProgress) =>
           set((state) => {
             const now = Date.now();
             // immer allows direct mutation of state here for readability
@@ -477,7 +491,7 @@ export const useBooksStore = create<BooksStore>()(
 //# -------------------------------------------
 //# Selector to get all the bookshelves to display as defined in Settings
 //# -------------------------------------------
-export const useBookShelves = () => {
+export const useBookShelves = (bookshelfId?: string) => {
   const books = useBooksStore((state) => state.books);
   const bookInfo = useBooksStore((state) => state.bookInfo);
 
@@ -486,6 +500,7 @@ export const useBookShelves = () => {
   // Settings has a list of all bookshelves available
   const allBookshelves = useSettingsStore((state) => state.allBookshelves);
 
+  console.log("IN useBookShelves hook", bookshelves);
   if (!bookshelves) return;
 
   // list of bookshelves in format UI is expecting
@@ -500,12 +515,17 @@ export const useBookShelves = () => {
       books: (bookshelves[bookshelf.id] || []).map((bookId: string) => {
         const foundBook = books.find((el) => el.libraryItemId === bookId);
         if (!foundBook) {
-          bookActions.addBooks([{ libraryItemId: bookId }], bookshelf.id);
+          bookActions.addBooksToBookshelf([{ libraryItemId: bookId }], bookshelf.id);
         }
-        return { ...foundBook, currentTime: bookInfo[bookId].positionInfo.currentPosition };
+        return { ...foundBook, currentTime: bookInfo[bookId]?.positionInfo?.currentPosition || 0 };
       }),
     };
   }) as BookShelfItemType[] | [];
+
+  // If the user only wants a single shelf, return that shelf
+  if (bookshelfId) {
+    return finalBookshelves.find((el) => el.id === bookshelfId);
+  }
   return finalBookshelves;
 };
 

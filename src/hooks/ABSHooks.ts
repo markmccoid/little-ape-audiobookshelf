@@ -196,7 +196,7 @@ export const useGetBookShelves = () => {
   // small helper to safely add books for a default shelf ID
   const safeAddBooksForDefaultKey = (shelfId: string, books?: Pick<Book, "libraryItemId">[]) => {
     if (!books || books.length === 0) return;
-    bookStoreActions.addBooks(books, shelfId);
+    bookStoreActions.addBooksToBookshelf(books, shelfId);
   };
   useEffect(() => {
     if (!query.isSuccess || !query.data) return;

@@ -43,7 +43,10 @@ const BookShelfItem = ({ item, shelfId, onInitBook, togglePlayPause }: BookShelf
   const bookPosition = useBookPosition(item.libraryItemId);
   const isCurrentlyLoaded = item.libraryItemId === currentSession?.libraryItemId;
 
-  const percentBookWidth = Math.ceil((bookPosition.currentPosition / (item.duration || 0)) * 175);
+  const percentBookWidth =
+    bookPosition?.currentPosition && item?.duration > 0
+      ? Math.ceil((bookPosition?.currentPosition / item.duration!) * 175)
+      : 0;
   const playPause = async () => {
     // Check if book is playable offline
     if (!isPlayable) {
@@ -92,7 +95,7 @@ const BookShelfItem = ({ item, shelfId, onInitBook, togglePlayPause }: BookShelf
             {/* <SwiftImage systemName="line.3.horizontal.decrease.circle" size={24} /> */}
 
             <View className="z-40 justify-start">
-              {item.currentTime > 0 && (
+              {item?.currentTime > 0 && (
                 <>
                   <View
                     className="absolute bottom-[-3] left-[-6] h-[6] bg-orange-400 z-40 mx-2 rounded-md "
@@ -155,8 +158,8 @@ const BookShelfItem = ({ item, shelfId, onInitBook, togglePlayPause }: BookShelf
         </Text>
 
         <BookPositionView
-          currentPosition={bookPosition.currentPosition}
-          duration={item.duration || 0}
+          currentPosition={bookPosition?.currentPosition ?? 0}
+          duration={item.duration ?? 0}
         />
       </View>
     </Animated.View>

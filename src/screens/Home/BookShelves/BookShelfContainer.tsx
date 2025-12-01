@@ -1,4 +1,3 @@
-import { useSafeAbsAPI } from "@/src/contexts/AuthContext";
 import { useInvalidateQueries } from "@/src/hooks/ABSHooks";
 import { Book } from "@/src/store/store-books";
 import {
@@ -8,8 +7,9 @@ import {
 } from "@/src/store/store-playback";
 import { BookShelfItemType } from "@/src/utils/AudiobookShelf/absUtils";
 import { useThemeColors } from "@/src/utils/theme";
+import { useRouter } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import React, { useCallback, useMemo, useReducer } from "react";
+import React, { useCallback } from "react";
 import { ListRenderItem, Pressable, ScrollView, Text, View } from "react-native";
 import Animated, { LinearTransition } from "react-native-reanimated";
 import BookShelfItem from "./BookShelfItem";
@@ -28,6 +28,7 @@ type Props = {
 };
 const BookShelfContainer = ({ shelfData, isLoading, isError }: Props) => {
   const themeColors = useThemeColors();
+  const router = useRouter();
   const { togglePlayPause: storeTogglePlayPause, loadBookAndPlay: handleInitBook } =
     usePlaybackActions();
   const invalidateQuery = useInvalidateQueries();
@@ -35,15 +36,6 @@ const BookShelfContainer = ({ shelfData, isLoading, isError }: Props) => {
   // in the render item.
   const isPlaying = usePlaybackStore((state) => state.isPlaying);
   const session = usePlaybackSession();
-
-  // const { position } = useProgress(5000);
-  // const pos = useBookPosition(session?.libraryItemId);
-
-  const absAPI = useSafeAbsAPI();
-
-  //!! Does nothing here --- Take out and use in full list of IN PROGRESS
-  const [showHidden, toggleShowHidden] = useReducer((state) => !state, false);
-  // Refetch books in progress when home tab gains focus
 
   //# Wrapper function that loads book and optimistically updates cache
   // This function is passed to each render item (book) and then the render item
@@ -58,36 +50,6 @@ const BookShelfContainer = ({ shelfData, isLoading, isError }: Props) => {
   };
 
   //# Enhance data with current progress info
-
-  // Check if this is the continue-listening shelf that needs real-time progress updates
-  const isContinueListeningShelf = shelfData.id === "continue-listening";
-  //!! How to display time information across all books with it
-  //!! RESIZE continue listening to be regular size.
-  //!! Maybe top/first shelf is big
-  const enhancedBooks = useMemo((): EnhancedBookItem[] => {
-    // console.log("SHelf Data", shelfData);
-    if (!shelfData?.books) return [];
-    return shelfData.books
-      .map((book) => {
-        const isCurrentlyLoaded = session?.libraryItemId === book.libraryItemId;
-
-        // If book is loaded, pass the isPlaying var pulled from main hook
-        const bookIsPlaying = isCurrentlyLoaded ? isPlaying : false;
-
-        return {
-          ...book,
-          isCurrentlyLoaded,
-          isPlaying: bookIsPlaying,
-          id: shelfData.id,
-        };
-      })
-      .filter((el: any): el is EnhancedBookItem => el !== undefined);
-  }, [
-    shelfData,
-    session?.libraryItemId,
-    // isContinueListeningShelf ? progress?.position : undefined,
-    isPlaying,
-  ]);
 
   const renderItem: ListRenderItem<Book> = useCallback(
     ({ item, index }) => {
@@ -127,15 +89,16 @@ const BookShelfContainer = ({ shelfData, isLoading, isError }: Props) => {
           <View className="flex-row gap-2 px-2">
             <Text className="text-lg font-bold text-accent">{shelfData.label}</Text>
             {/* Does nothing here --- Take out and use in full list of IN PROGRESS */}
-            {shelfData.id === "continue-listening" && (
-              <Pressable onPress={toggleShowHidden}>
-                {showHidden ? (
-                  <SymbolView name="eye" tintColor={themeColors.accent} />
-                ) : (
-                  <SymbolView name="eye.slash" tintColor={themeColors.accent} />
-                )}
-              </Pressable>
-            )}
+
+            <Pressable
+              onPress={() => {
+                console.log("Go TO:", shelfData.label);
+                router.push(`/(tabs)/(home)/bookshelf/${shelfData.id}`);
+              }}
+              hitSlop={20}
+            >
+              <SymbolView name="arrow.forward.folder" tintColor={themeColors.accent} />
+            </Pressable>
           </View>
 
           <Animated.FlatList<Book>
@@ -144,7 +107,7 @@ const BookShelfContainer = ({ shelfData, isLoading, isError }: Props) => {
             showsHorizontalScrollIndicator={false}
             renderItem={renderItem}
             keyExtractor={keyExtractor}
-            extraData={{ isPlaying, sessionId: session?.libraryItemId }}
+            // extraData={{ isPlaying, sessionId: session?.libraryItemId }}
             itemLayoutAnimation={LinearTransition}
           />
         </View>
