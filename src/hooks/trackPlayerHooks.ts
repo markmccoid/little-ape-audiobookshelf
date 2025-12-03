@@ -8,7 +8,7 @@ import {
   useBooksStore,
 } from "../store/store-books";
 import { usePlaybackActions, usePlaybackSession, usePlaybackStore } from "../store/store-playback";
-import { getAbsAuth } from "../utils/AudiobookShelf/absInit";
+import { getAbsAuth, isUserAuthenticated } from "../utils/AudiobookShelf/absInit";
 
 //###
 //# useSmartPositionStore version 2
@@ -168,8 +168,7 @@ export const useSmartPosition = (libraryItemId: string) => {
 export const useBookData = (libraryItemId: string) => {
   const bookFromStore = useBook(libraryItemId);
   const getOrFetchBook = useBooksStore((state) => state.actions.getOrFetchBook);
-  const absAuth = getAbsAuth();
-  const userId = absAuth.userId;
+  const userId = isUserAuthenticated() ? getAbsAuth()?.userId : null;
 
   const sessionLibraryItemId = usePlaybackStore((s) => s.session?.libraryItemId);
   const isBookActive = sessionLibraryItemId === libraryItemId;
@@ -184,10 +183,15 @@ export const useBookData = (libraryItemId: string) => {
   } = useQuery({
     queryKey: ["book", libraryItemId],
     queryFn: async () => {
+      // Only try to fetch if we have a userId (authenticated)
+      if (!userId) {
+        console.log("useBookData: Skipping fetch - not authenticated");
+        return null;
+      }
       return await getOrFetchBook({ libraryItemId });
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
-    enabled: !!libraryItemId,
+    enabled: !!libraryItemId && !!userId, // Only enable query if authenticated
   });
 
   const book = bookFromStore;

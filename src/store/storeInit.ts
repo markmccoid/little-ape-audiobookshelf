@@ -1,26 +1,45 @@
+import { AudiobookshelfAuth } from "../utils/AudiobookShelf/absAuthClass";
 import { getAbsAPI } from "../utils/AudiobookShelf/absInit";
 import { Bookmark } from "../utils/AudiobookShelf/abstypes";
 import { BookInfo, useBooksStore } from "./store-books";
 
 export const storeInit = async () => {
-  const absAPI = getAbsAPI();
-  const userInfo = await absAPI.getMe();
-  //! Mediaprogress -- NOT SURE WHAT TO USE IT FOR
-  //const mediaProgress = userInfo.mediaProgress;
+  try {
+    console.log("storeInit: Starting store initialization");
 
-  //~ We are going to sync bookmark state from server to app once
-  //~ on startup and then when displaying info, we will use the store only
-  //~ updating the server as well, but never requerying the server bookmark info
-  //~ only adding, updating and deleting from server.
-  //~Get Bookmark info from server and books store
-  const absBookmarks = userInfo.bookmarks;
-  const storeBookinfo = useBooksStore.getState().bookInfo;
+    // Check if we have stored credentials before attempting to get API
+    const hasCredentials = await AudiobookshelfAuth.hasStoredCredentials();
+    if (!hasCredentials) {
+      console.log("storeInit: No stored credentials, skipping server sync");
+      return; // Exit gracefully without server sync
+    }
 
-  //~ merge bookmarks from server and store with server being the truth (store will be overwritten if bm the same time on server)
-  const newStoreBookInfo = mergeBookmarks(storeBookinfo, absBookmarks);
-  // console.log("NEW BOOK", newStoreBookInfo?.["b3204480-9e1d-493f-8d18-2b31d3bca76d"]);
-  // update the store
-  useBooksStore.setState({ bookInfo: newStoreBookInfo });
+    const absAPI = getAbsAPI();
+    console.log("storeInit: Got absAPI instance");
+    const userInfo = await absAPI.getMe();
+    console.log("storeInit: Got user info");
+    //! Mediaprogress -- NOT SURE WHAT TO USE IT FOR
+    //const mediaProgress = userInfo.mediaProgress;
+
+    //~ We are going to sync bookmark state from server to app once
+    //~ on startup and then when displaying info, we will use the store only
+    //~ updating the server as well, but never requerying the server bookmark info
+    //~ only adding, updating and deleting from server.
+    //~Get Bookmark info from server and books store
+    const absBookmarks = userInfo.bookmarks;
+    const storeBookinfo = useBooksStore.getState().bookInfo;
+
+    //~ merge bookmarks from server and store with server being the truth (store will be overwritten if bm the same time on server)
+    const newStoreBookInfo = mergeBookmarks(storeBookinfo, absBookmarks);
+    // console.log("NEW BOOK", newStoreBookInfo?.["b3204480-9e1d-493f-8d18-2b31d3bca76d"]);
+    // update the store
+    useBooksStore.setState({ bookInfo: newStoreBookInfo });
+    console.log("storeInit: Store initialization completed successfully");
+  } catch (error) {
+    console.error("storeInit: Error during store initialization:", error);
+    // Don't re-throw - let the app continue without store initialization
+    console.log("storeInit: Allowing app to continue without server data sync");
+  }
 };
 
 //# ---------------------------------------------------------------
@@ -42,13 +61,13 @@ function mergeBookmarks(bookInfo: BookInfo, absBMs: Bookmark[]) {
     const storeList = Array.isArray(existingObj.bookmarks) ? existingObj.bookmarks : [];
 
     // index by time (store values first, then ABS overwrites when same time)
-    const byTime = new Map(storeList.map((b) => [b.time, b]));
+    const byTime = new Map(storeList.map((b: any) => [b.time, b]));
 
     for (const b of absList) byTime.set(b.time, b); // ABS takes precedence
 
     // produce array, sorted consistently by createdAt (fallback 0)
     existingObj.bookmarks = [...byTime.values()].sort(
-      (a, b) => (a.createdAt || 0) - (b.createdAt || 0)
+      (a: any, b: any) => (a.createdAt || 0) - (b.createdAt || 0)
     );
 
     storeBookinfoFinal[id] = existingObj;

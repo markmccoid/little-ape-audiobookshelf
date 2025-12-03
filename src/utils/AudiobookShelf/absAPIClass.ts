@@ -399,10 +399,16 @@ export class AudiobookshelfAPI {
   //## -------------------------------------
   async getFavoritedAndFinishedItems() {
     const userFavoriteInfo = await this.getUserFavoriteInfo();
-    const progressurl = `/api/libraries/${this.getActiveLibraryId()}/items?filter=progress.ZmluaXNoZWQ=`;
-    const favoriteurl = `/api/libraries/${this.getActiveLibraryId()}/items?filter=tags.${
-      userFavoriteInfo.favoriteSearchString
-    }`;
+    const activeLibraryId = this.getActiveLibraryId();
+
+    // If no active library, return empty array to prevent 404 errors
+    if (!activeLibraryId) {
+      console.warn("getFavoritedAndFinishedItems: No active library set");
+      return [];
+    }
+
+    const progressurl = `/api/libraries/${activeLibraryId}/items?filter=progress.ZmluaXNoZWQ=`;
+    const favoriteurl = `/api/libraries/${activeLibraryId}/items?filter=tags.${userFavoriteInfo.favoriteSearchString}`;
 
     let progressData, favData;
     try {
@@ -601,9 +607,24 @@ export class AudiobookshelfAPI {
   //## getLibraryFilterData
   //## -------------------------------------
   async getLibraryFilterData(libraryId?: string) {
+    // Validate and sanitize libraryId parameter
+    let libraryIdToUse = libraryId || this.getActiveLibraryId();
+
+    // Handle case where libraryId might be an object (e.g., [object Object])
+    if (typeof libraryIdToUse === "object") {
+      console.warn("getLibraryFilterData: libraryId is an object, converting to string");
+      libraryIdToUse = undefined; // Treat objects as invalid
+    }
+
+    // If still no library ID, throw appropriate error
+    if (!libraryIdToUse || typeof libraryIdToUse !== "string" || libraryIdToUse.trim() === "") {
+      console.warn("getLibraryFilterData: No library ID provided and no active library set");
+      throw new Error("No library ID available for filter data request");
+    }
+
     let response;
     try {
-      response = await this.makeAuthenticatedRequest(`/api/libraries/${libraryId}/filterdata`);
+      response = await this.makeAuthenticatedRequest(`/api/libraries/${libraryIdToUse}/filterdata`);
     } catch (error) {
       throw new Error(`absGetLibraryFilterData - ${error}`);
     }
@@ -638,8 +659,22 @@ export class AudiobookshelfAPI {
     filterValue,
     sortBy,
   }: GetLibraryItemsParams): Promise<ABSGetLibraryItems> {
+    // Validate and sanitize libraryId parameter
+    let libraryIdToUse = libraryId || this.getActiveLibraryId();
+
+    // Handle case where libraryId might be an object (e.g., [object Object])
+    if (typeof libraryIdToUse === "object") {
+      console.warn("getLibraryItems: libraryId is an object, converting to string");
+      libraryIdToUse = undefined; // Treat objects as invalid
+    }
+
+    // If still no library ID, return empty array to prevent 404 errors
+    if (!libraryIdToUse || typeof libraryIdToUse !== "string" || libraryIdToUse.trim() === "") {
+      console.warn("getLibraryItems: No valid library ID provided and no active library set");
+      return [];
+    }
+
     const userFavoriteInfo = await this.getUserFavoriteInfo();
-    const libraryIdToUse = libraryId;
     let queryParams = "";
 
     if (filterType) {
@@ -717,7 +752,15 @@ export class AudiobookshelfAPI {
   //##  Book Shelves
   //## -------------------------------------
   async getBookShelves() {
-    const personalizedURL = `/api/libraries/${this.activeLibraryId}/personalized?limit=16`;
+    const activeLibraryId = this.getActiveLibraryId();
+
+    // If no active library, return null to prevent 404 errors
+    if (!activeLibraryId) {
+      console.warn("getBookShelves: No active library set");
+      return null;
+    }
+
+    const personalizedURL = `/api/libraries/${activeLibraryId}/personalized?limit=16`;
     let resp: PersonalizedViewsResponse;
 
     try {
@@ -778,7 +821,15 @@ export class AudiobookshelfAPI {
   //## -------------------------------------
   async getItemsInProgress(): Promise<ABSGetItemsInProgress> {
     const progressURL = `/api/me/items-in-progress`;
-    const finishedURL = `/api/libraries/${this.activeLibraryId}/items?filter=progress.ZmluaXNoZWQ=`;
+    const activeLibraryId = this.getActiveLibraryId();
+
+    // If no active library, return empty array to prevent 404 errors
+    if (!activeLibraryId) {
+      console.warn("getItemsInProgress: No active library set");
+      return [];
+    }
+
+    const finishedURL = `/api/libraries/${activeLibraryId}/items?filter=progress.ZmluaXNoZWQ=`;
     let progressData, userData, finishedData;
 
     try {

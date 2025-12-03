@@ -89,8 +89,8 @@ const applyFilters = (
     if (filterConfig.search.enabled) {
       const searchTerm = filterConfig.search.term;
       const matchesSearch =
-        book.title?.toLowerCase().includes(searchTerm) ||
-        book.author?.toLowerCase().includes(searchTerm);
+        (book.title && book.title.toLowerCase().includes(searchTerm || "")) ||
+        (book.author && book.author.toLowerCase().includes(searchTerm || ""));
 
       if (!matchesSearch) return false;
     }
@@ -181,9 +181,13 @@ export const useGetBookShelves = () => {
     queryKey: ["bookShelves", activeLibraryId],
     queryFn: async () => {
       //# ------------------------------------------------------------------
-      if (!absAPI) throw new Error("Not authenticated");
+      // console.log("[useGetBookShelves] Query function called");
+      if (!absAPI) {
+        throw new Error("Not authenticated");
+      }
       // Fetch new data
-      return await absAPI.getBookShelves();
+      const result = await absAPI.getBookShelves();
+      return result;
       //# ------------------------------------------------------------------
     },
     enabled: !!absAPI && !!activeLibraryId,
@@ -199,7 +203,10 @@ export const useGetBookShelves = () => {
     bookStoreActions.addBooksToBookshelf(books, shelfId);
   };
   useEffect(() => {
-    if (!query.isSuccess || !query.data) return;
+    // Return if no data
+    if (!query.isSuccess || !query.data) {
+      return;
+    }
 
     const now = Date.now();
     const shouldUpdateDiscover = now - lastDiscoverUpdate >= DISCOVER_UPDATE_INTERVAL;
@@ -210,18 +217,19 @@ export const useGetBookShelves = () => {
 
       // Skip discover if not enough time has passed
       if (shelfId === "discover" && !shouldUpdateDiscover) {
-        console.log("Skipping discover update - not enough time has passed");
         continue;
       }
 
+      const shelfBooks = query.data[shelfId]?.books;
+
       // The API returns data keyed by IDs, so use the ID directly
-      safeAddBooksForDefaultKey(shelfId, query.data[shelfId]?.books);
+      safeAddBooksForDefaultKey(shelfId, shelfBooks);
     }
 
     // Update timestamp if discover was processed
     if (shouldUpdateDiscover) {
       lastDiscoverUpdate = now;
-      console.log("Discover updated at:", new Date(now).toISOString());
+      console.log("[useGetBookShelves] Discover updated at:", new Date(now).toISOString());
     }
   }, [query.isSuccess, query.data, shelvesToProcess]);
 

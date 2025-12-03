@@ -2,6 +2,7 @@ import { sortBy } from "es-toolkit";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
+import { AudiobookshelfAuth } from "../utils/AudiobookShelf/absAuthClass";
 import { getAbsAPI } from "../utils/AudiobookShelf/absInit";
 import { Author, Bookmark } from "../utils/AudiobookShelf/abstypes";
 import { BookShelfBook, BookShelfItemType } from "../utils/AudiobookShelf/absUtils";
@@ -104,6 +105,8 @@ interface BooksActions {
   ) => Promise<void>;
   removeBookFromBookshelf: (libraryItemId: string, bookshelfId: string) => Promise<void>;
   addBookToBookshelf: (libraryItemId: string, bookshelfId: string) => Promise<void>;
+  // Delete the bookshelf from the bookshelves variable { 'bookshelfid': [...books], ... }
+  deleteBookshelf: (bookshelfId: string) => void;
   // -- END BOOKSHELF ACTIONS --
   clearBooks: () => void;
   getBook: (libraryItemId: string) => Book | undefined;
@@ -152,7 +155,7 @@ export const useBooksStore = create<BooksStore>()(
             books: state.books.filter((book) => book.libraryItemId !== libraryItemId),
           })),
 
-        clearBooks: () => set({ books: DEFAULT_BOOKS, bookInfo: {} }),
+        clearBooks: () => set({ books: DEFAULT_BOOKS, bookInfo: {}, bookshelves: {} }),
 
         getBook: (libraryItemId: string) => {
           const state = get();
@@ -193,7 +196,7 @@ export const useBooksStore = create<BooksStore>()(
 
           //~ Post to ABS database
           try {
-            absAPI.saveBookmark(libraryItemId, newBookmark);
+            absAPI.saveBookmark(libraryItemId, { ...newBookmark, libraryItemId });
           } catch (e) {
             console.log("Error saving Bookmark", e);
           }
@@ -261,12 +264,17 @@ export const useBooksStore = create<BooksStore>()(
             state.bookshelves[bookshelfId] = [...currSet];
           });
         },
+        deleteBookshelf: (bookshelfId: string) => {
+          set((state) => {
+            delete state.bookshelves[bookshelfId];
+          });
+        },
         //! -- ADD BOOKS for BookShelves
         addBooksToBookshelf: async (books, bookshelfId) => {
-          console.log(
-            "addBooksToBookshelf",
-            books.map((el) => el)
-          );
+          // console.log(
+          //   "addBooksToBookshelf",
+          //   books.map((el) => el)
+          // );
           if (!books || books.length === 0 || books[0].libraryItemId === null) return;
 
           const storeBooks = get().books;
@@ -311,6 +319,7 @@ export const useBooksStore = create<BooksStore>()(
           console.log("libraryItemId", libraryItemId);
 
           const fallback: Book = {
+            userId: "", // Empty string for temporary books
             libraryItemId,
             playbackRate: 1,
             isDownloaded: false,
@@ -331,6 +340,13 @@ export const useBooksStore = create<BooksStore>()(
           try {
             // const { getAbsAPI } = require("@/src/utils/AudiobookShelf/absInit");
             const absAPI = getAbsAPI();
+
+            // Check if we have a real API or mock API
+            if (!absAPI || typeof absAPI.getItemDetails !== "function") {
+              console.log("[BooksStore] API not available, returning existing book");
+              return book;
+            }
+
             const itemDetails = await absAPI.getItemDetails(libraryItemId);
             // Create a fallback chapter for books with NO chapters defined.
             // We make it a single chapter, starting at zero and ending at the duration of the book.
@@ -500,25 +516,33 @@ export const useBookShelves = (bookshelfId?: string) => {
   // Settings has a list of all bookshelves available
   const allBookshelves = useSettingsStore((state) => state.allBookshelves);
 
-  console.log("IN useBookShelves hook", bookshelves);
-  if (!bookshelves) return;
+  if (!bookshelves) {
+    return;
+  }
 
   // list of bookshelves in format UI is expecting
   // sorting by position field and only showing those with displayed = true
   // lastly adding books for the shelf from the store-books -> bookshelves state variable
-  const finalBookshelves = sortBy(
-    allBookshelves.filter((el) => el.displayed === true),
-    ["position"]
-  ).map((bookshelf) => {
-    return {
-      ...bookshelf,
-      books: (bookshelves[bookshelf.id] || []).map((bookId: string) => {
-        const foundBook = books.find((el) => el.libraryItemId === bookId);
-        if (!foundBook) {
+  const displayedBookshelves = allBookshelves.filter((el) => el.displayed === true);
+
+  const finalBookshelves = sortBy(displayedBookshelves, ["position"]).map((bookshelf) => {
+    const shelfBookIds = bookshelves[bookshelf.id] || [];
+
+    const shelfBooks = shelfBookIds.map((bookId: string) => {
+      const foundBook = books.find((el) => el.libraryItemId === bookId);
+      if (!foundBook) {
+        // console.log(`[useBookShelves] Book ${bookId} not found in store, triggering fetch`);
+        // Only trigger fetch if we're authenticated to avoid loops
+        if (AudiobookshelfAuth.isAssumedAuthedGlobal) {
           bookActions.addBooksToBookshelf([{ libraryItemId: bookId }], bookshelf.id);
         }
-        return { ...foundBook, currentTime: bookInfo[bookId]?.positionInfo?.currentPosition || 0 };
-      }),
+      }
+      return { ...foundBook, currentTime: bookInfo[bookId]?.positionInfo?.currentPosition || 0 };
+    });
+
+    return {
+      ...bookshelf,
+      books: shelfBooks,
     };
   }) as BookShelfItemType[] | [];
 

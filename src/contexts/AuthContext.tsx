@@ -165,9 +165,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = useCallback(async (): Promise<void> => {
     try {
+      console.log("LOGOUT: Starting logout process");
       const authInstance = getSafeAuthInstance();
+      console.log("LOGOUT: Got auth instance:", !!authInstance);
 
-      // Clear state FIRST to prevent hooks from trying to access instances
+      // Perform server-side logout FIRST while we still have the instance
+      if (authInstance) {
+        console.log("LOGOUT: Calling authInstance.logout()");
+        await authInstance.logout();
+        console.log("LOGOUT: authInstance.logout() completed");
+      }
+
+      // Then clear state to prevent hooks from trying to access instances
       setIsAuthenticated(false);
       setHasStoredCredentials(false);
       setAuthInfo({
@@ -176,16 +185,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         userEmail: null,
         userId: null,
       });
+      console.log("LOGOUT: State cleared");
 
-      // Then perform server-side logout
-      if (authInstance) {
-        await authInstance.logout();
-      }
       await checkAuthStatus();
+      console.log("LOGOUT: checkAuthStatus completed");
+
       // Finally cleanup ABS instances
+      console.log("LOGOUT: Calling cleanupAbsInstances()");
       cleanupAbsInstances();
+      console.log("LOGOUT: cleanupAbsInstances completed");
     } catch (error) {
-      console.error("Error during logout:", error);
+      console.error("LOGOUT: Error during logout:", error);
 
       // Still clear state and cleanup instances even if logout fails
       setIsAuthenticated(false);
@@ -197,9 +207,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         userId: null,
       });
       try {
+        console.log("LOGOUT: Cleanup in error block");
         cleanupAbsInstances();
       } catch (cleanupError) {
-        console.warn("Failed to cleanup instances:", cleanupError);
+        console.warn("LOGOUT: Failed to cleanup instances:", cleanupError);
       }
     }
   }, [getSafeAuthInstance]);
@@ -242,7 +253,6 @@ export const useSafeAbsAPI = () => {
     const api = getAbsAPI() as AudiobookshelfAPI;
     return api;
   } catch (error) {
-    console.warn("AbsAPI not initialized despite authentication:", error);
     return null;
   }
 };

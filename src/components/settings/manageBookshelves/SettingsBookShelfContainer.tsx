@@ -1,3 +1,4 @@
+import { useBooksActions } from "@/src/store/store-books";
 import { useSettingsActions } from "@/src/store/store-settings";
 import { Bookshelf } from "@/src/utils/AudiobookShelf/bookshelfTypes";
 import { useThemeColors } from "@/src/utils/theme";
@@ -12,6 +13,8 @@ type Props = {
 const SettingsBookShelfContainer = ({ bookshelf }: Props) => {
   const themeColors = useThemeColors();
   const actions = useSettingsActions();
+
+  const bookActions = useBooksActions();
   const [enabled, setEnabled] = useState(bookshelf.displayed);
 
   const handleSetDisplayed = (val: boolean) => {
@@ -53,6 +56,7 @@ const SettingsBookShelfContainer = ({ bookshelf }: Props) => {
           hitSlop={10}
           onTap={() => {
             actions.deleteBookshelf(bookshelf.id);
+            bookActions.deleteBookshelf(bookshelf.id);
           }}
         >
           <SymbolView name="trash.fill" tintColor={themeColors.destructive} />

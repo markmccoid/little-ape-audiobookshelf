@@ -54,18 +54,64 @@ export const absInitalize = async (queryClient?: QueryClient) => {
 
       // If it's a function, wrap it
       if (typeof orig === "function") {
-        return (...args: any[]) => {
+        return async (...args: any[]) => {
           // Ensure auth is initialized before any API call
           const isAuthed = AudiobookshelfAuth.isAssumedAuthedGlobal;
+          // console.log(`PROXY: Checking auth for method ${String(prop)}, isAuthed: ${isAuthed}`);
           if (!isAuthed) {
-            // Log warning but don't show alert - let UI layer handle error display
-            console.warn(`API call attempted while not authenticated: ${String(prop)}`);
-            // Throw error that can be caught by calling code
-            throw new Error("Not authenticated. Please login first.");
+            // Log warning but don't throw - return graceful response
+            // console.warn(`PROXY: API call attempted while not authenticated: ${String(prop)}`);
+
+            // Return appropriate empty response based on method
+            const methodName = String(prop);
+            if (methodName.includes("get") && methodName.includes("Library")) {
+              return []; // Return empty array for library items
+            } else if (methodName.includes("get") && methodName.includes("Progress")) {
+              return null; // Return null for progress
+            } else if (methodName.includes("get") && methodName.includes("Me")) {
+              return null; // Return null for user info
+            } else {
+              // For other methods, return a resolved promise with null
+              return Promise.resolve(null);
+            }
           }
 
           // Call the original method
-          return orig.apply(target, args);
+          // console.log(`PROXY: Executing method ${String(prop)}`);
+          try {
+            return await orig.apply(target, args);
+          } catch (error) {
+            console.error(`PROXY: Error in method ${String(prop)}:`, error);
+
+            // Handle specific error types gracefully
+            const methodName = String(prop);
+
+            // For library-related methods, return empty arrays instead of null
+            if (methodName.includes("get") && methodName.includes("Library")) {
+              console.warn(`PROXY: Returning empty array for library method due to error`);
+              return [];
+            }
+            // For getLibraryItems specifically
+            else if (methodName === "getLibraryItems") {
+              console.warn(`PROXY: Returning empty array for getLibraryItems due to error`);
+              return [];
+            }
+            // For progress-related methods
+            else if (methodName.includes("get") && methodName.includes("Progress")) {
+              console.warn(`PROXY: Returning empty array for progress method due to error`);
+              return [];
+            }
+            // For other get methods, return null
+            else if (methodName.startsWith("get")) {
+              console.warn(`PROXY: Returning null for get method due to error`);
+              return null;
+            }
+            // For other methods, return a resolved promise with null
+            else {
+              console.warn(`PROXY: Returning null for non-get method due to error`);
+              return Promise.resolve(null);
+            }
+          }
         };
       }
 
@@ -88,11 +134,22 @@ export async function prewarmBooksCache(queryClient: QueryClient) {
   const absAPI = useAbsAPI();
   const activeLibraryId = absAPI.getActiveLibraryId();
 
-  await queryClient.prefetchQuery({
-    queryKey: ["books", activeLibraryId],
-    queryFn: () => absAPI.getLibraryItems({ libraryId: activeLibraryId }),
-    staleTime: 1000 * 60 * 5,
-  });
+  // Only prewarm cache if we have a valid library ID
+  if (!activeLibraryId) {
+    console.warn("prewarmBooksCache: No active library ID, skipping cache prewarming");
+    return;
+  }
+
+  try {
+    await queryClient.prefetchQuery({
+      queryKey: ["books", activeLibraryId],
+      queryFn: () => absAPI.getLibraryItems({ libraryId: activeLibraryId }),
+      staleTime: 1000 * 60 * 5,
+    });
+  } catch (error) {
+    console.warn("prewarmBooksCache: Failed to prewarm cache, but continuing:", error);
+    // Don't throw - let the app continue even if cache prewarming fails
+  }
 }
 
 // This is so we don't need to await when getting the absAuth instance
@@ -105,9 +162,54 @@ export const getAbsAuth = (): AudiobookshelfAuth => {
 };
 
 export const getAbsAPI = (): AudiobookshelfAPI => {
-  if (!absAPIProxy) throw new Error("absAPI not initialized. Call absInitialize() first.");
+  if (!absAPIProxy) {
+    console.error("getAbsAPI: absAPI not initialized. Call absInitialize() first.");
+    // Instead of throwing, create a mock API that returns empty responses
+    // This allows the app to continue running even when not authenticated
+    return createMockAPI();
+  }
   return absAPIProxy;
 };
+
+// Create a mock API that returns appropriate empty responses
+function createMockAPI(): AudiobookshelfAPI {
+  const mockAPI = {} as AudiobookshelfAPI;
+
+  // Add mock implementations for common methods
+  const mockMethods = [
+    "getLibraries",
+    "getLibraryItems",
+    "getItemsInProgress",
+    "getBookShelves",
+    "getMe",
+    "getUserInfo",
+    "getBookProgress",
+    "getItemDetails",
+  ];
+
+  mockMethods.forEach((method) => {
+    (mockAPI as any)[method] = async () => {
+      console.log(`MOCK API: ${method} called, returning empty response`);
+      if (method.includes("get") && method.includes("Library")) {
+        return [];
+      } else {
+        return null;
+      }
+    };
+  });
+
+  // Add mock for setActiveLibraryId
+  mockAPI.setActiveLibraryId = () => {
+    console.log("MOCK API: setActiveLibraryId called, doing nothing");
+  };
+
+  mockAPI.getActiveLibraryId = () => {
+    console.log("MOCK API: getActiveLibraryId called, returning undefined");
+    return undefined;
+  };
+
+  return mockAPI;
+}
 
 export function useAbsAPI(): AudiobookshelfAPI {
   // This will throw if not initialized, same as your getter
@@ -116,8 +218,42 @@ export function useAbsAPI(): AudiobookshelfAPI {
 
 // Cleanup function for logout
 export const cleanupAbsInstances = () => {
+  console.log("cleanupAbsInstances: Starting cleanup");
+  console.log("cleanupAbsInstances: absAuth exists before cleanup:", !!absAuth);
+  console.log("cleanupAbsInstances: apiInstance exists before cleanup:", !!apiInstance);
+  console.log("cleanupAbsInstances: absAPIProxy exists before cleanup:", !!absAPIProxy);
+
   absAuth = undefined;
   apiInstance = undefined;
   absAPIProxy = undefined;
-  console.log("ABS instances cleaned up");
+
+  console.log("cleanupAbsInstances: ABS instances cleaned up");
+};
+
+// Reusable function to check authentication status safely
+export const isUserAuthenticated = (): boolean => {
+  try {
+    const auth = getAbsAuth();
+    return !!(auth?.userId && auth?.absURL);
+  } catch (error) {
+    console.log("isUserAuthenticated: Not authenticated -", (error as Error).message);
+    return false;
+  }
+};
+
+// Reusable function to get user info safely
+export const getAuthenticatedUser = (): { userId?: string; serverUrl?: string } | null => {
+  try {
+    const auth = getAbsAuth();
+    if (!auth?.userId || !auth?.absURL) {
+      return null;
+    }
+    return {
+      userId: auth.userId,
+      serverUrl: auth.absURL,
+    };
+  } catch (error) {
+    console.log("getAuthenticatedUser: Not authenticated -", (error as Error).message);
+    return null;
+  }
 };

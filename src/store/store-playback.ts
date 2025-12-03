@@ -184,8 +184,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
     },
 
     loadBook: async (itemId: string) => {
-      const absAuth = getAbsAuth();
-      const userId = absAuth.userId;
+      const userId = getAbsAuth()?.userId;
       //!! Potential ERROR catch
       if (!userId) return;
 

@@ -5,12 +5,13 @@ import {
   usePlaybackStore,
 } from "@/src/store/store-playback";
 import { useSeekBackwardSeconds, useSeekForwardSeconds } from "@/src/store/store-settings";
+import { isUserAuthenticated } from "@/src/utils/AudiobookShelf/absInit";
 import { THEME, useThemeColors } from "@/src/utils/theme";
 import { BlurView } from "expo-blur";
 import { SymbolView } from "expo-symbols";
 import { PressableScale } from "pressto";
 import React, { useEffect, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Alert, Pressable, Text, View } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -26,6 +27,8 @@ const BookControls = ({ libraryItemId }: Props) => {
   const { jumpForwardSeconds, jumpBackwardSeconds, togglePlayPause, loadBookAndPlay, loadBook } =
     usePlaybackActions();
   const themeColors = useThemeColors();
+  const isAuthed = isUserAuthenticated();
+
   const seekForward = useSeekForwardSeconds();
   const seekBackward = useSeekBackwardSeconds();
 
@@ -44,6 +47,10 @@ const BookControls = ({ libraryItemId }: Props) => {
   const growVal = useSharedValue(collapsedHeight);
 
   const localTogglePlayPause = async () => {
+    if (!isAuthed) {
+      Alert.alert("Not Logged In", "No user is logged in, cannot play");
+      return;
+    }
     if (!isBookActive) {
       setIsLocalBookActive(true);
       await loadBookAndPlay(libraryItemId);

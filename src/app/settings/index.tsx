@@ -282,7 +282,11 @@ export default function SettingsView() {
                 clipShape("roundedRectangle"),
               ]}
             />
-            <Button onPress={() => bookActions.clearBooks()}>
+            <Button
+              onPress={() => {
+                bookActions.clearBooks();
+              }}
+            >
               <Text size={14}>Clear Books</Text>
             </Button>
             <Spacer />

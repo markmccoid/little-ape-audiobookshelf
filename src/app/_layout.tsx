@@ -43,18 +43,29 @@ function AppContent() {
     initializeOnce.current = true;
 
     const initialize = async () => {
+      console.log("INIT: Starting app initialization");
       await trackPlayerInit();
+      console.log("INIT: Track player initialized");
 
       // Always attempt to initialize ABS - it will handle the credential check internally
+      console.log("INIT: Attempting ABS initialization");
       const initSuccess = await absInitalize(queryClient);
+      console.log("INIT: ABS initialization result:", initSuccess);
       if (!initSuccess) {
-        console.log("NO SUCCESS FOR YOU");
+        console.log("INIT: ABS initialization failed, skipping storeInit");
       } else {
-        console.log("before storeInit");
-        await storeInit();
+        console.log("INIT: ABS initialization successful, proceeding with storeInit");
+        try {
+          await storeInit();
+          console.log("INIT: storeInit completed successfully");
+        } catch (error) {
+          console.error("INIT: storeInit failed:", error);
+        }
       }
       // Refresh auth status after initialization attempt
+      console.log("INIT: Checking auth status");
       await checkAuthStatus();
+      console.log("INIT: App initialization completed");
       setIsReady(true);
     };
     initialize();
