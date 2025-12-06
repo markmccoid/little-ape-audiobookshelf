@@ -9,6 +9,7 @@ import { useColorScheme } from "nativewind";
 import { useEffect, useRef, useState } from "react";
 import { LogBox, Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { AuthErrorBanner } from "../components/AuthErrorBanner";
 import MiniPlayer from "../components/miniPlayer/MiniPlayer";
 import { NetworkStatusBanner } from "../components/NetworkStatusBanner";
 import { AuthProvider, useAuth } from "../contexts/AuthContext";
@@ -90,8 +91,9 @@ function AppContent() {
 
   return (
     <>
-      {/* <NetworkStatusBanner /> */}
+      {/* Network and Auth status banners */}
       <NetworkStatusBanner />
+      <AuthErrorBanner />
       <Stack
         screenOptions={{
           headerShown: false,

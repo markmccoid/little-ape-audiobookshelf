@@ -10,12 +10,26 @@ import {
   LogoutResponse,
   NetworkError,
 } from "./abstypes";
+import {
+  emitAuthStateChanged,
+  emitLoginFailed,
+  emitLoginSuccess,
+  emitLogout,
+  emitTokenExpiringSoon,
+  emitTokenRefreshed,
+  emitTokenRefreshFailed,
+} from "./authEventEmitter";
+import { AuthErrorType, AuthState, createAuthError } from "./authTypes";
 
 export class AudiobookshelfAuth {
   private static readonly TOKEN_KEY = "audiobookshelf_tokens";
   private static readonly SERVER_URL_KEY = "audiobookshelf_server_url";
   private static readonly USERINFO_KEY = "audiobookshelf_user_info";
   private static readonly CREDENTIALS_KEY = "audiobookshelf_credentials";
+
+  // Token refresh timing constants
+  private static readonly TOKEN_REFRESH_BUFFER_MS = 10 * 60 * 1000; // 10 minutes before expiry
+  private static readonly TOKEN_WARNING_BUFFER_MS = 15 * 60 * 1000; // 15 minutes before expiry (warning)
 
   private static instance: AudiobookshelfAuth | null = null;
 
@@ -32,11 +46,85 @@ export class AudiobookshelfAuth {
   private maxRetries: number = 3;
   private baseRetryDelayMs: number = 1000; // Start with 1 second
 
+  // Token refresh scheduler
+  private refreshSchedulerId: ReturnType<typeof setTimeout> | null = null;
+  private warningSchedulerId: ReturnType<typeof setTimeout> | null = null;
+
   private constructor(private serverUrl: string) {}
 
   get absURL() {
     return this.serverUrl;
   }
+
+  /**
+   * Get the token expiry timestamp
+   */
+  get tokenExpiresAt(): number | null {
+    return this.tokens?.expiresAt ?? null;
+  }
+
+  // -------------------------
+  // TOKEN REFRESH SCHEDULING
+  // -------------------------
+
+  /**
+   * Schedule proactive token refresh before expiry
+   * This ensures tokens are refreshed in the background without disrupting user experience
+   */
+  private scheduleTokenRefresh(expiresAt: number): void {
+    // Clear any existing schedulers
+    this.clearRefreshSchedulers();
+
+    const now = Date.now();
+    const timeUntilExpiry = expiresAt - now;
+
+    // Schedule warning before token expires
+    const warningTime = timeUntilExpiry - AudiobookshelfAuth.TOKEN_WARNING_BUFFER_MS;
+    if (warningTime > 0) {
+      this.warningSchedulerId = setTimeout(() => {
+        console.log("Token expiring soon, emitting warning event");
+        emitTokenExpiringSoon(expiresAt);
+      }, warningTime);
+    }
+
+    // Schedule refresh before token expires
+    const refreshTime = timeUntilExpiry - AudiobookshelfAuth.TOKEN_REFRESH_BUFFER_MS;
+    if (refreshTime > 0) {
+      this.refreshSchedulerId = setTimeout(async () => {
+        console.log("Proactive token refresh triggered");
+        try {
+          await this.refreshAccessToken();
+          console.log("Proactive token refresh successful");
+        } catch (error) {
+          console.error("Proactive token refresh failed:", error);
+          // Event will be emitted by refreshAccessToken
+        }
+      }, refreshTime);
+
+      console.log(`Token refresh scheduled in ${Math.round(refreshTime / 1000 / 60)} minutes`);
+    } else if (timeUntilExpiry > 0) {
+      // Token expires soon, try to refresh immediately
+      console.log("Token expires soon, attempting immediate refresh");
+      this.refreshAccessToken().catch((error) => {
+        console.error("Immediate token refresh failed:", error);
+      });
+    }
+  }
+
+  /**
+   * Clear any pending refresh schedulers
+   */
+  private clearRefreshSchedulers(): void {
+    if (this.refreshSchedulerId) {
+      clearTimeout(this.refreshSchedulerId);
+      this.refreshSchedulerId = null;
+    }
+    if (this.warningSchedulerId) {
+      clearTimeout(this.warningSchedulerId);
+      this.warningSchedulerId = null;
+    }
+  }
+
   /**
    * Factory method to create or return the singleton instance
    */
@@ -134,7 +222,8 @@ export class AudiobookshelfAuth {
   private async checkNetworkConnection(): Promise<boolean> {
     try {
       const networkState = await NetInfo.fetch();
-      const isConnected = networkState.isConnected && networkState.isInternetReachable !== false;
+      const isConnected =
+        networkState.isConnected === true && networkState.isInternetReachable !== false;
 
       if (!isConnected) {
         console.warn("No internet connection available");
@@ -205,8 +294,23 @@ export class AudiobookshelfAuth {
       this.userEmail = data.user.email;
       this.userId = data.user.id;
 
+      // Schedule proactive token refresh
+      this.scheduleTokenRefresh(tokens.expiresAt);
+
+      // Emit login success event
+      emitLoginSuccess(tokens.expiresAt);
+      emitAuthStateChanged(AuthState.AUTHENTICATED);
+
       return data;
     } catch (error) {
+      // Emit login failure event
+      if (error instanceof AuthenticationError) {
+        emitLoginFailed(createAuthError(AuthErrorType.INVALID_CREDENTIALS, error.message, false));
+      } else if (error instanceof NetworkError) {
+        emitLoginFailed(createAuthError(AuthErrorType.NETWORK_UNAVAILABLE, error.message, true));
+      } else {
+        emitLoginFailed(createAuthError(AuthErrorType.UNKNOWN, "Login failed", true));
+      }
       if (error instanceof AudiobookshelfError) throw error;
       throw new NetworkError("Unable to connect to server");
     }
@@ -272,8 +376,25 @@ export class AudiobookshelfAuth {
       };
 
       await this.storeTokens(newTokens);
+
+      // Schedule next proactive token refresh
+      this.scheduleTokenRefresh(newTokens.expiresAt);
+
+      // Emit token refreshed event
+      emitTokenRefreshed(newTokens.expiresAt);
+
       return newTokens.accessToken;
     } catch (error) {
+      // Emit token refresh failed event
+      if (error instanceof AuthenticationError) {
+        emitTokenRefreshFailed(
+          createAuthError(AuthErrorType.SESSION_EXPIRED, error.message, false)
+        );
+      } else {
+        emitTokenRefreshFailed(
+          createAuthError(AuthErrorType.TOKEN_REFRESH_FAILED, "Token refresh failed", true)
+        );
+      }
       if (error instanceof AudiobookshelfError) throw error;
       throw new NetworkError("Unable to refresh session");
     }
@@ -340,6 +461,9 @@ export class AudiobookshelfAuth {
   async logout(): Promise<LogoutResponse | null> {
     const tokens = this.tokens || (await this.getStoredTokens());
 
+    // Clear refresh schedulers first
+    this.clearRefreshSchedulers();
+
     // Check network - but don't block logout if offline
     const isConnected = await this.checkNetworkConnection();
 
@@ -360,6 +484,11 @@ export class AudiobookshelfAuth {
           this.username = "";
           this.userEmail = "";
           this.userId = "";
+
+          // Emit logout event
+          emitLogout();
+          emitAuthStateChanged(AuthState.UNAUTHENTICATED);
+
           return data;
         }
       }
@@ -372,6 +501,11 @@ export class AudiobookshelfAuth {
     this.username = "";
     this.userEmail = "";
     this.userId = "";
+
+    // Emit logout event
+    emitLogout();
+    emitAuthStateChanged(AuthState.UNAUTHENTICATED);
+
     return null;
   }
 
