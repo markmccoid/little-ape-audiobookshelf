@@ -516,6 +516,14 @@ export class NetworkError extends AudiobookshelfError {
   }
 }
 
+export class OfflineError extends NetworkError {
+  constructor(message: string = "Device is offline") {
+    super(message);
+    this.name = "OfflineError";
+    this.code = "OFFLINE_ERROR";
+  }
+}
+
 //~~ ========================================================
 //~~ Legacy Type Aliases (for backwards compatibility)
 //~~ ========================================================

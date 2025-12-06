@@ -6,7 +6,11 @@ const syncQueueStorage = new MMKV({
 });
 
 // Types for queued operations
-export type SyncOperation = "playback-progress" | "bookmark-add" | "bookmark-update";
+export type SyncOperation =
+  | "playback-progress"
+  | "bookmark-add"
+  | "bookmark-update"
+  | "bookmark-delete";
 
 export interface QueuedSyncItem {
   id: string; // Unique ID for the sync item
@@ -217,6 +221,7 @@ export class SyncQueueManager {
         "playback-progress": 0,
         "bookmark-add": 0,
         "bookmark-update": 0,
+        "bookmark-delete": 0,
       } as Record<SyncOperation, number>,
       oldestTimestamp: queue.length > 0 ? Math.min(...queue.map((i) => i.timestamp)) : null,
     };

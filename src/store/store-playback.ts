@@ -241,16 +241,28 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
         tracks = result.tracks;
         sessionData = result.sessionData;
       } catch (error) {
-        // Handle network errors specifically
-        if (error instanceof NetworkError) {
-          Alert.alert(
-            "Network Error",
-            "Unable to load book. Please check your internet connection and try again.",
-            [{ text: "OK" }]
-          );
+        console.error("Error loading book:", error);
+
+        // Check if this is a network-related error
+        const isNetworkRelated =
+          error instanceof NetworkError ||
+          (error instanceof Error &&
+            (error.message.toLowerCase().includes("network") ||
+              error.message.toLowerCase().includes("internet") ||
+              error.message.toLowerCase().includes("connection") ||
+              error.message.toLowerCase().includes("offline") ||
+              error.message.toLowerCase().includes("playback session")));
+
+        if (isNetworkRelated) {
+          // Use the actual error message if it's user-friendly, otherwise use a generic one
+          const errorMessage =
+            error instanceof Error && error.message.includes("playback session")
+              ? error.message
+              : "Unable to load book. Please check your internet connection and try again.";
+
+          Alert.alert("Connection Error", errorMessage, [{ text: "OK" }]);
         } else {
-          // Handle other errors
-          console.error("Error loading book:", error);
+          // Handle other unexpected errors
           Alert.alert(
             "Error Loading Book",
             "An unexpected error occurred while loading the book. Please try again.",

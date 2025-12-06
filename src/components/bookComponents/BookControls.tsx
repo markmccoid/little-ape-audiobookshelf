@@ -1,3 +1,4 @@
+import { useAuth } from "@/src/contexts/AuthContext";
 import {
   useIsBookActive,
   usePlaybackActions,
@@ -9,7 +10,7 @@ import { THEME, useThemeColors } from "@/src/utils/theme";
 import { SymbolView } from "expo-symbols";
 import { PressableScale } from "pressto";
 import React from "react";
-import { Pressable, Text, View } from "react-native";
+import { Alert, Pressable, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
 import PlayPauseAnimation from "./PlayPauseAnimation";
 
@@ -20,6 +21,7 @@ const BookControls = ({ libraryItemId }: Props) => {
   const { jumpForwardSeconds, jumpBackwardSeconds, togglePlayPause, loadBookAndPlay, next, prev } =
     usePlaybackActions();
   const themeColors = useThemeColors();
+  const { isAuthenticated } = useAuth();
   const seekForward = useSeekForwardSeconds();
   const seekBackward = useSeekBackwardSeconds();
 
@@ -28,8 +30,16 @@ const BookControls = ({ libraryItemId }: Props) => {
   const isPlaying = usePlaybackIsPlaying(libraryItemId);
 
   const localTogglePlayPause = async () => {
+    if (!isAuthenticated) {
+      Alert.alert("Not Logged In", "No user is logged in, cannot play");
+      return;
+    }
     if (!isBookActive) {
-      await loadBookAndPlay(libraryItemId);
+      try {
+        await loadBookAndPlay(libraryItemId);
+      } catch (error) {
+        // Error alert already shown by loadBook, just catch to prevent unhandled rejection
+      }
     } else {
       await togglePlayPause();
     }

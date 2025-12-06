@@ -1,9 +1,10 @@
 import { QueryClient } from "@tanstack/react-query";
 
 // import { v4 as uuidv4 } from "uuid";
+import { triggerNetworkRefresh } from "../../contexts/NetworkContext";
 import { AudiobookshelfAPI } from "./absAPIClass";
 import { AudiobookshelfAuth } from "./absAuthClass";
-import { NetworkError } from "./abstypes";
+import { NetworkError, OfflineError } from "./abstypes";
 
 import "react-native-random-uuid";
 
@@ -83,12 +84,14 @@ export const absInitalize = async (queryClient?: QueryClient) => {
             return await orig.apply(target, args);
           } catch (error) {
             const methodName = String(prop);
-            const isNetworkError = error instanceof NetworkError;
+            const isNetworkError = error instanceof NetworkError || error instanceof OfflineError;
 
             // Use console.warn for network errors (expected when offline)
             // Use console.error only for unexpected errors
             if (isNetworkError) {
               console.log(`PROXY: Network error in ${methodName} (offline mode)`);
+              // Trigger immediate network state refresh to update the banner
+              triggerNetworkRefresh();
             } else {
               console.error(`PROXY: Unexpected error in ${methodName}:`, error);
             }

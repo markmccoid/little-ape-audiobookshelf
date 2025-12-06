@@ -27,7 +27,12 @@ const BookmarkList = ({ libraryItemId }: Props) => {
     //!! NEED TO INCLUDE
     //!! check to see if book is active.  If not then before seeking, ACTIVATE/PLAY BOOK
     if (!isBookActive) {
-      await playbackActions.loadBookAndPlay(libraryItemId);
+      try {
+        await playbackActions.loadBookAndPlay(libraryItemId);
+      } catch (error) {
+        // Error alert already shown by loadBook, don't try to seek
+        return;
+      }
     }
     await playbackActions.seekTo(time);
   };

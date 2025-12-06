@@ -1,3 +1,4 @@
+import { useAuth } from "@/src/contexts/AuthContext";
 import {
   useIsBookActive,
   usePlaybackActions,
@@ -5,7 +6,6 @@ import {
   usePlaybackStore,
 } from "@/src/store/store-playback";
 import { useSeekBackwardSeconds, useSeekForwardSeconds } from "@/src/store/store-settings";
-import { isUserAuthenticated } from "@/src/utils/AudiobookShelf/absInit";
 import { THEME, useThemeColors } from "@/src/utils/theme";
 import { BlurView } from "expo-blur";
 import { SymbolView } from "expo-symbols";
@@ -27,7 +27,7 @@ const BookControls = ({ libraryItemId }: Props) => {
   const { jumpForwardSeconds, jumpBackwardSeconds, togglePlayPause, loadBookAndPlay, loadBook } =
     usePlaybackActions();
   const themeColors = useThemeColors();
-  const isAuthed = isUserAuthenticated();
+  const { isAuthenticated } = useAuth();
 
   const seekForward = useSeekForwardSeconds();
   const seekBackward = useSeekBackwardSeconds();
@@ -47,14 +47,18 @@ const BookControls = ({ libraryItemId }: Props) => {
   const growVal = useSharedValue(collapsedHeight);
 
   const localTogglePlayPause = async () => {
-    if (!isAuthed) {
+    if (!isAuthenticated) {
       Alert.alert("Not Logged In", "No user is logged in, cannot play");
       return;
     }
     if (!isBookActive) {
       setIsLocalBookActive(true);
-      await loadBookAndPlay(libraryItemId);
-
+      try {
+        await loadBookAndPlay(libraryItemId);
+      } catch (error) {
+        // Reset local state if loading fails (error alert already shown by loadBook)
+        setIsLocalBookActive(false);
+      }
       // await loadBook(libraryItemId);
     } else {
       await togglePlayPause();

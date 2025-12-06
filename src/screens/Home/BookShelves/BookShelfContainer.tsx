@@ -44,9 +44,13 @@ const BookShelfContainer = ({ shelfData, isLoading, isError }: Props) => {
   // if not then render item will call this function and then the play/pause toggle function
   const handleInitBookWithOptimisticUpdate = async (itemId: string) => {
     // First, load the book
-    await handleInitBook(itemId);
-    // Have to wait for first sync operation so that when we requery the book is moved to beginning
-    setTimeout(() => invalidateQuery("bookshelves"), 7000);
+    try {
+      await handleInitBook(itemId);
+      // Have to wait for first sync operation so that when we requery the book is moved to beginning
+      setTimeout(() => invalidateQuery("bookshelves"), 7000);
+    } catch (error) {
+      // Error alert already shown by loadBook, just catch to prevent unhandled rejection
+    }
   };
 
   //# Enhance data with current progress info

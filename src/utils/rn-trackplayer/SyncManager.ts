@@ -1,9 +1,24 @@
 import NetInfo from "@react-native-community/netinfo";
 import PQueue from "p-queue";
 import { AudiobookshelfAPI } from "../AudiobookShelf/absAPIClass";
-import { syncQueue } from "../syncQueue";
+import { SyncOperation, syncQueue } from "../syncQueue";
 
 type SyncData = { timeListened: number; currentTime: number };
+
+// Request types that should be queued when offline vs fail immediately
+const QUEUEABLE_OPERATIONS: SyncOperation[] = [
+  "playback-progress",
+  "bookmark-add",
+  "bookmark-update",
+  "bookmark-delete",
+];
+
+/**
+ * Check if an operation type should be queued when offline
+ */
+export function shouldQueueRequest(type: string): boolean {
+  return QUEUEABLE_OPERATIONS.includes(type as SyncOperation);
+}
 
 export class SyncManager {
   private apiClient: AudiobookshelfAPI;
@@ -210,21 +225,66 @@ export class SyncManager {
     await this.requestQueue.add(task);
   }
 
+  /**
+   * Check if network is available before making a request
+   * Returns true if network is available, false otherwise
+   */
+  public async checkNetworkBeforeRequest(): Promise<boolean> {
+    const state = await NetInfo.fetch();
+    return state.isConnected === true && state.isInternetReachable !== false;
+  }
+
+  /**
+   * Queue a generic request for later processing when offline
+   */
+  public queueRequest(type: SyncOperation, data: Record<string, unknown>): void {
+    syncQueue.addToQueue({ type, data });
+  }
+
   public async processQueuedSyncs(): Promise<void> {
     const stats = await syncQueue.processQueue(async (item) => {
-      if (item.type !== "playback-progress") return false;
-
-      const { sessionId, timeListened, currentTime } = item.data;
-
-      try {
-        await this.apiClient.syncProgressToServer(sessionId!, {
-          timeListened: timeListened!,
-          currentTime: currentTime!,
-        });
-        return true;
-      } catch (error) {
-        return false;
+      // Handle playback progress
+      if (item.type === "playback-progress") {
+        const { sessionId, timeListened, currentTime } = item.data;
+        try {
+          await this.apiClient.syncProgressToServer(sessionId!, {
+            timeListened: timeListened!,
+            currentTime: currentTime!,
+          });
+          return true;
+        } catch (error) {
+          return false;
+        }
       }
+
+      // Handle bookmark add/update
+      if (item.type === "bookmark-add" || item.type === "bookmark-update") {
+        const { libraryItemId, time, title } = item.data;
+        try {
+          await this.apiClient.saveBookmark(libraryItemId as string, {
+            libraryItemId: libraryItemId as string,
+            time: time as number,
+            title: title as string,
+            createdAt: Date.now(),
+          });
+          return true;
+        } catch (error) {
+          return false;
+        }
+      }
+
+      // Handle bookmark delete
+      if (item.type === "bookmark-delete") {
+        const { libraryItemId, time } = item.data;
+        try {
+          await this.apiClient.deleteBookmark(libraryItemId as string, time as number);
+          return true;
+        } catch (error) {
+          return false;
+        }
+      }
+
+      return false;
     });
 
     if (stats.success > 0) console.log(`Processed ${stats.success} queued syncs`);

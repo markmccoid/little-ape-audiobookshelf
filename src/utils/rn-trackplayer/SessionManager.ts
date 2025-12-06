@@ -29,6 +29,15 @@ export class SessionManager {
     const currentProgress = await this.apiClient.getBookProgress(itemId);
     const response: AudiobookSession = await this.apiClient.getPlayInfo(itemId);
 
+    // Guard against null response - this typically happens when offline but network state
+    // hasn't been detected yet (isInternetReachable is null). The proxy returns null
+    // on network errors for "get" methods.
+    if (!response || !response.audioTracks) {
+      throw new Error(
+        "Unable to start playback session. Please check your internet connection and try again."
+      );
+    }
+
     const previousSessionId = this.session?.id;
     this.session = response;
 
@@ -44,7 +53,7 @@ export class SessionManager {
     // Use the real progress, not the session's startTime
     const actualStartTime = currentProgress?.currentTime || response.startTime || 0;
     const coverURL = await this.apiClient.buildCoverURL(itemId);
-    
+
     const tracks = response.audioTracks.map((audioTrack) => ({
       id: `${response.id}-${audioTrack.index}`,
       trackIndex: audioTrack.index - 1, // convert to zero based index

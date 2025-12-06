@@ -7,6 +7,7 @@ import {
   SeriesPersonalizedView,
 } from "./abstypes";
 // services/AudiobookshelfAPI.ts
+import NetInfo from "@react-native-community/netinfo";
 import axios, { AxiosRequestConfig } from "axios";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
@@ -31,6 +32,7 @@ import {
   Library,
   LibraryItem,
   NetworkError,
+  OfflineError,
   User,
 } from "./abstypes";
 import { buildBookShelf, buildCoverURLSync } from "./absUtils";
@@ -125,6 +127,12 @@ export class AudiobookshelfAPI {
     endpoint: string,
     options: AxiosRequestConfig = {}
   ): Promise<T> {
+    // Fail fast if offline
+    const networkState = await NetInfo.fetch();
+    if (!networkState.isConnected || networkState.isInternetReachable === false) {
+      throw new OfflineError("Cannot make request while offline");
+    }
+
     const auth = await AudiobookshelfAuth.create();
     const accessToken = await auth.getValidAccessToken();
     const serverUrl = await auth.getStoredServerUrl();
