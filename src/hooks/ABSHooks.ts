@@ -112,7 +112,6 @@ const applyFilters = (
 export const useGetBooks = (searchValue?: string) => {
   const absAPI = useAbsAPI();
   const activeLibraryId = absAPI.getActiveLibraryId();
-
   const sortedBy = "addedAt";
 
   const {
@@ -123,7 +122,7 @@ export const useGetBooks = (searchValue?: string) => {
     ...rest
   } = useQuery({
     queryKey: ["books", activeLibraryId],
-    queryFn: async () => await absAPI.getLibraryItems({ libraryId: activeLibraryId }),
+    queryFn: async () => await absAPI.getLibraryItems(),
     staleTime: 1000 * 60 * 5, // Stale Minutes
   });
 
@@ -352,7 +351,7 @@ export const useSafeGetBooks = (searchValue?: string) => {
     queryKey: ["books", activeLibraryId],
     queryFn: async () => {
       if (!absAPI) throw new Error("Not authenticated");
-      return await absAPI.getLibraryItems({ libraryId: activeLibraryId ?? undefined });
+      return await absAPI.getLibraryItems();
     },
     enabled: !!absAPI && !!activeLibraryId, // Only run when authenticated and have library ID
     staleTime: 1000 * 60 * 5, // Stale Minutes

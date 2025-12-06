@@ -36,7 +36,7 @@ export const storeInit = async () => {
     useBooksStore.setState({ bookInfo: newStoreBookInfo });
     console.log("storeInit: Store initialization completed successfully");
   } catch (error) {
-    console.error("storeInit: Error during store initialization:", error);
+    console.warn("storeInit: Error during store initialization:", error);
     // Don't re-throw - let the app continue without store initialization
     console.log("storeInit: Allowing app to continue without server data sync");
   }

@@ -39,7 +39,6 @@ import { buildBookShelf, buildCoverURLSync } from "./absUtils";
 export type FilterType = "genres" | "tags" | "authors" | "series" | "progress";
 
 type GetLibraryItemsParams = {
-  libraryId?: string;
   filterType?: FilterType;
   filterValue?: string;
   sortBy?: string;
@@ -108,6 +107,7 @@ export class AudiobookshelfAPI {
     api.auth = await AudiobookshelfAuth.create();
     // Try to restore from storage
     const defaultLibId = kv.getString(Keys.absDefaultLibraryId) || undefined;
+    console.log("DEFAULT LIB ID", defaultLibId);
     if (defaultLibId && defaultLibId.trim() !== "") {
       api.setActiveLibraryId(defaultLibId);
       return api;
@@ -254,6 +254,7 @@ export class AudiobookshelfAPI {
   async getLibraries() {
     const response = await this.makeAuthenticatedRequest<any>("/api/libraries");
     // Check if an active library set, if not, set the first one as active
+
     const activeLibId = !this.getActiveLibraryId()
       ? response.libraries[0].id
       : this.getActiveLibraryId();
@@ -654,23 +655,16 @@ export class AudiobookshelfAPI {
   //##  getLibraryItems
   //## -------------------------------------
   async getLibraryItems({
-    libraryId,
-    filterType,
-    filterValue,
-    sortBy,
-  }: GetLibraryItemsParams): Promise<ABSGetLibraryItems> {
-    // Validate and sanitize libraryId parameter
-    let libraryIdToUse = libraryId || this.getActiveLibraryId();
+    filterType = undefined,
+    filterValue = undefined,
+    sortBy = undefined,
+  }: GetLibraryItemsParams = {}): Promise<ABSGetLibraryItems> {
+    // Always use the active library ID
+    const libraryId = this.getActiveLibraryId();
 
-    // Handle case where libraryId might be an object (e.g., [object Object])
-    if (typeof libraryIdToUse === "object") {
-      console.warn("getLibraryItems: libraryId is an object, converting to string");
-      libraryIdToUse = undefined; // Treat objects as invalid
-    }
-
-    // If still no library ID, return empty array to prevent 404 errors
-    if (!libraryIdToUse || typeof libraryIdToUse !== "string" || libraryIdToUse.trim() === "") {
-      console.warn("getLibraryItems: No valid library ID provided and no active library set");
+    // If no active library ID, return empty array to prevent 404 errors
+    if (!libraryId || typeof libraryId !== "string" || libraryId.trim() === "") {
+      console.warn("getLibraryItems: No active library set");
       return [];
     }
 
@@ -684,9 +678,9 @@ export class AudiobookshelfAPI {
       queryParams = `${queryParams}${queryParams ? "&" : "?"}sort=${sortBy}`;
     }
 
-    const url = `/api/libraries/${libraryIdToUse}/items${queryParams}`;
-    const progressurl = `/api/libraries/${libraryIdToUse}/items?filter=progress.ZmluaXNoZWQ=`;
-    const favoriteurl = `/api/libraries/${libraryIdToUse}/items?filter=tags.${userFavoriteInfo.favoriteSearchString}`;
+    const url = `/api/libraries/${libraryId}/items${queryParams}`;
+    const progressurl = `/api/libraries/${libraryId}/items?filter=progress.ZmluaXNoZWQ=`;
+    const favoriteurl = `/api/libraries/${libraryId}/items?filter=tags.${userFavoriteInfo.favoriteSearchString}`;
     console.log("URL", url);
     let responseData, progressresponseData, favresponseData;
     try {

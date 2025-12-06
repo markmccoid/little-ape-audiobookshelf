@@ -309,36 +309,27 @@ export const useBooksStore = create<BooksStore>()(
         },
 
         getOrFetchBook: async ({ libraryItemId }) => {
-          // console.log(`[BooksStore] getOrFetchBook called for: ${libraryItemId}--${userId}`);
-
           const { books } = get();
           const now = Date.now();
 
           const existingBook = books.find((b) => b.libraryItemId === libraryItemId);
-          console.log("existingBook", existingBook?.title);
-          console.log("libraryItemId", libraryItemId);
 
+          // If we have an existing book with full data, use it as the base
           const fallback: Book = {
             userId: "", // Empty string for temporary books
             libraryItemId,
             playbackRate: 1,
             isDownloaded: false,
-            // currentPosition: 0,
             duration: 0,
             lastUpdated: now,
             lastProgressUpdate: undefined,
             type: "temporary",
           };
 
-          // const book = fallback;
+          // Use existing book if available, otherwise use fallback
           const book = existingBook ?? fallback;
 
-          // // Return immediately
-          // const STALE_AFTER_MS = 5 * 60 * 1000; // 5 min
-          // const isStale = !existingBook || now - (existingBook.lastUpdated ?? 0) > STALE_AFTER_MS;
-
           try {
-            // const { getAbsAPI } = require("@/src/utils/AudiobookShelf/absInit");
             const absAPI = getAbsAPI();
 
             // Check if we have a real API or mock API
@@ -348,8 +339,14 @@ export const useBooksStore = create<BooksStore>()(
             }
 
             const itemDetails = await absAPI.getItemDetails(libraryItemId);
+
+            // If API returned null (offline/error), return cached book without updating
+            if (!itemDetails || !itemDetails.media) {
+              console.log("[BooksStore] No item details received, returning cached book");
+              return book;
+            }
+
             // Create a fallback chapter for books with NO chapters defined.
-            // We make it a single chapter, starting at zero and ending at the duration of the book.
             const chapterFallback = [
               {
                 id: 1,
@@ -364,7 +361,8 @@ export const useBooksStore = create<BooksStore>()(
                 remainingPercentage: 100,
               },
             ] as EnhancedChapter[];
-            // Get actual chapters if they exists
+
+            // Get actual chapters if they exist
             const absLoadedChapters = itemDetails?.media?.chapters?.map((chapter) => {
               return {
                 id: chapter.id,
@@ -387,59 +385,58 @@ export const useBooksStore = create<BooksStore>()(
                 ),
               } as EnhancedChapter;
             });
-            // Finalize the chapter selection, fallback if none exist
+
+            // Finalize the chapter selection
             const enhancedChapters =
               !absLoadedChapters || absLoadedChapters.length === 0
                 ? chapterFallback
                 : absLoadedChapters;
-            // create a new book record or update an existing one
-            // console.log(
-            //   "--getOrFetchBook--",
-            //   itemDetails?.media.metadata.title,
-            //   itemDetails.userMediaProgress?.lastUpdate
-            // );
+
+            // Create updated book with fresh data
             const updated: Book = {
-              ...book, // If new, the fallback has the libraryItemId & userId in it
-              title: itemDetails?.media?.metadata?.title || "",
-              author: itemDetails?.media?.metadata?.authorName || "",
-              description: itemDetails?.media?.metadata?.description || "",
-              narratedBy: itemDetails?.media?.metadata?.narratorName || "",
-              genre: itemDetails?.media?.metadata?.genres.join(", "),
-              genres: itemDetails?.media?.metadata?.genres,
-              tags: itemDetails?.media?.tags,
-              // currentPosition: itemDetails?.userMediaProgress?.currentTime || 0,
-              lastProgressUpdate: itemDetails?.userMediaProgress?.lastUpdate || undefined,
-              duration: itemDetails?.media.duration || 0,
-              coverURI: itemDetails?.coverURI,
-              publishedYear: itemDetails?.media?.metadata.publishedYear,
-              chapters: enhancedChapters,
-              authors: itemDetails?.media?.metadata?.authors,
+              ...book, // Preserve existing data like playbackRate, isDownloaded
+              title: itemDetails?.media?.metadata?.title || book.title || "",
+              author: itemDetails?.media?.metadata?.authorName || book.author || "",
+              description: itemDetails?.media?.metadata?.description || book.description || "",
+              narratedBy: itemDetails?.media?.metadata?.narratorName || book.narratedBy || "",
+              genre: itemDetails?.media?.metadata?.genres?.join(", ") || book.genre,
+              genres: itemDetails?.media?.metadata?.genres || book.genres,
+              tags: itemDetails?.media?.tags || book.tags,
+              lastProgressUpdate:
+                itemDetails?.userMediaProgress?.lastUpdate || book.lastProgressUpdate,
+              duration: itemDetails?.media.duration || book.duration || 0,
+              coverURI: itemDetails?.coverURI || book.coverURI,
+              publishedYear: itemDetails?.media?.metadata.publishedYear || book.publishedYear,
+              chapters: enhancedChapters.length > 0 ? enhancedChapters : book.chapters,
+              authors: itemDetails?.media?.metadata?.authors || book.authors,
               lastUpdated: Date.now(),
             };
 
             set((s) => ({
               books: [...s.books.filter((b) => b.libraryItemId !== libraryItemId), updated],
             }));
-            // Use immer syntax to update position info
+
+            // Update position info
             set((state) => {
               state.bookInfo[libraryItemId] = {
                 ...state.bookInfo[libraryItemId],
                 positionInfo: {
-                  currentPosition: itemDetails?.userMediaProgress?.currentTime || 0,
-                  lastProgressUpdate: itemDetails?.userMediaProgress?.lastUpdate || undefined,
+                  currentPosition:
+                    itemDetails?.userMediaProgress?.currentTime ||
+                    state.bookInfo[libraryItemId]?.positionInfo?.currentPosition ||
+                    0,
+                  lastProgressUpdate:
+                    itemDetails?.userMediaProgress?.lastUpdate ||
+                    state.bookInfo[libraryItemId]?.positionInfo?.lastProgressUpdate,
                 },
               };
             });
-            // libraryItemId === "b3204480-9e1d-493f-8d18-2b31d3bca76d" &&
-            //   console.log(
-            //     `[BooksStore] Background refresh complete: ${libraryItemId}`,
-            //     get().bookInfo[libraryItemId]
-            //   );
-          } catch (err) {
-            console.warn(`[BooksStore] Background refresh failed: ${libraryItemId}`, err);
-          }
 
-          return book;
+            return updated;
+          } catch (err) {
+            console.log(`[BooksStore] Fetch failed for ${libraryItemId}, returning cached book`);
+            return book;
+          }
         },
 
         updateMappedProgressPositions: (mappedProgress) =>

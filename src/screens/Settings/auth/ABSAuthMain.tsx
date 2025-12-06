@@ -127,10 +127,7 @@ export default function ABSAuthMain() {
           {/* Session Status */}
           <View className="bg-green-100 p-3 rounded-lg mb-4 flex-row items-center">
             <View className="w-2 h-2 rounded-full bg-green-500 mr-2" />
-            <Text className="text-green-700 font-medium flex-1">Logged in</Text>
-            {tokenExpiresAt && (
-              <Text className="text-green-600 text-sm">{formatTokenExpiry()}</Text>
-            )}
+            <Text className="text-green-700 font-medium">Session Active</Text>
           </View>
 
           <View className="flex-row items-center mb-2">

@@ -1,14 +1,14 @@
-import { useLibraries } from "@/src/hooks/ABSHooks";
 import { useAuth } from "@/src/contexts/AuthContext";
+import { useLibraries } from "@/src/hooks/ABSHooks";
 import React from "react";
 import { Pressable, Text, View } from "react-native";
 
 const ABSLibrarySelect = () => {
   const { isAuthenticated } = useAuth();
   const { libraries, setActiveLibrary } = useLibraries();
-  
+
   // Don't render anything if not authenticated
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !libraries?.length || !libraries) {
     return null;
   }
 

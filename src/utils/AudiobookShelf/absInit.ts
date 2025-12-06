@@ -3,6 +3,7 @@ import { QueryClient } from "@tanstack/react-query";
 // import { v4 as uuidv4 } from "uuid";
 import { AudiobookshelfAPI } from "./absAPIClass";
 import { AudiobookshelfAuth } from "./absAuthClass";
+import { NetworkError } from "./abstypes";
 
 import "react-native-random-uuid";
 
@@ -81,34 +82,44 @@ export const absInitalize = async (queryClient?: QueryClient) => {
           try {
             return await orig.apply(target, args);
           } catch (error) {
-            console.error(`PROXY: Error in method ${String(prop)}:`, error);
-
-            // Handle specific error types gracefully
             const methodName = String(prop);
+            const isNetworkError = error instanceof NetworkError;
 
-            // For library-related methods, return empty arrays instead of null
+            // Use console.warn for network errors (expected when offline)
+            // Use console.error only for unexpected errors
+            if (isNetworkError) {
+              console.log(`PROXY: Network error in ${methodName} (offline mode)`);
+            } else {
+              console.error(`PROXY: Unexpected error in ${methodName}:`, error);
+            }
+
+            // Handle specific method types gracefully
+            // For library-related methods, return empty arrays
             if (methodName.includes("get") && methodName.includes("Library")) {
-              console.warn(`PROXY: Returning empty array for library method due to error`);
               return [];
             }
             // For getLibraryItems specifically
             else if (methodName === "getLibraryItems") {
-              console.warn(`PROXY: Returning empty array for getLibraryItems due to error`);
               return [];
             }
             // For progress-related methods
             else if (methodName.includes("get") && methodName.includes("Progress")) {
-              console.warn(`PROXY: Returning empty array for progress method due to error`);
+              return [];
+            }
+            // For items-related methods
+            else if (methodName.includes("get") && methodName.includes("Items")) {
+              return [];
+            }
+            // For book shelves
+            else if (methodName.includes("get") && methodName.includes("Shelves")) {
               return [];
             }
             // For other get methods, return null
             else if (methodName.startsWith("get")) {
-              console.warn(`PROXY: Returning null for get method due to error`);
               return null;
             }
             // For other methods, return a resolved promise with null
             else {
-              console.warn(`PROXY: Returning null for non-get method due to error`);
               return Promise.resolve(null);
             }
           }
@@ -121,12 +132,21 @@ export const absInitalize = async (queryClient?: QueryClient) => {
   });
   if (AudiobookshelfAuth.isAssumedAuthedGlobal && queryClient) {
     try {
+      console.log("PREWARMING BOOKS CACHE");
       prewarmBooksCache(queryClient);
     } catch (e) {
       console.log("PREWARM Book Cache Error", e);
     }
   }
   return true;
+};
+
+/**
+ * Check if the ABS API has been initialized
+ * This can be used to avoid calling getAbsAPI when it would return a mock
+ */
+export const isAbsAPIInitialized = (): boolean => {
+  return absAPIProxy !== undefined;
 };
 
 //!! Tanstack Query Version
@@ -143,7 +163,7 @@ export async function prewarmBooksCache(queryClient: QueryClient) {
   try {
     await queryClient.prefetchQuery({
       queryKey: ["books", activeLibraryId],
-      queryFn: () => absAPI.getLibraryItems({ libraryId: activeLibraryId }),
+      queryFn: async () => await absAPI.getLibraryItems(),
       staleTime: 1000 * 60 * 5,
     });
   } catch (error) {
@@ -163,7 +183,8 @@ export const getAbsAuth = (): AudiobookshelfAuth => {
 
 export const getAbsAPI = (): AudiobookshelfAPI => {
   if (!absAPIProxy) {
-    console.error("getAbsAPI: absAPI not initialized. Call absInitialize() first.");
+    // This is an expected state during logout/login transitions, not an error
+    console.log("getAbsAPI: absAPI not initialized, returning mock API");
     // Instead of throwing, create a mock API that returns empty responses
     // This allows the app to continue running even when not authenticated
     return createMockAPI();

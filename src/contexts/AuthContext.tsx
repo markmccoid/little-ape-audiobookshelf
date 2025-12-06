@@ -14,6 +14,7 @@ import {
   cleanupAbsInstances,
   getAbsAPI,
   getAbsAuth,
+  isAbsAPIInitialized,
 } from "../utils/AudiobookShelf/absInit";
 import { authEventEmitter } from "../utils/AudiobookShelf/authEventEmitter";
 import {
@@ -393,6 +394,11 @@ export const useSafeAbsAPI = () => {
   // Always return null if not authenticated
   // This ensures consistent hook behavior
   if (!isAuthenticated) {
+    return null;
+  }
+
+  // Check if API is actually initialized before trying to get it
+  if (!isAbsAPIInitialized()) {
     return null;
   }
 

@@ -166,19 +166,22 @@ export const useSmartPosition = (libraryItemId: string) => {
 
 //## ------------------------------------------------
 export const useBookData = (libraryItemId: string) => {
+  // Always check the store first - this is our cached data
   const bookFromStore = useBook(libraryItemId);
   const getOrFetchBook = useBooksStore((state) => state.actions.getOrFetchBook);
-  const userId = isUserAuthenticated() ? getAbsAuth()?.userId : null;
+
+  // Check if authenticated - but don't let this block showing cached data
+  const isAuthenticated = isUserAuthenticated();
+  const userId = isAuthenticated ? getAbsAuth()?.userId : null;
 
   const sessionLibraryItemId = usePlaybackStore((s) => s.session?.libraryItemId);
   const isBookActive = sessionLibraryItemId === libraryItemId;
 
-  //~ We are using react query to handle the stale time. Since Zustand is the store that is caching the book data
-  //~ So we don't use the returned book but instead let the subscription to the book store (useBook) return to us
-  //~ the updated book after the async operation has finished.
+  //~ React Query for fresh data - only when authenticated and online
+  //~ We use the store as the source of truth, not the query result
   const {
     data: fetchedBook,
-    isLoading,
+    isLoading: queryLoading,
     error,
   } = useQuery({
     queryKey: ["book", libraryItemId],
@@ -194,13 +197,26 @@ export const useBookData = (libraryItemId: string) => {
     enabled: !!libraryItemId && !!userId, // Only enable query if authenticated
   });
 
+  // Use cached store data as the book - works even when offline
   const book = bookFromStore;
+
+  // Only show loading if we don't have cached data and query is running
+  const isLoading = queryLoading && !bookFromStore;
+
+  // Log for debugging offline issues
+  if (!book && libraryItemId) {
+    console.log(`useBookData: No cached book found for ${libraryItemId}`, {
+      isAuthenticated,
+      hasUserId: !!userId,
+      queryEnabled: !!libraryItemId && !!userId,
+    });
+  }
 
   return {
     book,
     duration: book?.duration,
     playbackSpeed: book?.playbackRate ?? 1,
-    isLoading: isLoading && !bookFromStore, // Not loading if we have cached data
+    isLoading,
     error: error as Error | null,
     isBookActive,
   };
