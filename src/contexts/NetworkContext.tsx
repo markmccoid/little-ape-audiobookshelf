@@ -74,7 +74,7 @@ export const NetworkProvider: React.FC<NetworkProviderProps> = ({ children }) =>
       reachabilityUrl: "https://clients3.google.com/generate_204",
       reachabilityTest: async (response) => response.status === 204,
       reachabilityShortTimeout: 5 * 1000, // 5 seconds for initial check
-      reachabilityLongTimeout: 15 * 1000, // 15 seconds between checks (reduced from 60s)
+      reachabilityLongTimeout: 30 * 1000, // 30 seconds between checks
       reachabilityRequestTimeout: 10 * 1000, // 10 seconds timeout per request
       useNativeReachability: false, // Use HTTP check instead of native for more reliable detection
     });
@@ -151,7 +151,7 @@ export const NetworkProvider: React.FC<NetworkProviderProps> = ({ children }) =>
           setIsInternetReachable(state.isInternetReachable ?? null);
         }
       });
-    }, 10000); // Check every 10 seconds
+    }, 30000); // Check every 30 seconds
 
     return () => {
       console.log("🔄 Stopping aggressive reconnection polling");

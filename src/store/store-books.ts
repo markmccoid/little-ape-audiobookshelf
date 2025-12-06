@@ -8,6 +8,7 @@ import { Author, Bookmark } from "../utils/AudiobookShelf/abstypes";
 import { BookShelfBook, BookShelfItemType } from "../utils/AudiobookShelf/absUtils";
 import { BookshelvesState } from "../utils/AudiobookShelf/bookshelfTypes";
 import { formatSeconds } from "../utils/formatUtils";
+import { syncQueue } from "../utils/syncQueue";
 import { mmkvStorage } from "./mmkv-storage";
 import { useSettingsStore } from "./store-settings";
 
@@ -417,14 +418,31 @@ export const useBooksStore = create<BooksStore>()(
             }));
 
             // Update position info
+            // Check if there's a queued playback-progress sync for this book
+            // If so, prefer the local queued position over stale server data
+            // This prevents race conditions when reconnecting after offline listening
+            const queuedProgressItems = syncQueue.getQueuedItemsByType("playback-progress");
+            const queuedPosition =
+              queuedProgressItems.length > 0
+                ? queuedProgressItems[queuedProgressItems.length - 1].data?.currentTime
+                : undefined;
+
             set((state) => {
+              const existingPosition = state.bookInfo[libraryItemId]?.positionInfo?.currentPosition;
+              const serverPosition = itemDetails?.userMediaProgress?.currentTime;
+
+              // Priority: queued local position > existing local position > server position
+              // Use queued position if it exists and is greater than server position
+              const useQueuedPosition =
+                queuedPosition !== undefined &&
+                (serverPosition === undefined || queuedPosition > serverPosition);
+
               state.bookInfo[libraryItemId] = {
                 ...state.bookInfo[libraryItemId],
                 positionInfo: {
-                  currentPosition:
-                    itemDetails?.userMediaProgress?.currentTime ||
-                    state.bookInfo[libraryItemId]?.positionInfo?.currentPosition ||
-                    0,
+                  currentPosition: useQueuedPosition
+                    ? queuedPosition
+                    : serverPosition ?? existingPosition ?? 0,
                   lastProgressUpdate:
                     itemDetails?.userMediaProgress?.lastUpdate ||
                     state.bookInfo[libraryItemId]?.positionInfo?.lastProgressUpdate,
