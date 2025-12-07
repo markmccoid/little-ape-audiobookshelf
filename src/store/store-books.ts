@@ -108,6 +108,9 @@ interface BooksActions {
   addBookToBookshelf: (libraryItemId: string, bookshelfId: string) => Promise<void>;
   // Delete the bookshelf from the bookshelves variable { 'bookshelfid': [...books], ... }
   deleteBookshelf: (bookshelfId: string) => void;
+  // Used for reordering books in a bookshelf.  This updates the full list of books for a bookshelf
+  // DO NOT send a partial list of books.  Send the full list of books for the shelf.
+  updateBookshelfBooks: (bookshelfId: string, books: string[]) => void;
   // -- END BOOKSHELF ACTIONS --
   clearBooks: () => void;
   getBook: (libraryItemId: string) => Book | undefined;
@@ -270,6 +273,11 @@ export const useBooksStore = create<BooksStore>()(
             delete state.bookshelves[bookshelfId];
           });
         },
+        updateBookshelfBooks: (bookshelfId: string, books: string[]) => {
+          set((state) => {
+            state.bookshelves[bookshelfId] = books;
+          });
+        },
         //! -- ADD BOOKS for BookShelves
         addBooksToBookshelf: async (books, bookshelfId) => {
           // console.log(
@@ -300,7 +308,9 @@ export const useBooksStore = create<BooksStore>()(
           // NOTE: This function receives and array of books for a specific shelf
           // This is adding those books (libraryItemId(s)) to the shelf
           const bookshelves = get().bookshelves || {};
-          const booksForShelf = books.map((el) => el.libraryItemId);
+          const booksForShelf = books
+            .map((el) => el.libraryItemId)
+            .filter((id): id is string => Boolean(id));
           const updatedBookshelves = {
             ...bookshelves,
             // Use bookshelf ID directly

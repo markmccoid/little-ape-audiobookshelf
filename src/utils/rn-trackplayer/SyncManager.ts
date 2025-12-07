@@ -103,6 +103,14 @@ export class SyncManager {
 
         try {
           const syncResult = await this.apiClient.syncProgressToServer(sessionId, syncData);
+
+          // When offline, API returns null - queue the sync for later
+          if (!syncResult) {
+            console.log("Sync returned null (likely offline) - queuing for later");
+            await this.queueSyncForLater(sessionId, syncData);
+            return;
+          }
+
           this.lastSyncTime = now;
 
           if (syncResult.success) {
@@ -125,7 +133,6 @@ export class SyncManager {
     globalPosition: number,
     isSessionClosed: boolean
   ): Promise<void> {
-    console.log("SyncManager book stroe pos update");
     if (isSessionClosed) return;
 
     const now = Date.now();

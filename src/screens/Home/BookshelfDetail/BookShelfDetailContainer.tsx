@@ -16,7 +16,7 @@ type Props = {
 };
 
 const BookShelfDetailContainer = ({ shelfData }: Props) => {
-  console.log("SHELF", shelfData);
+  // console.log("SHELF", shelfData);
   const scrollableRef = useAnimatedRef<Animated.ScrollView>();
   const headerHeight = useHeaderHeight();
   const router = useRouter();
@@ -27,12 +27,13 @@ const BookShelfDetailContainer = ({ shelfData }: Props) => {
   };
 
   const handleDragEnd = (data: SortableGridDragEndParams<BookShelfBook>) => {
-    bookActions.addBooksToBookshelf(
-      data.indexToKey.map((key) => ({ libraryItemId: key })),
-      shelfData.id
-    );
-    console.log("Drag end indexToKey", data.indexToKey);
-    console.log("Drag end keyToIndex", data.keyToIndex);
+    // bookActions.addBooksToBookshelf(
+    //   data.indexToKey.map((key) => ({ libraryItemId: key })),
+    //   shelfData.id
+    // );
+    bookActions.updateBookshelfBooks(shelfData.id, data.indexToKey);
+    // console.log("Drag end indexToKey", data.indexToKey);
+    // console.log("Drag end keyToIndex", data.keyToIndex);
   };
 
   // Extract unique key for each book
