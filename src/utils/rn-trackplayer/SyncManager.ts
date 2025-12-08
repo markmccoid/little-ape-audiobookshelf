@@ -107,7 +107,7 @@ export class SyncManager {
           // When offline, API returns null - queue the sync for later
           if (!syncResult) {
             console.log("Sync returned null (likely offline) - queuing for later");
-            await this.queueSyncForLater(sessionId, syncData);
+            await this.queueSyncForLater(sessionId, libraryItemId, syncData);
             return;
           }
 
@@ -119,7 +119,7 @@ export class SyncManager {
 
           await this.processQueuedSyncs();
         } catch (serverError) {
-          this.handleSyncError(serverError, sessionId, syncData);
+          this.handleSyncError(serverError, sessionId, libraryItemId, syncData);
         }
       } catch (error) {
         console.error("Error in syncProgress queue task:", error);
@@ -186,7 +186,12 @@ export class SyncManager {
     }
   }
 
-  private async handleSyncError(error: any, sessionId: string, syncData: SyncData) {
+  private async handleSyncError(
+    error: any,
+    sessionId: string,
+    libraryItemId: string,
+    syncData: SyncData
+  ) {
     // Check for 404
     if (
       error &&
@@ -210,18 +215,23 @@ export class SyncManager {
           (networkError.message.includes("Network") || networkError.message.includes("timeout"))))
     ) {
       console.warn("Network error detected, queuing sync for later:", error);
-      await this.queueSyncForLater(sessionId, syncData);
+      await this.queueSyncForLater(sessionId, libraryItemId, syncData);
     } else {
       throw error;
     }
   }
 
-  private async queueSyncForLater(sessionId: string, syncData: SyncData): Promise<void> {
-    console.log("QUEUE Sync");
+  private async queueSyncForLater(
+    sessionId: string,
+    libraryItemId: string,
+    syncData: SyncData
+  ): Promise<void> {
+    console.log("QUEUE Sync for libraryItemId:", libraryItemId);
     syncQueue.addToQueue({
       type: "playback-progress",
       data: {
         sessionId,
+        libraryItemId,
         timeListened: syncData.timeListened,
         currentTime: syncData.currentTime,
       },
@@ -252,14 +262,35 @@ export class SyncManager {
     const stats = await syncQueue.processQueue(async (item) => {
       // Handle playback progress
       if (item.type === "playback-progress") {
-        const { sessionId, timeListened, currentTime } = item.data;
+        const { sessionId, libraryItemId, timeListened, currentTime } = item.data;
         try {
+          // Try session-based sync first
           await this.apiClient.syncProgressToServer(sessionId!, {
             timeListened: timeListened!,
             currentTime: currentTime!,
           });
+          // Update local store on success
+          if (libraryItemId && currentTime !== undefined) {
+            this.updateBooksStore(libraryItemId, currentTime);
+          }
           return true;
-        } catch (error) {
+        } catch (error: any) {
+          // If session expired (404), fall back to direct progress update
+          const is404 =
+            error?.status === 404 || error?.statusCode === 404 || error?.response?.status === 404;
+          if (is404 && libraryItemId && currentTime !== undefined) {
+            try {
+              console.log(
+                `Session expired, falling back to updateBookProgress for ${libraryItemId}`
+              );
+              await this.apiClient.updateBookProgress(libraryItemId, currentTime);
+              this.updateBooksStore(libraryItemId, currentTime);
+              return true;
+            } catch (fallbackError) {
+              console.error("Fallback updateBookProgress failed:", fallbackError);
+              return false;
+            }
+          }
           return false;
         }
       }

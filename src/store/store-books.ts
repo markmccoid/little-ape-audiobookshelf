@@ -428,13 +428,17 @@ export const useBooksStore = create<BooksStore>()(
             }));
 
             // Update position info
-            // Check if there's a queued playback-progress sync for this book
+            // Check if there's a queued playback-progress sync for THIS specific book
             // If so, prefer the local queued position over stale server data
             // This prevents race conditions when reconnecting after offline listening
             const queuedProgressItems = syncQueue.getQueuedItemsByType("playback-progress");
+            // Filter to only get queued items for THIS book
+            const queuedItemsForThisBook = queuedProgressItems.filter(
+              (item) => item.data?.libraryItemId === libraryItemId
+            );
             const queuedPosition =
-              queuedProgressItems.length > 0
-                ? queuedProgressItems[queuedProgressItems.length - 1].data?.currentTime
+              queuedItemsForThisBook.length > 0
+                ? queuedItemsForThisBook[queuedItemsForThisBook.length - 1].data?.currentTime
                 : undefined;
 
             set((state) => {
@@ -452,7 +456,7 @@ export const useBooksStore = create<BooksStore>()(
                 positionInfo: {
                   currentPosition: useQueuedPosition
                     ? queuedPosition
-                    : serverPosition ?? existingPosition ?? 0,
+                    : existingPosition ?? serverPosition ?? 0,
                   lastProgressUpdate:
                     itemDetails?.userMediaProgress?.lastUpdate ||
                     state.bookInfo[libraryItemId]?.positionInfo?.lastProgressUpdate,
