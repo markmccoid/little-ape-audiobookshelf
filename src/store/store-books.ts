@@ -5,8 +5,11 @@ import { immer } from "zustand/middleware/immer";
 import { AudiobookshelfAuth } from "../utils/AudiobookShelf/absAuthClass";
 import { getAbsAPI } from "../utils/AudiobookShelf/absInit";
 import { Author, Bookmark } from "../utils/AudiobookShelf/abstypes";
-import { BookShelfBook, BookShelfItemType } from "../utils/AudiobookShelf/absUtils";
-import { BookshelvesState } from "../utils/AudiobookShelf/bookshelfTypes";
+import {
+  BookShelfBook,
+  BookShelfItemType,
+  BookshelvesState,
+} from "../utils/AudiobookShelf/bookshelfTypes";
 import { formatSeconds } from "../utils/formatUtils";
 import { syncQueue } from "../utils/syncQueue";
 import { mmkvStorage } from "./mmkv-storage";
@@ -474,13 +477,37 @@ export const useBooksStore = create<BooksStore>()(
         updateMappedProgressPositions: (mappedProgress) =>
           set((state) => {
             const now = Date.now();
-            // immer allows direct mutation of state here for readability
+            // Get queued playback-progress items to check for pending syncs
+            const queuedItems = syncQueue.getQueuedItemsByType("playback-progress");
+
             Object.entries(mappedProgress).forEach(([bookId, p]) => {
               const existing = state.bookInfo[bookId] ?? {};
+              const serverPosition = p?.currentTime ?? 0;
+
+              // Check if this book has queued syncs waiting to be processed
+              const hasQueuedSync = queuedItems.some((item) => item.data?.libraryItemId === bookId);
+
+              // If we have queued syncs for this book, don't overwrite with stale server data
+              if (hasQueuedSync) {
+                console.log(`[updateMappedProgressPositions] Skipping ${bookId} - has queued sync`);
+                return;
+              }
+
+              // Also skip if local position is ahead of server position
+              // This preserves offline progress until it's synced
+              const localPosition = existing.positionInfo?.currentPosition ?? 0;
+              if (localPosition > serverPosition) {
+                console.log(
+                  `[updateMappedProgressPositions] Skipping ${bookId} - local (${localPosition}) ahead of server (${serverPosition})`
+                );
+                return;
+              }
+
+              // Safe to update - server position is newer or equal
               state.bookInfo[bookId] = {
                 ...existing,
                 positionInfo: {
-                  currentPosition: p?.currentTime ?? 0,
+                  currentPosition: serverPosition,
                   lastProgressUpdate: now,
                 },
               };
@@ -548,7 +575,6 @@ export const useBookShelves = (bookshelfId?: string) => {
   if (!bookshelves) {
     return;
   }
-
   // list of bookshelves in format UI is expecting
   // sorting by position field and only showing those with displayed = true
   // lastly adding books for the shelf from the store-books -> bookshelves state variable
