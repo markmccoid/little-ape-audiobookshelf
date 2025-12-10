@@ -1,5 +1,6 @@
 import { useGetBookShelves, useGetBooksInProgress } from "@/src/hooks/ABSHooks";
 import { useBookShelves } from "@/src/store/store-books";
+import { BookShelfItemType } from "@/src/utils/AudiobookShelf/bookshelfTypes";
 import { useThemeColors } from "@/src/utils/theme";
 import { useFocusEffect } from "expo-router";
 import React from "react";
@@ -42,7 +43,7 @@ const HomeContainer = () => {
       <ScrollView className="flex-1" contentInsetAdjustmentBehavior="automatic">
         <View className="mt-2">
           {Array.isArray(bookShelves)
-            ? bookShelves?.map((bookShelf: any) => {
+            ? bookShelves?.map((bookShelf: BookShelfItemType) => {
                 return <BookShelfContainer shelfData={bookShelf} key={bookShelf.id} />;
               })
             : null}

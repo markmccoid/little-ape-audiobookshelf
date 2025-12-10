@@ -3,14 +3,9 @@ import * as Haptics from "expo-haptics";
 import { useEffect } from "react";
 import { Dimensions } from "react-native";
 import { Directions, Gesture } from "react-native-gesture-handler";
-import {
-  runOnJS,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  withTiming,
-} from "react-native-reanimated";
+import { useAnimatedStyle, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { scheduleOnRN } from "react-native-worklets";
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 const MINI_PLAYER_WIDTH = screenWidth - 64;
@@ -18,7 +13,7 @@ const MINI_PLAYER_HEIGHT = 90; // Approximate height
 const LONG_PRESS_DURATION = 500; // ms
 export function useMiniPlayerDrag(onCloseSession?: () => void) {
   const savedPosition = useMiniPlayerPosition();
-  const { setPosition } = useMiniPlayerActions();
+  const { setPosition, resetPosition } = useMiniPlayerActions();
   const insets = useSafeAreaInsets();
 
   // Shared values for animation
@@ -89,15 +84,16 @@ export function useMiniPlayerDrag(onCloseSession?: () => void) {
   const swipeDownGesture = Gesture.Fling()
     .direction(Directions.DOWN)
     .onStart(() => {
-      runOnJS(triggerCloseHaptic)();
-      runOnJS(handleCloseSession)();
+      scheduleOnRN(triggerCloseHaptic);
+      scheduleOnRN(handleCloseSession);
     });
   // Swipe up gesture to reposition to default
   const swipeUpGesture = Gesture.Fling()
     .direction(Directions.UP)
     .onStart(() => {
-      runOnJS(triggerCloseHaptic)();
-      runOnJS(reposition)();
+      scheduleOnRN(triggerCloseHaptic);
+      // runOnJS(resetPosition)();
+      scheduleOnRN(resetPosition);
     });
 
   // Combined long press + drag gesture
@@ -112,7 +108,7 @@ export function useMiniPlayerDrag(onCloseSession?: () => void) {
       // Activate drag mode and visual feedback
       isDragging.value = true;
       scale.value = withSpring(1.05, { damping: 15, stiffness: 150 });
-      runOnJS(triggerHaptic)();
+      scheduleOnRN(triggerHaptic);
     })
     .onUpdate((event) => {
       const newX = startX.value + event.translationX;
@@ -126,8 +122,9 @@ export function useMiniPlayerDrag(onCloseSession?: () => void) {
       scale.value = withSpring(1, { damping: 15, stiffness: 150 });
 
       // Save final position
-      runOnJS(savePosition)(translateX.value, translateY.value);
-      runOnJS(triggerHaptic)();
+      // runOnJS(savePosition)(translateX.value, translateY.value);
+      scheduleOnRN(savePosition, translateX.value, translateY.value);
+      scheduleOnRN(triggerHaptic);
     })
     .onFinalize(() => {
       if (isDragging.value) {

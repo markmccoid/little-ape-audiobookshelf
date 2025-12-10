@@ -1,16 +1,12 @@
 import { useInvalidateQueries } from "@/src/hooks/ABSHooks";
 import { Book } from "@/src/store/store-books";
-import {
-  usePlaybackActions,
-  usePlaybackSession,
-  usePlaybackStore,
-} from "@/src/store/store-playback";
-import { BookShelfItemType } from "@/src/utils/AudiobookShelf/absUtils";
+import { usePlaybackActions } from "@/src/store/store-playback";
+import { BookShelfItemType } from "@/src/utils/AudiobookShelf/bookshelfTypes";
 import { useThemeColors } from "@/src/utils/theme";
 import { useRouter } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import React, { useCallback } from "react";
-import { ListRenderItem, Pressable, ScrollView, Text, View } from "react-native";
+import { ListRenderItem, Pressable, Text, View } from "react-native";
 import Animated, { LinearTransition } from "react-native-reanimated";
 import BookShelfItem from "./BookShelfItem";
 
@@ -32,10 +28,6 @@ const BookShelfContainer = ({ shelfData, isLoading, isError }: Props) => {
   const { togglePlayPause: storeTogglePlayPause, loadBookAndPlay: handleInitBook } =
     usePlaybackActions();
   const invalidateQuery = useInvalidateQueries();
-  // For this isPlaying, we don't care what book is playing since we are checking that
-  // in the render item.
-  const isPlaying = usePlaybackStore((state) => state.isPlaying);
-  const session = usePlaybackSession();
 
   //# Wrapper function that loads book and optimistically updates cache
   // This function is passed to each render item (book) and then the render item
@@ -88,21 +80,29 @@ const BookShelfContainer = ({ shelfData, isLoading, isError }: Props) => {
 
   return (
     <View className="flex-1">
-      <ScrollView className="flex-1" contentInsetAdjustmentBehavior="automatic">
+      <View className="flex-1">
         <View className="mt-2">
           <View className="flex-row gap-2 px-2">
-            <Text className="text-lg font-bold text-accent">{shelfData.label}</Text>
+            <Text
+              className={`text-lg font-bold ${
+                shelfData.type === "custom" ? "text-accent" : "dark:text-orange-500 text-orange-700"
+              }`}
+            >
+              {shelfData.label}
+            </Text>
             {/* Does nothing here --- Take out and use in full list of IN PROGRESS */}
 
-            <Pressable
-              onPress={() => {
-                console.log("Go TO:", shelfData.label);
-                router.push(`/(tabs)/(home)/bookshelf/${shelfData.id}`);
-              }}
-              hitSlop={20}
-            >
-              <SymbolView name="arrow.forward.folder" tintColor={themeColors.accent} />
-            </Pressable>
+            {shelfData.type === "custom" && (
+              <Pressable
+                onPress={() => {
+                  console.log("Go TO:", shelfData.label);
+                  router.push(`/(tabs)/(home)/bookshelf/${shelfData.id}`);
+                }}
+                hitSlop={20}
+              >
+                <SymbolView name="arrow.forward.folder" tintColor={themeColors.accent} />
+              </Pressable>
+            )}
           </View>
 
           <Animated.FlatList<Book>
@@ -115,7 +115,7 @@ const BookShelfContainer = ({ shelfData, isLoading, isError }: Props) => {
             itemLayoutAnimation={LinearTransition}
           />
         </View>
-      </ScrollView>
+      </View>
     </View>
   );
 };

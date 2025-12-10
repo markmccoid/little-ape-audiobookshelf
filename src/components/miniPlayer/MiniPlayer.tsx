@@ -6,47 +6,39 @@ import { LiquidGlassView } from "@callstack/liquid-glass";
 import {
   useIsBookActive,
   usePlaybackActions,
-  usePlaybackDuration,
   usePlaybackIsPlaying,
-  usePlaybackPosition,
   usePlaybackSession,
   usePlaybackStore,
   useShowMiniPlayer,
 } from "@store/store-playback";
 import { Image } from "expo-image";
 import { Link } from "expo-router";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { Dimensions, Pressable, StyleSheet, Text, View } from "react-native";
 import { GestureDetector } from "react-native-gesture-handler";
-import Animated, {
-  runOnJS,
-  SlideInDown,
-  SlideOutDown,
-  useAnimatedReaction,
-} from "react-native-reanimated";
+import Animated, { SlideInDown, SlideOutDown, useAnimatedReaction } from "react-native-reanimated";
+import { scheduleOnRN } from "react-native-worklets";
 import PlayPauseAnimation from "../bookComponents/PlayPauseAnimation";
 
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 
 export default function MiniPlayer() {
   const { width, height } = Dimensions.get("window");
-  
+
   const showMini = useShowMiniPlayer();
   const themeColors = useThemeColors();
-  const position = usePlaybackPosition() || 0;
   const session = usePlaybackSession();
   const {
     globalPosition,
     chapterInfo: { chapterNumber, chapterTitle },
   } = useSmartPositions(session?.libraryItemId || "");
   const isPlaying = usePlaybackIsPlaying(session?.libraryItemId || "");
-  const duration = usePlaybackDuration(session?.libraryItemId || "");
 
-const isBookActive = useIsBookActive(session?.libraryItemId || "");
-const showPlayingState = isBookActive && isPlaying;
-const isBookLoaded = usePlaybackStore((state) => state.isLoaded);
-  
-const { play, pause, closeSession, setIsOnBookScreen } = usePlaybackActions();
+  const isBookActive = useIsBookActive(session?.libraryItemId || "");
+  const showPlayingState = isBookActive && isPlaying;
+  const isBookLoaded = usePlaybackStore((state) => state.isLoaded);
+
+  const { play, pause, closeSession, setIsOnBookScreen } = usePlaybackActions();
 
   // Drag functionality with swipe down to close
   const { gesture, animatedStyle, isDragging } = useMiniPlayerDrag(closeSession);
@@ -57,15 +49,10 @@ const { play, pause, closeSession, setIsOnBookScreen } = usePlaybackActions();
   useAnimatedReaction(
     () => isDragging.value,
     (current) => {
-      runOnJS(setIsDraggingState)(current);
+      scheduleOnRN(setIsDraggingState, current);
     },
     [isDragging]
   );
-
-  const progressPct = useMemo(() => {
-    if (!duration || duration <= 0) return 0;
-    return clamp((position / duration) * 100, 0, 100);
-  }, [position, duration]);
 
   const onToggle = useCallback(async () => {
     if (isPlaying) await pause();
@@ -113,12 +100,12 @@ const { play, pause, closeSession, setIsOnBookScreen } = usePlaybackActions();
                 {/* Play/Pause Button */}
                 <Pressable onPress={onToggle} disabled={isDraggingState}>
                   <PlayPauseAnimation
-              isPlaying={showPlayingState}
-              size={50}
-              duration={600}
-              isBookActive={isBookActive }
-              isBookLoaded={isBookLoaded}
-            />
+                    isPlaying={showPlayingState}
+                    size={50}
+                    duration={600}
+                    isBookActive={isBookActive}
+                    isBookLoaded={isBookLoaded}
+                  />
                   {/* <SymbolView
                     name={isPlaying ? "pause.circle.fill" : "play.circle.fill"}
                     type="palette"

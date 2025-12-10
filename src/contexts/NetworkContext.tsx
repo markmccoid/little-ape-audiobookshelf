@@ -1,6 +1,5 @@
 import NetInfo, { NetInfoState } from "@react-native-community/netinfo";
 import React, { createContext, ReactNode, useContext, useEffect, useRef, useState } from "react";
-import { queryClient } from "../utils/queryClient";
 import AudiobookStreamer from "../utils/rn-trackplayer/AudiobookStreamer";
 
 interface NetworkContextType {
@@ -105,9 +104,9 @@ export const NetworkProvider: React.FC<NetworkProviderProps> = ({ children }) =>
         calculatedOffline: !(state.isConnected ?? false),
       });
 
-      // If we just reconnected after being offline, process sync queue and refresh data
+      // If we just reconnected after being offline, process sync queue
       if (prevOffline && nowConnected) {
-        console.log("Network reconnected - triggering sync queue processing and data refresh...");
+        console.log("Network reconnected - triggering sync queue processing...");
 
         // Process sync queue after a short delay to ensure connection is stable
         setTimeout(() => {
@@ -120,13 +119,6 @@ export const NetworkProvider: React.FC<NetworkProviderProps> = ({ children }) =>
             // AudiobookStreamer may not be initialized yet
             console.log("AudiobookStreamer not initialized, skipping queue processing");
           }
-
-          // Invalidate books query to refresh Library tab data
-          // This is especially important if the app was started while offline
-          console.log("🔄 Invalidating books queries to refresh Library tab data...");
-          queryClient.invalidateQueries({ queryKey: ["books"] });
-          queryClient.invalidateQueries({ queryKey: ["bookShelves"] });
-          queryClient.invalidateQueries({ queryKey: ["booksInProgress"] });
         }, 1000); // 1 second delay
       }
 

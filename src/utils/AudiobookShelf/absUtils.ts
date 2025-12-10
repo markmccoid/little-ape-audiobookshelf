@@ -1,18 +1,6 @@
 import { Book } from "@/src/store/store-books";
 import { TypedPersonalizedView } from "./abstypes";
 
-export type BookShelfItemType = {
-  id: string;
-  label: string;
-  key?: string;
-  position?: number;
-  displayed?: boolean;
-  books: BookShelfBook[];
-};
-export type BookShelfBook = Book & {
-  currentTime?: number;
-};
-
 export const buildBookShelf = <T extends TypedPersonalizedView>(
   bookShelfItem: T
   // token: string,

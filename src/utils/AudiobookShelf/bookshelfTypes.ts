@@ -1,3 +1,5 @@
+import { Book } from "@/src/store/store-books";
+
 // Single unified type for all bookshelves (default and custom)
 export type Bookshelf = {
   id: string;
@@ -23,3 +25,11 @@ export const defaultBookshelves: Bookshelf[] = [
 
 // Simple Record mapping bookshelf IDs to arrays of book IDs
 export type BookshelvesState = Record<string, string[]>;
+
+// Bookshelf item type for the return data from useBookshelves
+export type BookShelfItemType = Bookshelf & {
+  books: BookShelfBook[];
+};
+export type BookShelfBook = Book & {
+  currentTime?: number;
+};
