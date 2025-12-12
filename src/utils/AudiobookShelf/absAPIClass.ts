@@ -383,7 +383,15 @@ export class AudiobookshelfAPI {
   //## -------------------------------------
   //## buildCoverURL
   //## -------------------------------------
-  async buildCoverURL(itemId: string, format: "webp" | "jpeg" = "webp") {
+  buildCoverURL(itemId: string, format: "webp" | "jpeg" = "webp") {
+    // const auth = await AudiobookshelfAuth.create();
+    // const token = await this.auth.getValidAccessToken();
+    const serverUrl = this.auth.absURL;
+    const coverThumb = `${serverUrl}/api/items/${itemId}/cover?format=${format}&width=240`;
+    const coverFull = `${serverUrl}/api/items/${itemId}/cover?format=${format}`;
+    return { coverThumb, coverFull };
+  }
+  async buildCoverURLAsync(itemId: string, format: "webp" | "jpeg" = "webp") {
     // const auth = await AudiobookshelfAuth.create();
     const token = await this.auth.getValidAccessToken();
     const serverUrl = this.auth.absURL;

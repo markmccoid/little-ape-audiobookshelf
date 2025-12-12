@@ -313,8 +313,8 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       await TrackPlayer.setRate(savedPlaybackRate);
 
       set({ position: startTime });
-
-      bookActions.getBook(sessionData.libraryItemId);
+      //!! Not sure what this did so commented out 12/10/2025
+      // bookActions.getBook(sessionData.libraryItemId);
 
       set({
         session: playbackSessionData,
@@ -325,6 +325,8 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       });
       // wait for book to be fully loaded
       await waitForReadyState();
+      // Initial sync  so that we can invalidate queries and update continue listening queue.
+      await streamer.syncPosition(startTime + 5000);
       set({ isLoaded: true });
 
       // move this book to the front of the list (Continue Listening)

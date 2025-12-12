@@ -284,6 +284,7 @@ export const useSettingsStore = create<SettingsStore>()(
         seekForwardSeconds: state.seekForwardSeconds,
         seekBackwardSeconds: state.seekBackwardSeconds,
         syncIntervalSeconds: state.syncIntervalSeconds,
+        homeScreenTimeVariant: state.homeScreenTimeVariant,
         allBookshelves: state.allBookshelves,
         bookshelvesToDisplay: state.bookshelvesToDisplay,
       }),

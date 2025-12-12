@@ -39,7 +39,7 @@ const BookShelfContainer = ({ shelfData, isLoading, isError }: Props) => {
     try {
       await handleInitBook(itemId);
       // Have to wait for first sync operation so that when we requery the book is moved to beginning
-      setTimeout(() => invalidateQuery("bookshelves"), 7000);
+      setTimeout(() => invalidateQuery("bookshelves"), 2000);
     } catch (error) {
       // Error alert already shown by loadBook, just catch to prevent unhandled rejection
     }
