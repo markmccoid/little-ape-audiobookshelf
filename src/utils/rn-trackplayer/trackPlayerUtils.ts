@@ -21,11 +21,17 @@ type Params = { chapters: Chapter[]; position: number };
 //~ ------------------------------------------
 //~ getTrackPlayerTracks
 //~ ------------------------------------------
+type DownloadedAudioTrack = {
+  index: number;
+  fileURI: string;
+  duration: number;
+  startOffset: number;
+};
 export const getTrackPlayerTracksDL = (
   libraryItemId: string,
   currentTime: number,
   bookMetadata: { title: string; author: string },
-  audioTracks: string, //! DownloadedAudioTrack[], //!  Need to define. need to make align with streaming if we want this function to be multipurpose NO
+  audioTracks: DownloadedAudioTrack[], //!  Need to define. need to make align with streaming if we want this function to be multipurpose NO
   chapters: Chapter[] //!chapters should be on the audioTracks array object
 ) => {
   const trackOffsets = audioTracks.map((el) => el.startOffset) || [];

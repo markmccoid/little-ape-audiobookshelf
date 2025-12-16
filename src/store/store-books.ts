@@ -10,6 +10,7 @@ import {
   BookShelfItemType,
   BookshelvesState,
 } from "../utils/AudiobookShelf/bookshelfTypes";
+import { downloadFileBlob } from "../utils/fileSystemAccess";
 import { formatSeconds } from "../utils/formatUtils";
 import { syncQueue } from "../utils/syncQueue";
 import { mmkvStorage } from "./mmkv-storage";
@@ -45,8 +46,6 @@ export type Book = {
   coverURI?: string;
   publishedYear?: string;
   playbackRate: number;
-  isDownloaded: boolean;
-  downloadProgress?: number; // 0-100, for future download UI
   localPath?: string; // Local file path for downloaded books
   // currentPosition: number;
   lastProgressUpdate: number | undefined; // date that progress was last update.  Use to sort in Continue Listening
@@ -67,6 +66,7 @@ export type Book = {
 
   //!! But what happens when a temporary book is listened to and has its playbackrate changed?
   //!! I think we still cleanup a temporary book after a month of inactivity
+  isDownloaded: boolean;
   type: "bookshelf" | "downloaded" | "temporary";
 };
 
@@ -86,6 +86,13 @@ type BookInfoRecord = {
 type LibraryItemId = string;
 export type BookInfo = Record<LibraryItemId, BookInfoRecord>;
 
+type DownloadInfo = {
+  audioTracks: {
+    ino: string;
+    filename: string;
+    cleanFileName: string;
+  }[];
+};
 // Define the state interface
 interface BooksState {
   // Holds the base information about a book needed to display the book
@@ -94,6 +101,23 @@ interface BooksState {
   bookInfo: BookInfo;
   // Object mapping bookshelf IDs to arrays of book IDs
   bookshelves: BookshelvesState;
+  //# -- Download state --
+  // downloadInfo Object
+  downloadInfo: Record<LibraryItemId, DownloadInfo>;
+  // Monotonic token for download session identity
+  downloadToken: number;
+  // Active cancel function for current file download
+  activeCancelFn?: () => void;
+  downloadProgress:
+    | {
+        currentFileProcessing: string;
+        progress: number;
+        received: number;
+        total: number;
+        numberOfFiles: number;
+        numberOfFilesDownloaded: number;
+      }
+    | undefined;
 }
 
 // Define the actions interface
@@ -128,6 +152,15 @@ interface BooksActions {
   updateCurrentPosition: (libraryItemId: string, position: number) => void;
   // updates bookInfo.positionInfo for multiple books
   updateMappedProgressPositions: (mappedProgress: Record<string, { currentTime?: number }>) => void;
+  downloadBook: (libraryItemId: string | undefined) => Promise<void>;
+  cancelDownload: () => void;
+  updateDownloadProgress: (
+    fileName: string,
+    received: number,
+    total: number,
+    numberOfFiles: number,
+    numberOfFilesDownloaded: number
+  ) => void;
 }
 
 // Combined store interface
@@ -146,6 +179,10 @@ export const useBooksStore = create<BooksStore>()(
       books: DEFAULT_BOOKS,
       bookInfo: {},
       bookshelves: {},
+      downloadInfo: {},
+      downloadToken: 0,
+      activeCancelFn: undefined,
+      downloadProgress: undefined,
       // Actions grouped in a separate namespace
       actions: {
         setBooks: (books: Book[]) => set({ books }),
@@ -537,6 +574,115 @@ export const useBooksStore = create<BooksStore>()(
               ...state.bookInfo[libraryItemId],
               positionInfo: { currentPosition: position, lastProgressUpdate: Date.now() },
             };
+          });
+        },
+        downloadBook: async (libraryItemId) => {
+          // Increment token to start a new download session (invalidates any previous)
+          set((state) => ({ downloadToken: state.downloadToken + 1 }));
+          const myToken = get().downloadToken;
+
+          if (!libraryItemId) {
+            console.log("No libraryItemId provided");
+            return;
+          }
+          const absAPI = getAbsAPI();
+          // Get item details
+          const data = await absAPI.getItemDetails(libraryItemId);
+          if (!data) {
+            console.log("No data found for libraryItemId: " + libraryItemId);
+            return;
+          }
+          // create the variable that will feed into the downloadInfo Object for this book
+          let audioTracks = [];
+          // Download each audio file
+          for (let i = 0; i < data.audioFiles.length; i++) {
+            const audioFile = data.audioFiles[i];
+            // Check if this download session is still valid
+            if (get().downloadToken !== myToken) return;
+
+            console.log("AudioFile Info", audioFile.ino, audioFile.metadata.filename);
+            // Get download URI
+            const dlURI = await absAPI.absDownloadItem(libraryItemId, audioFile.ino);
+            // Check if this download session is still valid
+            if (get().downloadToken !== myToken) return;
+
+            console.log("DL URI", dlURI.url);
+            // Setup the download of the file
+            const { task, cancelDownload, cleanFileName, fileUri, nativePath } = downloadFileBlob(
+              dlURI,
+              audioFile.metadata.filename,
+              (received, total) => {
+                get().actions.updateDownloadProgress(
+                  audioFile.metadata.filename,
+                  received,
+                  total,
+                  data.audioFiles.length,
+                  i + 1
+                );
+              }
+            );
+
+            // Store the cancel function for the current file
+            set({ activeCancelFn: cancelDownload });
+            //! TODO
+            //! Update the books array for this book noting that this book is a downloaded book
+            //! Update the downloadInfo Object for this book with the new track/file that was just downloaded
+            // Start the download task and await its completion
+            try {
+              await task;
+              audioTracks.push({
+                ino: audioFile.ino,
+                filename: audioFile.metadata.filename,
+                cleanFileName,
+              });
+            } catch (e) {
+              // If cancelled, exit silently; otherwise rethrow
+              if (get().downloadToken !== myToken) return;
+              throw e;
+            }
+
+            console.log("DONE Awaiting", cleanFileName, fileUri);
+            // Check if this download session is still valid
+            if (get().downloadToken !== myToken) return;
+          }
+
+          // Download completed successfully - clean up
+          // Update the downloadInfo Object for this book
+          set((state) => {
+            state.downloadInfo[libraryItemId] = { audioTracks };
+            // update book
+            const book = state.books.find((b) => b.libraryItemId === libraryItemId);
+            if (book) {
+              book.isDownloaded = true;
+              book.type = "downloaded";
+            }
+          });
+          set({ activeCancelFn: undefined });
+        },
+
+        cancelDownload: () => {
+          // Increment token to invalidate the current download session
+          set((state) => ({ downloadToken: state.downloadToken + 1 }));
+          // Cancel the active file download
+          get().activeCancelFn?.();
+          set({ activeCancelFn: undefined, downloadProgress: undefined });
+        },
+        updateDownloadProgress: (
+          fileName,
+          received,
+          total,
+          numberOfFiles,
+          numberOfFilesDownloaded
+        ) => {
+          set({
+            downloadProgress: {
+              currentFileProcessing: fileName,
+              progress: Math.round((received / total) * 100),
+              received,
+              total,
+              numberOfFiles,
+              numberOfFilesDownloaded,
+            },
           });
         },
       },

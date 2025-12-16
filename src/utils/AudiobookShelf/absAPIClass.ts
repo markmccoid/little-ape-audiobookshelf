@@ -518,7 +518,7 @@ export class AudiobookshelfAPI {
       throw error;
     }
 
-    const coverURL = await this.buildCoverURL(libraryItem.id);
+    const coverURL = this.buildCoverURL(libraryItem.id);
     // The coverURI used to be used so that I could hash a cover so
     // it always showed the same placeholder cover. Now I use expo-image and
     // its placeholder property and it is always the same image.

@@ -86,7 +86,7 @@ export const downloadToFileSystem = async (
  * @param progress callback (received, total)
  * @returns { task, cancelDownload, cleanFileName, fileUri }
  */
-export const downloadFileBlob = async (
+export const downloadFileBlob = (
   downloadLink: { url: string; authHeader?: Record<string, string> },
   filename: string,
   progress: (received: number, total: number) => void
