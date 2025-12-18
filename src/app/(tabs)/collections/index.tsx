@@ -11,7 +11,7 @@ const CollectionsHome = () => {
   const bookActions = useBooksActions();
   const dlProgress = useBooksStore((state) => state.downloadProgress);
   const downloadInfo = useBooksStore(
-    (state) => state.downloadInfo["a92fc3fb-5f10-4e78-b054-75de1095a44f"]
+    (state) => state.downloadedBookData["a92fc3fb-5f10-4e78-b054-75de1095a44f"]
   );
   //mark's test book multiple files
   const { data } = useGetItemDetails("a92fc3fb-5f10-4e78-b054-75de1095a44f");

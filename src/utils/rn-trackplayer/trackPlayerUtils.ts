@@ -1,3 +1,4 @@
+import { AudioTrackInfo } from "@/src/store/store-books";
 import { Chapter } from "@/src/utils/AudiobookShelf/abstypes";
 import { Paths } from "expo-file-system";
 import TrackPlayer, { PitchAlgorithm, State } from "react-native-track-player";
@@ -21,39 +22,36 @@ type Params = { chapters: Chapter[]; position: number };
 //~ ------------------------------------------
 //~ getTrackPlayerTracks
 //~ ------------------------------------------
-type DownloadedAudioTrack = {
-  index: number;
-  fileURI: string;
-  duration: number;
-  startOffset: number;
-};
+
 export const getTrackPlayerTracksDL = (
   libraryItemId: string,
   currentTime: number,
   bookMetadata: { title: string; author: string },
-  audioTracks: DownloadedAudioTrack[], //!  Need to define. need to make align with streaming if we want this function to be multipurpose NO
+  audioTracks: AudioTrackInfo[], //!  Need to define. need to make align with streaming if we want this function to be multipurpose NO
   chapters: Chapter[] //!chapters should be on the audioTracks array object
 ) => {
   const trackOffsets = audioTracks.map((el) => el.startOffset) || [];
   const absAPI = new AudiobookshelfAPI();
   // Use the real progress, not the session's startTime
-  const actualStartTime = currentTime || 0;
+  // const actualStartTime = currentTime || 0;
   const coverURL = absAPI.buildCoverURL(libraryItemId);
 
-  const tracks = audioTracks.map((audioTrack) => ({
-    id: `${libraryItemId}-${audioTrack.index}`,
-    trackIndex: audioTrack.index - 1, // convert to zero based index
-    url: `${Paths.document}${audioTrack.fileURI}`, //! Make sure this is on the audiotrack object
+  const tracks = audioTracks.map((audioTrack, index) => ({
+    id: `${libraryItemId}-${index}`,
+    trackIndex: index, // convert to zero based index
+    url: `${Paths.document}${audioTrack.cleanFileName}`, //! Make sure this is on the audiotrack object
     title: bookMetadata.title,
     artist: bookMetadata.author,
     artwork: coverURL.coverFull,
     duration: audioTrack.duration,
     sessionId: libraryItemId,
-    trackOffset: trackOffsets[audioTrack.index - 1],
+    trackOffset: trackOffsets[index] ?? 0,
     libraryItemId: libraryItemId,
     chapters: chapters || [],
     pitchAlgorithm: PitchAlgorithm.Voice,
   }));
+
+  return tracks;
 };
 
 //~ ------------------------------------------
@@ -95,6 +93,7 @@ export const waitForReadyState = (timeout = 5000) => {
     const timeoutId = setTimeout(() => {
       // reject(new Error("Playback timeout"));
       // clearTimeout(timeoutId);
+      console.log("TrackPalyer State");
       resolve(true);
     }, timeout);
 

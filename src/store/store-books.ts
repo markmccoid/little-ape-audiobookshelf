@@ -86,12 +86,15 @@ type BookInfoRecord = {
 type LibraryItemId = string;
 export type BookInfo = Record<LibraryItemId, BookInfoRecord>;
 
+export type AudioTrackInfo = {
+  ino: string;
+  filename: string;
+  cleanFileName: string;
+  startOffset?: number;
+  duration?: number;
+};
 type DownloadInfo = {
-  audioTracks: {
-    ino: string;
-    filename: string;
-    cleanFileName: string;
-  }[];
+  audioTracks: AudioTrackInfo[];
 };
 // Define the state interface
 interface BooksState {
@@ -103,7 +106,7 @@ interface BooksState {
   bookshelves: BookshelvesState;
   //# -- Download state --
   // downloadInfo Object
-  downloadInfo: Record<LibraryItemId, DownloadInfo>;
+  downloadedBookData: Record<LibraryItemId, DownloadInfo>;
   // Monotonic token for download session identity
   downloadToken: number;
   // Active cancel function for current file download
@@ -161,6 +164,8 @@ interface BooksActions {
     numberOfFiles: number,
     numberOfFilesDownloaded: number
   ) => void;
+  // delete downloaded book data and update book.isDownloaded to false and book.type to temporary
+  deleteDownloadedBookData: (libraryItemId: string) => void;
 }
 
 // Combined store interface
@@ -179,7 +184,7 @@ export const useBooksStore = create<BooksStore>()(
       books: DEFAULT_BOOKS,
       bookInfo: {},
       bookshelves: {},
-      downloadInfo: {},
+      downloadedBookData: {},
       downloadToken: 0,
       activeCancelFn: undefined,
       downloadProgress: undefined,
@@ -634,6 +639,8 @@ export const useBooksStore = create<BooksStore>()(
                 ino: audioFile.ino,
                 filename: audioFile.metadata.filename,
                 cleanFileName,
+                duration: audioFile.duration,
+                startOffset: audioFile.startOffset,
               });
             } catch (e) {
               // If cancelled, exit silently; otherwise rethrow
@@ -649,7 +656,7 @@ export const useBooksStore = create<BooksStore>()(
           // Download completed successfully - clean up
           // Update the downloadInfo Object for this book
           set((state) => {
-            state.downloadInfo[libraryItemId] = { audioTracks };
+            state.downloadedBookData[libraryItemId] = { audioTracks };
             // update book
             const book = state.books.find((b) => b.libraryItemId === libraryItemId);
             if (book) {
@@ -685,6 +692,17 @@ export const useBooksStore = create<BooksStore>()(
             },
           });
         },
+        deleteDownloadedBookData: (libraryItemId) => {
+          set((state) => {
+            delete state.downloadedBookData[libraryItemId];
+            // update book
+            const book = state.books.find((b) => b.libraryItemId === libraryItemId);
+            if (book) {
+              book.isDownloaded = false;
+              book.type = "temporary";
+            }
+          });
+        },
       },
     })),
     {
@@ -695,6 +713,7 @@ export const useBooksStore = create<BooksStore>()(
         books: state.books,
         bookInfo: state.bookInfo,
         bookshelves: state.bookshelves,
+        downloadedBookData: state.downloadedBookData,
       }),
     }
   )

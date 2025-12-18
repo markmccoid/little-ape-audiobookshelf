@@ -1,13 +1,16 @@
 import { getAbsAPI, getAbsAuth } from "@/src/utils/AudiobookShelf/absInit";
-import type { AudiobookSession } from "@/src/utils/AudiobookShelf/abstypes";
 import { Chapter, NetworkError } from "@/src/utils/AudiobookShelf/abstypes";
 import { checkIsOnline } from "@/src/utils/networkHelper";
-import AudiobookStreamer from "@/src/utils/rn-trackplayer/AudiobookStreamer";
+import AudiobookStreamer, { SessionData } from "@/src/utils/rn-trackplayer/AudiobookStreamer";
 import { trackPlayerInit } from "@/src/utils/rn-trackplayer/rn-trackplayerInit";
 import { Alert } from "react-native";
 import TrackPlayer, { Event, State, Track } from "react-native-track-player";
 import { create } from "zustand";
-import { getCurrentChapter, waitForReadyState } from "../utils/rn-trackplayer/trackPlayerUtils";
+import {
+  getCurrentChapter,
+  getTrackPlayerTracksDL,
+  waitForReadyState,
+} from "../utils/rn-trackplayer/trackPlayerUtils";
 import { useBooksStore } from "./store-books";
 import { useSettingsStore } from "./store-settings";
 
@@ -27,7 +30,7 @@ let playerInitialized = false;
 const listeners: { remove: () => void }[] = [];
 
 // ---- Store Types
-type PlaybackAudioBookSession = AudiobookSession & {
+type PlaybackAudioBookSession = SessionData & {
   coverURL: string;
 };
 interface PlaybackState {
@@ -184,10 +187,10 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
     },
 
     loadBook: async (itemId: string) => {
-      const userId = getAbsAuth()?.userId;
-      //!! Potential ERROR catch
-      if (!userId) return;
-
+      // const userId = getAbsAuth()?.userId;
+      // //!! Potential ERROR catch
+      // if (!userId) return;
+      const absAuth = getAbsAuth();
       // Ensure events are bound before loading (idempotent - safe to call multiple times)
       get().actions.bindEvents();
       // Store-level guard: if the same book is already loaded, do nothing
@@ -201,27 +204,15 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
 
       // Check if book is downloaded (future feature)
       const bookActions = useBooksStore.getState().actions;
-      const book = useBooksStore.getState().books[itemId];
-
-      if (book?.isDownloaded) {
-        // TODO: Load from local path when download feature is implemented
-        console.log("Loading downloaded book:", itemId);
-        // return await loadDownloadedBook(itemId);
-      }
-
-      // Check network connectivity before attempting to stream
-      const isOnline = await checkIsOnline();
-      if (!isOnline) {
-        Alert.alert(
-          "Offline",
-          "You're offline. This book requires an internet connection.\n\nDownload feature coming soon!",
-          [{ text: "OK" }]
-        );
-        throw new Error("Cannot load book while offline - not downloaded");
-      }
+      const book = useBooksStore.getState().books.find((book) => book.libraryItemId === itemId);
+      const bookInfo = useBooksStore.getState().bookInfo[itemId];
+      const bookDownloadInfo = useBooksStore.getState().downloadedBookData[itemId];
 
       set({ isLoaded: false });
+      let tracks;
+      let sessionData: SessionData | undefined = undefined;
       let streamer: AudiobookStreamer;
+
       try {
         streamer = AudiobookStreamer.getInstance();
       } catch {
@@ -234,59 +225,102 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
         throw new Error("Playback not initialized. Call actions.init/initFromABS first.");
       }
 
-      // Wrap setupAudioPlayback in try-catch for better error handling
-      let tracks, sessionData;
-      try {
-        const result = await streamer.setupAudioPlayback(itemId);
-        tracks = result.tracks;
-        sessionData = result.sessionData;
-      } catch (error) {
-        console.error("Error loading book:", error);
+      // TODO: Load from local path when download feature is implemented
+      if (book?.isDownloaded === true) {
+        const dlTracks = bookDownloadInfo?.audioTracks;
 
-        // Check if this is a network-related error
-        const isNetworkRelated =
-          error instanceof NetworkError ||
-          (error instanceof Error &&
-            (error.message.toLowerCase().includes("network") ||
-              error.message.toLowerCase().includes("internet") ||
-              error.message.toLowerCase().includes("connection") ||
-              error.message.toLowerCase().includes("offline") ||
-              error.message.toLowerCase().includes("playback session")));
+        console.log("Loading downloaded book:", itemId);
+        const regularChapters: Chapter[] =
+          book?.chapters?.map((chapter) => {
+            return {
+              id: chapter.id,
+              title: chapter.title,
+              start: chapter.startSeconds * 1000, // convert back to milliseconds
+              end: chapter.endSeconds * 1000,
+            };
+          }) || [];
 
-        if (isNetworkRelated) {
-          // Use the actual error message if it's user-friendly, otherwise use a generic one
-          const errorMessage =
-            error instanceof Error && error.message.includes("playback session")
-              ? error.message
-              : "Unable to load book. Please check your internet connection and try again.";
+        sessionData = {
+          libraryItemId: itemId,
+          startTime: bookInfo.positionInfo.currentPosition,
+          chapters: regularChapters,
+          coverURL: book.coverURI || "",
+          duration: book.duration || 0,
+          absServerURL: absAuth.absURL,
+        };
 
-          Alert.alert("Connection Error", errorMessage, [{ text: "OK" }]);
-        } else {
-          // Handle other unexpected errors
+        tracks = getTrackPlayerTracksDL(
+          itemId,
+          bookInfo.positionInfo.currentPosition,
+          { title: book.title || "", author: book.author || "" },
+          dlTracks,
+          regularChapters
+        );
+        // return await loadDownloadedBook(itemId);
+      } else {
+        console.log("In Else");
+        //# PHASE - STREAMING:
+        // Check network connectivity before attempting to stream
+        const isOnline = await checkIsOnline();
+        if (!isOnline) {
           Alert.alert(
-            "Error Loading Book",
-            "An unexpected error occurred while loading the book. Please try again.",
+            "Offline",
+            "You're offline. This book requires an internet connection.\n\nDownload feature coming soon!",
             [{ text: "OK" }]
           );
+          throw new Error("Cannot load book while offline - not downloaded");
         }
-        throw error;
+
+        // Wrap setupAudioPlayback in try-catch for better error handling
+
+        try {
+          const result = await streamer.setupAudioPlayback(itemId);
+          tracks = result.tracks;
+          sessionData = result.sessionData;
+        } catch (error) {
+          console.error("Error loading book:", error);
+
+          // Check if this is a network-related error
+          const isNetworkRelated =
+            error instanceof NetworkError ||
+            (error instanceof Error &&
+              (error.message.toLowerCase().includes("network") ||
+                error.message.toLowerCase().includes("internet") ||
+                error.message.toLowerCase().includes("connection") ||
+                error.message.toLowerCase().includes("offline") ||
+                error.message.toLowerCase().includes("playback session")));
+
+          if (isNetworkRelated) {
+            // Use the actual error message if it's user-friendly, otherwise use a generic one
+            const errorMessage =
+              error instanceof Error && error.message.includes("playback session")
+                ? error.message
+                : "Unable to load book. Please check your internet connection and try again.";
+
+            Alert.alert("Connection Error", errorMessage, [{ text: "OK" }]);
+          } else {
+            // Handle other unexpected errors
+            Alert.alert(
+              "Error Loading Book",
+              "An unexpected error occurred while loading the book. Please try again.",
+              [{ text: "OK" }]
+            );
+          }
+          throw error;
+        }
       }
-      // set({ position: sessionData.startTime });
-      // setTimeout(() => {}, 0);
+
+      // Guard: sessionData should always be set by either the download or streaming branch
+      if (!sessionData) {
+        throw new Error("Failed to load book: no session data available");
+      }
 
       const playbackSessionData: PlaybackAudioBookSession = {
         ...sessionData,
       };
 
-      // //~ Look into books store to find out if we have this book saved
-      // const bookActions = useBooksStore.getState().actions;
-      // const savedBook = await bookActions.getOrFetchBook({
-      //   userId: userId,
-      //   libraryItemId: sessionData.libraryItemId,
-      // });
-      // console.log("store-playback-savedbook", savedBook?.currentPosition);
-      // const savedPlaybackRate = savedBook?.playbackRate || 1;
-      //~
+      //~'
+      console.log("Loading tracks:", tracks);
       await TrackPlayer.reset();
       await TrackPlayer.add(tracks);
 
@@ -300,7 +334,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       //!!
 
       // If no previous start time default to zero
-      const startTime = sessionData.startTime || 0;
+      const startTime = bookInfo?.positionInfo.currentPosition || sessionData.startTime || 0;
       //!! ---------------------------------------
       const chapterInfo = getCurrentChapter({
         chapters: sessionData.chapters,
@@ -323,20 +357,12 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
         isOnBookScreen: false,
         playbackRate: savedPlaybackRate,
       });
+      console.log("Book loaded");
       // wait for book to be fully loaded
       await waitForReadyState();
       // Initial sync  so that we can invalidate queries and update continue listening queue.
       await streamer.syncPosition(startTime + 5000);
       set({ isLoaded: true });
-
-      // move this book to the front of the list (Continue Listening)
-      // moveBookToTopOfInProgress(sessionData?.libraryItemId);
-      // console.log(
-      //   "BOOK LOADED START TIME",
-      //   get().position,
-      //   get().session?.displayTitle,
-      //   get().session?.startTime
-      // );
     },
 
     /**

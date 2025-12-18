@@ -5,6 +5,14 @@ import { AudiobookSession } from "../AudiobookShelf/abstypes";
 import { SessionManager } from "./SessionManager";
 import { SyncManager } from "./SyncManager";
 
+export type SessionData = Pick<
+  AudiobookSession,
+  "startTime" | "duration" | "chapters" | "libraryItemId"
+> & {
+  absServerURL: string;
+  coverURL: string;
+};
+
 type OfflineListenSession = {
   sessionId: string;
   itemId: string;
@@ -138,7 +146,7 @@ export default class AudiobookStreamer {
 
   async setupAudioPlayback(itemId: string): Promise<{
     tracks: ABSQueuedTrack[];
-    sessionData: AudiobookSession & { absServerURL: string; coverURL: string };
+    sessionData: SessionData;
   }> {
     this.syncManager.setLastSyncTime(null);
     this.syncManager.stopRealTimeSyncTimer();
