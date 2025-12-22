@@ -98,8 +98,7 @@ export const downloadFileBlob = (
   // react-native-blob-util dirs (native paths, NO file:// prefix)
   const dirs = ReactNativeBlobUtil.fs.dirs;
   const blobTargetPath = `${dirs.DocumentDir}/${cleanFileName}`; // e.g. /data/user/0/.../files/<name>
-  console.log("Paths", Paths.document);
-  console.log("dirs", dirs.DocumentDir);
+
   // For systems that expect a file:// URI (expo APIs), provide:
   // Try to create a file:// uri using Paths.document if available, else fallback
   // Paths.document often is 'file:///...' — to be safe, assemble file:// + relative name if possible
@@ -159,6 +158,29 @@ export const downloadFileBlob = (
   };
 };
 
+// ------------------------------------------------------------
+// Calculate Global Progress of group of downloads
+// Each Library Item can have multiple files to download and we
+// download them one at a time in a batch, this will calculate
+// the global progress of the batch.
+// ------------------------------------------------------------
+export const calculateGlobalProgress = (
+  numberOfFilesDownloaded: number,
+  numberOfFiles: number,
+  received: number,
+  total: number,
+  downloadCompleted: boolean
+) => {
+  // console.log("TOTS", downloadCompleted, numberOfFiles, numberOfFilesDownloaded, received, total);
+  if (downloadCompleted) return 100;
+  const slotSize = Math.round(100 / numberOfFiles);
+  const fileFillAmount = Math.round(slotSize * (received / total));
+  const finishedUpToAmount = Math.round((numberOfFilesDownloaded - 1) * slotSize);
+
+  const totalFillAmount = Math.round(finishedUpToAmount + fileFillAmount);
+
+  return Math.min(totalFillAmount, 100);
+};
 // ------------------------------------------------------------
 // Check file OR directory
 // ------------------------------------------------------------

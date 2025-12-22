@@ -226,6 +226,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       }
 
       // TODO: Load from local path when download feature is implemented
+      console.log("BOOK IS DOWNLOADED", book?.isDownloaded);
       if (book?.isDownloaded === true) {
         const dlTracks = bookDownloadInfo?.audioTracks;
 
@@ -239,7 +240,6 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
               end: chapter.endSeconds * 1000,
             };
           }) || [];
-
         sessionData = {
           libraryItemId: itemId,
           startTime: bookInfo.positionInfo.currentPosition,
@@ -248,7 +248,6 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
           duration: book.duration || 0,
           absServerURL: absAuth.absURL,
         };
-
         tracks = getTrackPlayerTracksDL(
           itemId,
           bookInfo.positionInfo.currentPosition,
@@ -256,9 +255,9 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
           dlTracks,
           regularChapters
         );
+
         // return await loadDownloadedBook(itemId);
       } else {
-        console.log("In Else");
         //# PHASE - STREAMING:
         // Check network connectivity before attempting to stream
         const isOnline = await checkIsOnline();
@@ -320,7 +319,6 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       };
 
       //~'
-      console.log("Loading tracks:", tracks);
       await TrackPlayer.reset();
       await TrackPlayer.add(tracks);
 

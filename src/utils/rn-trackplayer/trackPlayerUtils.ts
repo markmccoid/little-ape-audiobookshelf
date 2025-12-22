@@ -2,7 +2,7 @@ import { AudioTrackInfo } from "@/src/store/store-books";
 import { Chapter } from "@/src/utils/AudiobookShelf/abstypes";
 import { Paths } from "expo-file-system";
 import TrackPlayer, { PitchAlgorithm, State } from "react-native-track-player";
-import { AudiobookshelfAPI } from "../AudiobookShelf/absAPIClass";
+import { getAbsAPI } from "../AudiobookShelf/absInit";
 
 // export type Chapter = {
 //   id: number;
@@ -31,7 +31,7 @@ export const getTrackPlayerTracksDL = (
   chapters: Chapter[] //!chapters should be on the audioTracks array object
 ) => {
   const trackOffsets = audioTracks.map((el) => el.startOffset) || [];
-  const absAPI = new AudiobookshelfAPI();
+  const absAPI = getAbsAPI();
   // Use the real progress, not the session's startTime
   // const actualStartTime = currentTime || 0;
   const coverURL = absAPI.buildCoverURL(libraryItemId);
@@ -39,7 +39,7 @@ export const getTrackPlayerTracksDL = (
   const tracks = audioTracks.map((audioTrack, index) => ({
     id: `${libraryItemId}-${index}`,
     trackIndex: index, // convert to zero based index
-    url: `${Paths.document}${audioTrack.cleanFileName}`, //! Make sure this is on the audiotrack object
+    url: `${Paths.document.uri}${audioTrack.cleanFileName}`, //! Make sure this is on the audiotrack object
     title: bookMetadata.title,
     artist: bookMetadata.author,
     artwork: coverURL.coverFull,

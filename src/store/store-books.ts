@@ -68,6 +68,8 @@ export type Book = {
   //!! I think we still cleanup a temporary book after a month of inactivity
   isDownloaded: boolean;
   type: "bookshelf" | "downloaded" | "temporary";
+  totalFileSizeMB?: number;
+  numberOfAudioFiles?: number;
 };
 
 // export type SavedBookMark = {
@@ -110,15 +112,17 @@ interface BooksState {
   // Monotonic token for download session identity
   downloadToken: number;
   // Active cancel function for current file download
-  activeCancelFn?: () => void;
+  activeCancelFn?: () => Promise<void>;
   downloadProgress:
     | {
+        libraryItemId: string;
         currentFileProcessing: string;
         progress: number;
         received: number;
         total: number;
         numberOfFiles: number;
         numberOfFilesDownloaded: number;
+        downloadCompleted: boolean;
       }
     | undefined;
 }
@@ -156,13 +160,15 @@ interface BooksActions {
   // updates bookInfo.positionInfo for multiple books
   updateMappedProgressPositions: (mappedProgress: Record<string, { currentTime?: number }>) => void;
   downloadBook: (libraryItemId: string | undefined) => Promise<void>;
-  cancelDownload: () => void;
+  cancelDownload: () => Promise<void>;
   updateDownloadProgress: (
+    libraryItemId: string,
     fileName: string,
     received: number,
     total: number,
     numberOfFiles: number,
-    numberOfFilesDownloaded: number
+    numberOfFilesDownloaded: number,
+    downloadCompleted: boolean
   ) => void;
   // delete downloaded book data and update book.isDownloaded to false and book.type to temporary
   deleteDownloadedBookData: (libraryItemId: string) => void;
@@ -395,6 +401,9 @@ export const useBooksStore = create<BooksStore>()(
             }
 
             const itemDetails = await absAPI.getItemDetails(libraryItemId);
+            //Get total size of all audio files
+            const totalSize =
+              itemDetails?.audioFiles?.reduce((acc, file) => acc + file.metadata.size, 0) / 1000000;
 
             // If API returned null (offline/error), return cached book without updating
             if (!itemDetails || !itemDetails.media) {
@@ -465,6 +474,8 @@ export const useBooksStore = create<BooksStore>()(
               publishedYear: itemDetails?.media?.metadata.publishedYear || book.publishedYear,
               chapters: enhancedChapters.length > 0 ? enhancedChapters : book.chapters,
               authors: itemDetails?.media?.metadata?.authors || book.authors,
+              totalFileSizeMB: Math.round((totalSize + Number.EPSILON) * 100) / 100,
+              numberOfAudioFiles: itemDetails?.audioFiles?.length || 0,
               lastUpdated: Date.now(),
             };
 
@@ -581,6 +592,8 @@ export const useBooksStore = create<BooksStore>()(
             };
           });
         },
+
+        //# ---- DOWNLOAD BOOK -----
         downloadBook: async (libraryItemId) => {
           // Increment token to start a new download session (invalidates any previous)
           set((state) => ({ downloadToken: state.downloadToken + 1 }));
@@ -597,8 +610,10 @@ export const useBooksStore = create<BooksStore>()(
             console.log("No data found for libraryItemId: " + libraryItemId);
             return;
           }
+          // const totalSize = data.audioFiles[0].metadata.size / 1000000;
           // create the variable that will feed into the downloadInfo Object for this book
           let audioTracks = [];
+
           // Download each audio file
           for (let i = 0; i < data.audioFiles.length; i++) {
             const audioFile = data.audioFiles[i];
@@ -611,18 +626,21 @@ export const useBooksStore = create<BooksStore>()(
             // Check if this download session is still valid
             if (get().downloadToken !== myToken) return;
 
-            console.log("DL URI", dlURI.url);
             // Setup the download of the file
             const { task, cancelDownload, cleanFileName, fileUri, nativePath } = downloadFileBlob(
               dlURI,
               audioFile.metadata.filename,
               (received, total) => {
+                // Check if this download session is still valid before updating progress
+                if (get().downloadToken !== myToken) return;
                 get().actions.updateDownloadProgress(
+                  libraryItemId,
                   audioFile.metadata.filename,
                   received,
                   total,
                   data.audioFiles.length,
-                  i + 1
+                  i + 1,
+                  false
                 );
               }
             );
@@ -648,7 +666,7 @@ export const useBooksStore = create<BooksStore>()(
               throw e;
             }
 
-            console.log("DONE Awaiting", cleanFileName, fileUri);
+            console.log("DONE Awaiting", cleanFileName);
             // Check if this download session is still valid
             if (get().downloadToken !== myToken) return;
           }
@@ -664,31 +682,52 @@ export const useBooksStore = create<BooksStore>()(
               book.type = "downloaded";
             }
           });
-          set({ activeCancelFn: undefined });
-        },
-
-        cancelDownload: () => {
-          // Increment token to invalidate the current download session
-          set((state) => ({ downloadToken: state.downloadToken + 1 }));
-          // Cancel the active file download
-          get().activeCancelFn?.();
           set({ activeCancelFn: undefined, downloadProgress: undefined });
         },
+
+        cancelDownload: async () => {
+          // Increment token to invalidate the current download session
+          set((state) => ({ downloadToken: state.downloadToken + 1 }));
+          const cancelledLibraryItemId = get().downloadProgress?.libraryItemId;
+          console.log(
+            "cancelDownload: About to call activeCancelFn, exists:",
+            !!get().activeCancelFn
+          );
+          // Cancel the active file download
+          try {
+            await get().activeCancelFn?.();
+            console.log("cancelDownload: activeCancelFn completed successfully");
+          } catch (e) {
+            console.log("cancelDownload: activeCancelFn threw error:", e);
+          }
+
+          console.log("Download Cancelled", get().downloadProgress);
+          set({ activeCancelFn: undefined, downloadProgress: undefined });
+          // Clean up the downloadInfo Object for this book if we have a libraryItemId
+          if (!cancelledLibraryItemId) return;
+          get().actions.deleteDownloadedBookData(cancelledLibraryItemId);
+        },
         updateDownloadProgress: (
+          libraryItemId,
           fileName,
           received,
           total,
           numberOfFiles,
-          numberOfFilesDownloaded
+          numberOfFilesDownloaded,
+          downloadCompleted
         ) => {
           set({
             downloadProgress: {
+              libraryItemId,
               currentFileProcessing: fileName,
-              progress: Math.round((received / total) * 100),
+              progress: isNaN(Math.round((received / total) * 100))
+                ? 0
+                : Math.round((received / total) * 100),
               received,
               total,
               numberOfFiles,
               numberOfFilesDownloaded,
+              downloadCompleted,
             },
           });
         },

@@ -12,6 +12,7 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from "react-native-reanimated";
+import BookDownloadDelete from "./BookDownloadDelete";
 import { CycleFade } from "./CycleFade";
 interface BookSliderProps {
   libraryItemId: string;
@@ -197,22 +198,32 @@ const BookSlider: React.FC<BookSliderProps> = ({ libraryItemId, forceStaticColor
           </Text>
         </View>
         {!isBookActive && (
-          <View
-            className="flex-col items-center justify-center px-3 py-1 border-hairline rounded-xl"
-            style={{ backgroundColor: `${themeColors.accent}33` }}
-          >
-            <Text
-              className="text-lg font-firacode"
-              style={{ color: forceStaticColors ? THEME.dark.foreground : themeColors.foreground }}
+          <View className="flex-row items-center justify-center relative w-full">
+            {/* DOWNLOAD BUTTON */}
+            <BookDownloadDelete libraryItemId={libraryItemId} />
+
+            {/* INITIAL STATS -- BOOK NOT ACTIVE */}
+            <View
+              className="flex-col items-center justify-center px-3 py-1 border-hairline rounded-xl"
+              style={{ backgroundColor: `${themeColors.accent}33` }}
             >
-              {formatSeconds(globalPosition)} of {formatSeconds(globalDuration)}
-            </Text>
-            <Text
-              className="text-lg font-firacode"
-              style={{ color: forceStaticColors ? THEME.dark.foreground : themeColors.foreground }}
-            >
-              {formatSeconds(globalDuration - globalPosition)} Left
-            </Text>
+              <Text
+                className="text-lg font-firacode"
+                style={{
+                  color: forceStaticColors ? THEME.dark.foreground : themeColors.foreground,
+                }}
+              >
+                {formatSeconds(globalPosition)} of {formatSeconds(globalDuration)}
+              </Text>
+              <Text
+                className="text-lg font-firacode"
+                style={{
+                  color: forceStaticColors ? THEME.dark.foreground : themeColors.foreground,
+                }}
+              >
+                {formatSeconds(globalDuration - globalPosition)} Left
+              </Text>
+            </View>
           </View>
         )}
       </View>

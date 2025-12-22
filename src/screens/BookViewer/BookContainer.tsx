@@ -14,6 +14,7 @@ import React, { useReducer } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AddToShelfMenu from "./AddToShelfMenu";
+import DownloadSheet from "./DownloadSheet";
 
 export type BookContainerRoute = {
   libraryItemId: string;
@@ -117,19 +118,8 @@ const BookContainer = () => {
 
         {/* BOOK DETAILS - Description, Genres, tags */}
         <BookDetails />
-
-        {/* {data &&
-          data.media.chapters.map((el) => {
-            return (
-              <View key={el.id} className="flex-row gap-2">
-                <Text className="text-foreground">{el.title}</Text>
-                <Text className="text-foreground">
-                  {formatSeconds(el.end - el.start, "compact")}
-                </Text>
-                <Text className="text-foreground">{el.end}</Text>
-              </View>
-            );
-          })} */}
+        {/* TrueSheet, only shown when download button from BookSlider is pressed */}
+        <DownloadSheet libraryItemId={libraryItemId} />
       </ScrollView>
     </View>
   );

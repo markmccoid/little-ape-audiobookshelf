@@ -43,7 +43,7 @@ function BookDetails() {
           <Picker
             options={[
               "Details",
-              `Chapters (${x.chapterInfo.chapterNumber}/${numChapters})`,
+              `Chapts (${x.chapterInfo.chapterNumber}/${numChapters})`,
               "Bookmarks",
             ]}
             selectedIndex={selectedIndex}
