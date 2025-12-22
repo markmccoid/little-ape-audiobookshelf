@@ -44,7 +44,8 @@ export const getTrackPlayerTracksDL = (
     artist: bookMetadata.author,
     artwork: coverURL.coverFull,
     duration: audioTrack.duration,
-    sessionId: libraryItemId,
+    sessionId: undefined, // Explicitly undefined to ensure fallback to progress sync
+    // sessionId: libraryItemId, // ❌ Don't set this for downloaded books, otherwise SyncManager tries to sync to /api/session/{id}
     trackOffset: trackOffsets[index] ?? 0,
     libraryItemId: libraryItemId,
     chapters: chapters || [],

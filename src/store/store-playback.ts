@@ -257,6 +257,30 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
         );
 
         // return await loadDownloadedBook(itemId);
+        // Register local playback with AudiobookStreamer (for sync)
+        const mappedAudioTracks =
+          bookDownloadInfo?.audioTracks?.map((t, index) => ({
+            index: index + 1,
+            startOffset: t.startOffset || 0,
+            duration: t.duration || 0,
+            title: t.cleanFileName,
+            contentUrl: t.filename,
+            mimeType: "audio/mpeg",
+            codec: null,
+            metadata: null,
+          })) || [];
+
+        // Construct a partial session object sufficient for SessionManager
+        const localSession: any = {
+          id: null, // Explicitly null to indicate local session
+          libraryItemId: itemId,
+          audioTracks: mappedAudioTracks,
+          startTime: bookInfo.positionInfo.currentPosition,
+          chapters: regularChapters,
+        };
+
+        // Initialize local playback session
+        await streamer.setupLocalPlayback(localSession);
       } else {
         //# PHASE - STREAMING:
         // Check network connectivity before attempting to stream

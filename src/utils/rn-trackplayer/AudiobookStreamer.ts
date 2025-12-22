@@ -159,6 +159,16 @@ export default class AudiobookStreamer {
     return result;
   }
 
+  async setupLocalPlayback(sessionData: AudiobookSession): Promise<void> {
+    this.syncManager.setLastSyncTime(null);
+    this.syncManager.stopRealTimeSyncTimer();
+
+    await this.captureCurrentSessionForFinalSync();
+
+    this.sessionManager.setupLocalSession(sessionData);
+    this.sessionClosed = false;
+  }
+
   async syncProgress(currentPosition?: number): Promise<void> {
     if (this.sessionClosed) return;
 
@@ -177,10 +187,12 @@ export default class AudiobookStreamer {
     const activeSessionId = await this.sessionManager.getActiveSessionId();
     const activeLibraryItemId = await this.sessionManager.getActiveLibraryItemId();
 
-    if (!activeSessionId || !activeLibraryItemId) {
-      console.warn("No active session/library ID found, skipping sync");
+    if (!activeLibraryItemId) {
+      console.warn("No active library ID found, skipping sync");
       return;
     }
+
+    // activeSessionId CAN be null for local playback
 
     const globalPosition = await this.sessionManager.getGlobalPosition(currentPosition);
 
@@ -210,7 +222,7 @@ export default class AudiobookStreamer {
     const activeSessionId = await this.sessionManager.getActiveSessionId();
     const activeLibraryItemId = await this.sessionManager.getActiveLibraryItemId();
 
-    if (!activeSessionId || !activeLibraryItemId) return;
+    if (!activeLibraryItemId) return;
 
     const globalPosition =
       globalPosIn !== undefined ? globalPosIn : await this.sessionManager.getGlobalPosition();

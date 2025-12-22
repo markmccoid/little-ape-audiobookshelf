@@ -107,15 +107,30 @@ export class SessionManager {
     return this.trackOffsets[activeTrackIndex] + finalPos;
   }
 
+  public setupLocalSession(sessionData: AudiobookSession) {
+    this.session = sessionData;
+    this.trackOffsets = sessionData.audioTracks.map((el) => el.startOffset) || [];
+  }
+
   /**
    * Gets the sessionId from the currently active track to prevent cross-session contamination
    */
   public async getActiveSessionId(): Promise<string | null> {
     try {
       const activeTrack = await TrackPlayer.getActiveTrack();
-      if (activeTrack && "sessionId" in activeTrack) {
-        return activeTrack.sessionId as string;
+      if (activeTrack) {
+        console.log(
+          "getActiveSessionId track:",
+          "sessId" in activeTrack,
+          activeTrack.sessionId,
+          "libId",
+          activeTrack.libraryItemId
+        );
       }
+      if (activeTrack && "sessionId" in activeTrack) {
+        return (activeTrack.sessionId as string) || null;
+      }
+      console.log("getActiveSessionId using this.session.id:", this.session?.id);
       return this.session?.id || null;
     } catch (error) {
       return this.session?.id || null;
@@ -129,7 +144,7 @@ export class SessionManager {
     try {
       const activeTrack = await TrackPlayer.getActiveTrack();
       if (activeTrack && "libraryItemId" in activeTrack) {
-        return activeTrack.libraryItemId as string;
+        return (activeTrack.libraryItemId as string) || null;
       }
       return this.session?.libraryItemId || null;
     } catch (error) {

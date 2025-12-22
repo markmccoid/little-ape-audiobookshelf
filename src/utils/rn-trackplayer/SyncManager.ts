@@ -84,7 +84,7 @@ export class SyncManager {
   }
 
   public async syncProgress(
-    sessionId: string,
+    sessionId: string | null,
     libraryItemId: string,
     globalPosition: number,
     isSessionClosed: boolean
@@ -102,7 +102,16 @@ export class SyncManager {
         };
 
         try {
-          const syncResult = await this.apiClient.syncProgressToServer(sessionId, syncData);
+          console.log("SyncManager syncProgress:", { sessionId, libraryItemId });
+          let syncResult;
+
+          if (sessionId) {
+            syncResult = await this.apiClient.syncProgressToServer(sessionId, syncData);
+          } else {
+            // Local fallback for downloaded books (no session)
+            await this.apiClient.updateBookProgress(libraryItemId, syncData.currentTime);
+            syncResult = { success: true, currentTime: syncData.currentTime };
+          }
 
           // When offline, API returns null - queue the sync for later
           if (!syncResult) {
@@ -128,7 +137,7 @@ export class SyncManager {
   }
 
   public async syncPosition(
-    sessionId: string,
+    sessionId: string | null,
     libraryItemId: string,
     globalPosition: number,
     isSessionClosed: boolean
@@ -148,9 +157,15 @@ export class SyncManager {
           currentTime: globalPosition,
         };
 
-        const syncResult = await this.apiClient.syncProgressToServer(sessionId, syncData);
+        let syncResult;
+        if (sessionId) {
+          syncResult = await this.apiClient.syncProgressToServer(sessionId, syncData);
+        } else {
+          await this.apiClient.updateBookProgress(libraryItemId, syncData.currentTime);
+          syncResult = { success: true, currentTime: syncData.currentTime };
+        }
 
-        if (syncResult.success) {
+        if (syncResult && syncResult.success) {
           const { useBooksStore } = require("../../store/store-books");
           const bookActions = useBooksStore.getState().actions;
 
@@ -188,7 +203,7 @@ export class SyncManager {
 
   private async handleSyncError(
     error: any,
-    sessionId: string,
+    sessionId: string | null,
     libraryItemId: string,
     syncData: SyncData
   ) {
@@ -222,7 +237,7 @@ export class SyncManager {
   }
 
   private async queueSyncForLater(
-    sessionId: string,
+    sessionId: string | null,
     libraryItemId: string,
     syncData: SyncData
   ): Promise<void> {
@@ -230,7 +245,7 @@ export class SyncManager {
     syncQueue.addToQueue({
       type: "playback-progress",
       data: {
-        sessionId,
+        sessionId: sessionId || undefined,
         libraryItemId,
         timeListened: syncData.timeListened,
         currentTime: syncData.currentTime,
@@ -263,34 +278,34 @@ export class SyncManager {
       // Handle playback progress
       if (item.type === "playback-progress") {
         const { sessionId, libraryItemId, timeListened, currentTime } = item.data;
-        try {
-          // Try session-based sync first
-          await this.apiClient.syncProgressToServer(sessionId!, {
-            timeListened: timeListened!,
-            currentTime: currentTime!,
-          });
-          // Update local store on success
-          if (libraryItemId && currentTime !== undefined) {
+
+        if (!libraryItemId || currentTime === undefined) return false;
+
+        // Path A: Session Sync (if we have a session ID)
+        if (sessionId) {
+          try {
+            await this.apiClient.syncProgressToServer(sessionId, {
+              timeListened: timeListened || 0,
+              currentTime: currentTime,
+            });
             this.updateBooksStore(libraryItemId, currentTime);
+            return true;
+          } catch (error: any) {
+            // If session expired (404), fall back to direct progress update
+            const is404 =
+              error?.status === 404 || error?.statusCode === 404 || error?.response?.status === 404;
+            if (!is404) return false; // Actual network error, keep in queue
           }
+        }
+
+        // Path B: Direct Progress Sync (Fallback or Default for local sessions)
+        try {
+          // ensure we have a valid time listened if possible, or 0
+          await this.apiClient.updateBookProgress(libraryItemId, currentTime);
+          this.updateBooksStore(libraryItemId, currentTime);
           return true;
-        } catch (error: any) {
-          // If session expired (404), fall back to direct progress update
-          const is404 =
-            error?.status === 404 || error?.statusCode === 404 || error?.response?.status === 404;
-          if (is404 && libraryItemId && currentTime !== undefined) {
-            try {
-              console.log(
-                `Session expired, falling back to updateBookProgress for ${libraryItemId}`
-              );
-              await this.apiClient.updateBookProgress(libraryItemId, currentTime);
-              this.updateBooksStore(libraryItemId, currentTime);
-              return true;
-            } catch (fallbackError) {
-              console.error("Fallback updateBookProgress failed:", fallbackError);
-              return false;
-            }
-          }
+        } catch (fallbackError) {
+          console.error("Progress sync failed:", fallbackError);
           return false;
         }
       }
