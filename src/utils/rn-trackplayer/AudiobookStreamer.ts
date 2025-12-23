@@ -216,7 +216,7 @@ export default class AudiobookStreamer {
   }
 
   async syncPosition(globalPosIn?: number): Promise<void> {
-    console.log("Audiobook STREAMER book stroe pos update", globalPosIn);
+    // console.log("Audiobook STREAMER book stroe pos update", globalPosIn);
     if (!this.sessionManager.hasSession() || this.sessionClosed) return;
 
     const activeSessionId = await this.sessionManager.getActiveSessionId();

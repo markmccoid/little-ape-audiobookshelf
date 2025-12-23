@@ -17,6 +17,8 @@ import { useSmartPositionStore } from "@/src/store/store-smartposition";
 
 export const useSmartPosition = (libraryItemId: string) => {
   const isLoaded = usePlaybackStore((s) => s.isLoaded);
+  // const isSeeking = usePlaybackStore((s) => s.seeking);
+  const optimisticPosition = usePlaybackStore((s) => s.optimisticPosition);
   const sessionId = usePlaybackStore((s) => s.session?.libraryItemId);
   const isBookActive = sessionId === libraryItemId;
   // const isPlaying = usePlaybackIsPlaying(libraryItemId);
@@ -31,6 +33,27 @@ export const useSmartPosition = (libraryItemId: string) => {
 
   useEffect(() => {
     // console.log("USESMPOS", progress.position, book?.currentPosition, book?.title);
+    // if (isSeeking) return;
+    // console.log("OPTIMISTIC UPDATE", optimisticPosition);
+    if (optimisticPosition !== null) {
+      // Use optimistic position
+      const curr = getChapterFromProgress(chapters, optimisticPosition);
+      // update playlist store
+      updateCurrentChapterIndex(curr?.chapterIndex);
+      // update smart positions store
+      update(libraryItemId, optimisticPosition, duration, {
+        chapterPosition: optimisticPosition - (curr?.startSeconds ?? 0),
+        chapterStart: curr?.startSeconds || 0,
+        chapterEnd: (curr?.startSeconds || 0) + (curr?.chapterDuration || 0),
+        chapterDuration: curr?.chapterDuration ?? 0,
+        chapterTitle: curr?.title ?? "",
+        numOfChapters: chapters.length,
+        chapterNumber: curr?.chapterNumber || 1,
+        chapterIndex: curr?.chapterIndex || 0,
+      });
+      return;
+    }
+
     if (isBookActive && isLoaded && progress.position !== 0) {
       const newPos = Math.round((activeTrack?.trackOffset ?? 0) + progress.position);
       const curr = getChapterFromProgress(chapters, newPos);
@@ -71,6 +94,7 @@ export const useSmartPosition = (libraryItemId: string) => {
     sessionId,
     libraryItemId,
     bookInfo?.positionInfo?.currentPosition,
+    optimisticPosition,
   ]);
 };
 

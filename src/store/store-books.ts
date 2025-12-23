@@ -511,6 +511,7 @@ export const useBooksStore = create<BooksStore>()(
                 queuedPosition > existingPosition &&
                 (serverPosition === undefined || queuedPosition > serverPosition);
 
+              // console.log("getOrFetchBook Position", state.bookInfo[libraryItemId]?.positionInfo);
               state.bookInfo[libraryItemId] = {
                 ...state.bookInfo[libraryItemId],
                 positionInfo: {

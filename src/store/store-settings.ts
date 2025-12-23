@@ -285,24 +285,24 @@ export const useSettingsStore = create<SettingsStore>()(
     {
       name: "settings-storage", // Storage key
       storage: createJSONStorage(() => mmkvStorage),
-      merge: (persisted, current) => {
-        if (persisted.allBookshelves.find((el) => el.label === "Downloaded")) {
-          return {
-            ...current,
-            ...persisted,
-          };
-        }
+      // merge: (persisted, current) => {
+      //   if (persisted.allBookshelves.find((el) => el.label === "Downloaded")) {
+      //     return {
+      //       ...current,
+      //       ...persisted,
+      //     };
+      //   }
 
-        return {
-          ...current,
-          ...persisted,
+      //   return {
+      //     ...current,
+      //     ...persisted,
 
-          allBookshelves: [
-            ...defaultBookshelves,
-            ...persisted.allBookshelves.filter((el) => el.type === "custom"),
-          ],
-        };
-      },
+      //     allBookshelves: [
+      //       ...defaultBookshelves,
+      //       ...persisted.allBookshelves.filter((el) => el.type === "custom"),
+      //     ],
+      //   };
+      // },
       // Only persist the state, not the actions
       partialize: (state) => ({
         seekForwardSeconds: state.seekForwardSeconds,

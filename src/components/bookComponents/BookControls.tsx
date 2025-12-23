@@ -34,6 +34,7 @@ const BookControls = ({ libraryItemId }: Props) => {
       Alert.alert("Not Logged In", "No user is logged in, cannot play");
       return;
     }
+
     if (!isBookActive) {
       try {
         await loadBookAndPlay(libraryItemId);

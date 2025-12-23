@@ -30,7 +30,21 @@ export const getTrackPlayerTracksDL = (
   audioTracks: AudioTrackInfo[], //!  Need to define. need to make align with streaming if we want this function to be multipurpose NO
   chapters: Chapter[] //!chapters should be on the audioTracks array object
 ) => {
-  const trackOffsets = audioTracks.map((el) => el.startOffset) || [];
+  // Calculate track offsets
+  const trackOffsets: number[] = [];
+  let currentOffset = 0;
+
+  audioTracks.forEach((track) => {
+    if (typeof track.startOffset === "number") {
+      trackOffsets.push(track.startOffset);
+      // If we have mixed data (some with offset, some without), keep the running total sync'd
+      currentOffset = track.startOffset + (track.duration || 0);
+    } else {
+      trackOffsets.push(currentOffset);
+      currentOffset += track.duration || 0;
+    }
+  });
+
   const absAPI = getAbsAPI();
   // Use the real progress, not the session's startTime
   // const actualStartTime = currentTime || 0;
@@ -48,7 +62,6 @@ export const getTrackPlayerTracksDL = (
     // sessionId: libraryItemId, // ❌ Don't set this for downloaded books, otherwise SyncManager tries to sync to /api/session/{id}
     trackOffset: trackOffsets[index] ?? 0,
     libraryItemId: libraryItemId,
-    chapters: chapters || [],
     pitchAlgorithm: PitchAlgorithm.Voice,
   }));
 

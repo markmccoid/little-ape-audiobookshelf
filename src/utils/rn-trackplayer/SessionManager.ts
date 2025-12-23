@@ -65,7 +65,6 @@ export class SessionManager {
       sessionId: response.id,
       trackOffset: this.trackOffsets[audioTrack.index - 1],
       libraryItemId: response.libraryItemId,
-      chapters: response.chapters || [],
       pitchAlgorithm: PitchAlgorithm.Voice,
     }));
 

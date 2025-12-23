@@ -21,7 +21,6 @@ export type ABSQueuedTrack = Track & {
   trackIndex: number; // zero based index
   sessionId?: string;
   libraryItemId?: string;
-  chapters?: any[];
 };
 
 // Module-scoped flags to avoid duplicate bindings during Fast Refresh
@@ -40,6 +39,7 @@ interface PlaybackState {
   seeking: boolean;
   currentChapterIndex: number | undefined;
   sleepChapterIndex: number | undefined;
+  optimisticPosition: number | null;
   //! Only will be true once book has been loaded and playing has started
   //! isBookActive function returns as SOON as book session has been loaded
   //! However, it takes Track Player about 1 second to finish init as start playing.
@@ -87,6 +87,11 @@ interface PlaybackStore extends PlaybackState {
   actions: PlaybackActions;
 }
 
+// Used for debouncing jump actions
+let jumpTimer: NodeJS.Timeout | null = null;
+// Used for debouncing seek actions (clearing optimistic position)
+let seekTimer: NodeJS.Timeout | null = null;
+
 export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
   // ---- State
   session: null,
@@ -95,7 +100,8 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
   isLoaded: false,
   currentChapterIndex: undefined,
   sleepChapterIndex: undefined,
-  seeking: false,
+  seeking: false, // Keeping for backward compatibility or other checks if needed, but optimisticPosition is primary
+  optimisticPosition: null,
   playbackState: State.None,
   position: 0,
   duration: 0,
@@ -141,13 +147,15 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       // set in setup track player.
       const l1 = TrackPlayer.addEventListener(Event.PlaybackProgressUpdated, (e) => {
         const position = e.position;
+        const trackIndex = e.track;
+        // const duration = typeof e.duration === "number" ? e.duration : get().duration;
 
-        const duration = typeof e.duration === "number" ? e.duration : get().duration;
-
-        set({ position, duration });
+        set({ position, duration: e.duration });
         const libraryItemId = get()?.session?.libraryItemId;
         if (libraryItemId) {
-          useBooksStore.getState().actions.updateCurrentPosition(libraryItemId, position);
+          const currentTrack = get().queue[trackIndex];
+          const globalPosition = position + (currentTrack?.trackOffset || 0);
+          useBooksStore.getState().actions.updateCurrentPosition(libraryItemId, globalPosition);
         }
         // ❌ REMOVED: Redundant sync to books store
         // AudiobookStreamer now handles syncing to server (every 5s)
@@ -236,8 +244,8 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
             return {
               id: chapter.id,
               title: chapter.title,
-              start: chapter.startSeconds * 1000, // convert back to milliseconds
-              end: chapter.endSeconds * 1000,
+              start: chapter.startSeconds,
+              end: chapter.endSeconds,
             };
           }) || [];
         sessionData = {
@@ -258,17 +266,27 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
 
         // return await loadDownloadedBook(itemId);
         // Register local playback with AudiobookStreamer (for sync)
+        let currentOffset = 0;
         const mappedAudioTracks =
-          bookDownloadInfo?.audioTracks?.map((t, index) => ({
-            index: index + 1,
-            startOffset: t.startOffset || 0,
-            duration: t.duration || 0,
-            title: t.cleanFileName,
-            contentUrl: t.filename,
-            mimeType: "audio/mpeg",
-            codec: null,
-            metadata: null,
-          })) || [];
+          bookDownloadInfo?.audioTracks?.map((t, index) => {
+            const trackOffset = typeof t.startOffset === "number" ? t.startOffset : currentOffset;
+            const duration = t.duration || 0;
+            // Update offset for next track if we are calculating manually
+            if (typeof t.startOffset !== "number") {
+              currentOffset += duration;
+            }
+
+            return {
+              index: index + 1,
+              startOffset: trackOffset,
+              duration: duration,
+              title: t.cleanFileName,
+              contentUrl: t.filename,
+              mimeType: "audio/mpeg",
+              codec: null,
+              metadata: null,
+            };
+          }) || [];
 
         // Construct a partial session object sufficient for SessionManager
         const localSession: any = {
@@ -383,7 +401,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       // wait for book to be fully loaded
       await waitForReadyState();
       // Initial sync  so that we can invalidate queries and update continue listening queue.
-      await streamer.syncPosition(startTime + 5000);
+      await streamer.syncPosition(startTime);
       set({ isLoaded: true });
     },
 
@@ -466,6 +484,9 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
 
     togglePlayPause: async () => {
       const state = await TrackPlayer.getPlaybackState();
+      // const x = await TrackPlayer.getProgress();
+      // const y = await TrackPlayer.getQueue();
+      // console.log("togglePlayPause", state, x, y);
 
       if (state.state === State.Playing) {
         await get().actions.pause();
@@ -501,9 +522,35 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       // global pos - the skip to tracks offset
       // 6000 - track 3 where sum of duration of 1 & 2 = 5800
       // This means we are 200 seconds into track 3
+      set({ position: pos, optimisticPosition: pos });
       await TrackPlayer.seekTo(pos - newTrackOffset.offset);
 
-      set({ position: pos, seeking: false });
+      // Delay unsetting seeking to allow TrackPlayer state to settle
+      // This prevents UI flickers/resets when skipping tracks
+      if (seekTimer) clearTimeout(seekTimer);
+
+      // Capture the position THIS seek was targeting
+      const thisSeekPos = pos;
+
+      seekTimer = setTimeout(() => {
+        // STALE CHECK AT CLEANUP TIME:
+        // If the user has jumped *again* since we scheduled this timer,
+        // optimisticPosition will have advanced (e.g., from 60 to 120).
+        // We must NOT wipe out the new optimistic position.
+        if (get().optimisticPosition !== thisSeekPos) {
+          // console.log(
+          //   "Stale cleanup detected, aborting",
+          //   thisSeekPos,
+          //   "current:",
+          //   get().optimisticPosition
+          // );
+          seekTimer = null;
+          return;
+        }
+
+        set({ seeking: false, optimisticPosition: null });
+        seekTimer = null;
+      }, 1000) as unknown as NodeJS.Timeout;
 
       // Immediately sync the new position to the server
       try {
@@ -514,6 +561,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
           //!! This is the culprit.  it is supposed to save our position on sync,
           //!! may need a syncGlobalPosition function in AudioBookStreamer that accepts a position
           //!! That way this won't reset it.
+          console.log("Syncing position", pos);
           await streamer.syncPosition(pos);
         } else {
           console.log("Skipping position sync - no active session");
@@ -525,75 +573,120 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
     },
 
     jumpForwardSeconds: async (forwardSeconds: number) => {
-      const { position: currPos, duration: currDuration } = await TrackPlayer.getProgress();
-      // const currDuration = await TrackPlayer.getDuration();
+      // 1. Clear existing timers immediately (Standard Debounce)
+      if (jumpTimer) clearTimeout(jumpTimer);
+      if (seekTimer) clearTimeout(seekTimer);
+
       const trackIndex = await TrackPlayer.getActiveTrackIndex();
-      const qLength = get().queue.length;
-      const newPos = currPos + forwardSeconds;
+      const queue = get().queue;
+      if (trackIndex === undefined || !queue[trackIndex]) return;
 
-      // console.log("[jumpForward]", currPos, forwardSeconds, currDuration, newPos);
-      if (newPos > currDuration) {
-        // go to next track.   calculate how much "seekTo" is in
-        // currtrack and how much in next track.
-        // currPos = 25 currDuration = 30, seekTo = 10
-        // We go to next track and start 5 seconds in next track
-        await get().actions.next();
+      const currentTrack = queue[trackIndex];
 
-        if (trackIndex !== qLength - 1) {
-          await TrackPlayer.seekTo(forwardSeconds - (currDuration - currPos));
+      // 2. Determine base position
+      // We explicitly check `optimisticPosition` again AFTER the first await?
+      // No, we should check it before AND after if needed, but get() is stable.
+
+      let currentGlobalPos = get().optimisticPosition;
+
+      if (currentGlobalPos === null) {
+        // Slow Path: Need to fetch from player
+        const { position: currPos } = await TrackPlayer.getProgress();
+
+        // CRITICAL RE-CHECK:
+        // While we were awaiting `getProgress`, another jump might have finished
+        // and set the optimisticPosition. If so, we MUST use that new value
+        // to preserve the "chain" of jumps (e.g. +30 then +30 = 60).
+        const freshOptimistic = get().optimisticPosition;
+        if (freshOptimistic !== null) {
+          currentGlobalPos = freshOptimistic;
+        } else {
+          currentGlobalPos = (currentTrack.trackOffset || 0) + currPos;
         }
-      } else {
-        await TrackPlayer.seekTo(newPos);
       }
+
+      // 3. Double Clear Protection
+      // If another jump was triggered *while* we were awaiting above,
+      // `jumpTimer` might have been set by that parallel execution.
+      // We must clear it again to ensure ONLY this latest intention survives.
+      if (jumpTimer) clearTimeout(jumpTimer);
+      if (seekTimer) clearTimeout(seekTimer);
+
+      const targetGlobalPos = currentGlobalPos + forwardSeconds;
+
+      // console.log("JUMP FORWARD Optimistic:", targetGlobalPos);
+      set({ optimisticPosition: targetGlobalPos, seeking: true });
+
+      jumpTimer = setTimeout(async () => {
+        // console.log("Executing Debounced JUMP FORWARD to:", targetGlobalPos);
+        await get().actions.seekTo(targetGlobalPos);
+        jumpTimer = null;
+      }, 600) as unknown as NodeJS.Timeout;
     },
 
     jumpBackwardSeconds: async (backwardSeconds: number) => {
-      const { position: currPos, duration: currDuration } = await TrackPlayer.getProgress();
-      const newPos = currPos - backwardSeconds;
-      if (newPos < 0) {
-        // go to prev track.  You could get crazy and calculate how much "seekBack" is in
-        // currtrack and how much in prev track.
-        // currPos = 25 currDuration = 30, seekTo = 10
-        // We go to prev track and start 5 seconds in prev track
-        //!  IMPLEMENTED Below
+      // 1. Clear existing timers immediately
+      if (jumpTimer) clearTimeout(jumpTimer);
+      if (seekTimer) clearTimeout(seekTimer);
 
-        const trackIndex = await TrackPlayer.getActiveTrackIndex();
-        await get().actions.prev();
+      const trackIndex = await TrackPlayer.getActiveTrackIndex();
+      const queue = get().queue;
+      if (trackIndex === undefined || !queue[trackIndex]) return;
 
-        console.log("TrackIndex", trackIndex, currDuration, currPos, newPos);
-        if (trackIndex !== 0) {
-          const { duration } = await TrackPlayer.getActiveTrack();
-          const { duration: progDur } = await TrackPlayer.getProgress();
-          console.log("TrackIndex>0", trackIndex, progDur, duration, currPos, newPos);
-          await TrackPlayer.seekTo(duration + newPos);
+      const currentTrack = queue[trackIndex];
+
+      let currentGlobalPos = get().optimisticPosition;
+
+      if (currentGlobalPos === null) {
+        const { position: currPos } = await TrackPlayer.getProgress();
+
+        // CRITICAL RE-CHECK (See jumpForwardSeconds for logic)
+        const freshOptimistic = get().optimisticPosition;
+        if (freshOptimistic !== null) {
+          currentGlobalPos = freshOptimistic;
+        } else {
+          currentGlobalPos = (currentTrack.trackOffset || 0) + currPos;
         }
-      } else {
-        await TrackPlayer.seekTo(newPos);
       }
+
+      // 3. Double Clear Protection
+      if (jumpTimer) clearTimeout(jumpTimer);
+      if (seekTimer) clearTimeout(seekTimer);
+
+      const targetGlobalPos = Math.max(0, currentGlobalPos - backwardSeconds);
+
+      // console.log("JUMP BACKWARD Optimistic:", targetGlobalPos);
+      set({ optimisticPosition: targetGlobalPos, seeking: true });
+
+      jumpTimer = setTimeout(async () => {
+        // console.log("Executing Debounced JUMP BACKWARD to:", targetGlobalPos);
+        await get().actions.seekTo(targetGlobalPos);
+        jumpTimer = null;
+      }, 600) as unknown as NodeJS.Timeout;
     },
 
     next: async () => {
       const trackIndex = await TrackPlayer.getActiveTrackIndex();
       const queue = await TrackPlayer.getQueue();
+      const session = get().session;
 
       if (trackIndex === undefined) return;
 
-      if (queue.length === 1 && queue[trackIndex].chapters.length === 0) return;
+      const chapters = session?.chapters || [];
+      if (queue.length === 1 && chapters.length === 0) return;
 
-      const currentTrack = queue[trackIndex] as ABSQueuedTrack;
       const { currentChapterIndex = 0 } = get();
 
       let moveToAction = "track";
       let nextChapter = {} as Chapter;
 
-      if (currentTrack?.chapters && currentTrack?.chapters?.length > 0) {
-        if (currentTrack?.chapters?.length - 1 !== currentChapterIndex) {
+      if (chapters.length > 0) {
+        if (chapters.length - 1 !== currentChapterIndex) {
           moveToAction = "chapter";
-          nextChapter = currentTrack.chapters[currentChapterIndex + 1];
+          nextChapter = chapters[currentChapterIndex + 1];
         }
       }
-      // // console.log("NEXT Chapt", nextChapter);
-      // // console.log("movetoaction", moveToAction, currentTrack?.chapters?.length, currentChapterIndex);
+
       if (moveToAction === "chapter") {
         await get().actions.seekTo(nextChapter.start);
         return;
@@ -608,25 +701,24 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       } else {
         await TrackPlayer.skipToNext();
       }
-      // console.log("chapt", chapt, chaptIndex, currTrack?.chapters);
     },
     prev: async () => {
       const trackIndex = await TrackPlayer.getActiveTrackIndex();
-      const queue = await TrackPlayer.getQueue();
+      const session = get().session;
 
       if (trackIndex === undefined) return;
 
-      const currentTrack = queue[trackIndex] as ABSQueuedTrack;
       const { currentChapterIndex = 0 } = get();
+      const chapters = session?.chapters || [];
 
       // the Queue has tracks in it and each track may or may NOT have chapters.
       let moveToAction = "track";
       let prevChapter = {} as Chapter;
 
-      if (currentTrack?.chapters && currentTrack?.chapters?.length > 0) {
+      if (chapters.length > 0) {
         if (currentChapterIndex !== 0) {
           moveToAction = "chapter";
-          prevChapter = currentTrack.chapters[currentChapterIndex - 1];
+          prevChapter = chapters[currentChapterIndex - 1];
         }
       }
 

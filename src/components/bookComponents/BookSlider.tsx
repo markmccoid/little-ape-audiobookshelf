@@ -124,7 +124,7 @@ const BookSlider: React.FC<BookSliderProps> = ({ libraryItemId, forceStaticColor
 
     try {
       // Perform the seek
-      console.log("SEEK TO disabled", value, sliderValueStart.current, globalPosition);
+      // console.log("SEEK TO disabled", value, sliderValueStart.current, globalPosition);
       await seekTo(value - sliderValueStart.current + (globalPosition || 0));
 
       // Delay before allowing position updates again
