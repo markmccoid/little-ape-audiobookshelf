@@ -170,6 +170,9 @@ interface BooksActions {
     numberOfFilesDownloaded: number,
     downloadCompleted: boolean
   ) => void;
+  getDownloadStatus: (
+    libraryItemId: string
+  ) => "ready" | "downloading" | "processing" | "completed";
   // delete downloaded book data and update book.isDownloaded to false and book.type to temporary
   deleteDownloadedBookData: (libraryItemId: string) => void;
 }
@@ -505,6 +508,7 @@ export const useBooksStore = create<BooksStore>()(
               // Use queued position if it exists and is greater than server position
               const useQueuedPosition =
                 queuedPosition !== undefined &&
+                queuedPosition > existingPosition &&
                 (serverPosition === undefined || queuedPosition > serverPosition);
 
               state.bookInfo[libraryItemId] = {
@@ -683,6 +687,7 @@ export const useBooksStore = create<BooksStore>()(
             }
           });
           set({ activeCancelFn: undefined, downloadProgress: undefined });
+          get().actions.addBookToBookshelf(libraryItemId, "downloaded");
         },
 
         cancelDownload: async () => {
@@ -731,6 +736,19 @@ export const useBooksStore = create<BooksStore>()(
             },
           });
         },
+        getDownloadStatus: (libraryItemId: string) => {
+          const book = get().actions.getBook(libraryItemId);
+          const dlProgress = get().downloadProgress;
+
+          if (book?.isDownloaded) return "completed";
+
+          if (dlProgress?.currentFileProcessing) {
+            // If the file is done but book isn't marked "isDownloaded" yet, it's processing
+            return dlProgress.downloadCompleted ? "processing" : "downloading";
+          }
+
+          return "ready";
+        },
         deleteDownloadedBookData: (libraryItemId) => {
           set((state) => {
             delete state.downloadedBookData[libraryItemId];
@@ -741,6 +759,7 @@ export const useBooksStore = create<BooksStore>()(
               book.type = "temporary";
             }
           });
+          get().actions.removeBookFromBookshelf(libraryItemId, "downloaded");
         },
       },
     })),

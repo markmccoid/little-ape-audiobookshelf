@@ -10,6 +10,7 @@ export type Bookshelf = {
 };
 
 // The 4 default bookshelves from the API
+// And our custom downloaded shelf
 export const defaultBookshelves: Bookshelf[] = [
   {
     id: "continue-listening",
@@ -21,6 +22,7 @@ export const defaultBookshelves: Bookshelf[] = [
   { id: "recently-added", label: "Recently Added", type: "abs", position: 2, displayed: true },
   { id: "discover", label: "Discover", type: "abs", position: 3, displayed: true },
   { id: "listen-again", label: "Listen Again", type: "abs", position: 4, displayed: true },
+  { id: "downloaded", label: "Downloaded", type: "abs", position: 5, displayed: false },
 ];
 
 // Simple Record mapping bookshelf IDs to arrays of book IDs

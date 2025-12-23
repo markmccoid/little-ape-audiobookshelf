@@ -28,6 +28,7 @@ const BookContainer = () => {
   const bottomHeight = useSafeAreaInsets();
   const { colorScheme } = useColorScheme();
   const { book, isLoading } = useBookData(libraryItemId);
+
   //!!
   useSmartPosition(libraryItemId);
 
@@ -38,23 +39,8 @@ const BookContainer = () => {
         <ImageBackground
           source={{ uri: cover }}
           style={StyleSheet.absoluteFillObject}
-          // style={{
-          //   position: "absolute",
-          //   top: 0,
-          //   left: 0,
-          //   right: 0,
-          //   height: "70%", // top half only
-          // }}
           contentFit="cover"
         >
-          {/* Smooth gradient fade from image to background */}
-          {/* <LinearGradient
-            colors={["transparent", colorScheme === "dark" ? "#000" : "#fff"]}
-            locations={[0.6, 1]} // adjust fade curve
-            style={{
-              ...StyleSheet.absoluteFillObject,
-            }}
-          /> */}
           <LinearGradient
             colors={[
               "transparent", // 0%–40% image shows

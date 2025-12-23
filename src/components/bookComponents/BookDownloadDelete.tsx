@@ -4,7 +4,7 @@ import { TrueSheet } from "@lodev09/react-native-true-sheet";
 import { SymbolView } from "expo-symbols";
 import { PressableScale } from "pressto";
 import React from "react";
-import { Text } from "react-native";
+import { ActivityIndicator, Text } from "react-native";
 import showConfirmationPrompt from "../common/showConfirmationPrompt";
 
 type Props = {
@@ -13,10 +13,12 @@ type Props = {
 const BookDownloadDelete: React.FC<Props> = ({ libraryItemId }) => {
   const themeColors = useThemeColors();
   const bookActions = useBooksActions();
-  const book = useBooksStore((state) =>
-    state.books.find((book) => book.libraryItemId === libraryItemId)
-  );
-  const isDownloaded = book?.isDownloaded;
+  // const book = useBooksStore((state) =>
+  //   state.books.find((book) => book.libraryItemId === libraryItemId)
+  // );
+  // const isDownloaded = book?.isDownloaded;
+  const progress = useBooksStore((state) => state.downloadProgress);
+  const downloadStatus = useBooksStore((state) => state.actions.getDownloadStatus(libraryItemId));
 
   const deleteDownload = async () => {
     const shouldDelete = await showConfirmationPrompt(
@@ -28,9 +30,26 @@ const BookDownloadDelete: React.FC<Props> = ({ libraryItemId }) => {
       bookActions.deleteDownloadedBookData(libraryItemId);
     }
   };
+  if (downloadStatus === "downloading") {
+    return (
+      <PressableScale
+        style={{
+          position: "absolute",
+          left: 0,
+          top: -5,
+          padding: 4,
+          alignItems: "center",
+        }}
+        onPress={() => TrueSheet.present("download-sheet")}
+      >
+        <ActivityIndicator size="large" />
+        <Text className="text-foreground">Downloading</Text>
+      </PressableScale>
+    );
+  }
   return (
     <>
-      {isDownloaded ? (
+      {downloadStatus === "completed" ? (
         <PressableScale
           style={{
             position: "absolute",

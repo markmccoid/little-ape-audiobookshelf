@@ -74,7 +74,13 @@ export const useSettingsStore = create<SettingsStore>()(
       homeScreenTimeVariant: "timeleft",
       //Bookshelves
       allBookshelves: [...defaultBookshelves],
-      bookshelvesToDisplay: ["continue-listening", "recently-added", "discover", "listen-again"],
+      bookshelvesToDisplay: [
+        "continue-listening",
+        "recently-added",
+        "discover",
+        "listen-again",
+        "downloaded",
+      ],
       // Sleep Timer START
       sleepTimeMinutes: 0,
       sleepStartDateTime: undefined,
@@ -279,6 +285,24 @@ export const useSettingsStore = create<SettingsStore>()(
     {
       name: "settings-storage", // Storage key
       storage: createJSONStorage(() => mmkvStorage),
+      merge: (persisted, current) => {
+        if (persisted.allBookshelves.find((el) => el.label === "Downloaded")) {
+          return {
+            ...current,
+            ...persisted,
+          };
+        }
+
+        return {
+          ...current,
+          ...persisted,
+
+          allBookshelves: [
+            ...defaultBookshelves,
+            ...persisted.allBookshelves.filter((el) => el.type === "custom"),
+          ],
+        };
+      },
       // Only persist the state, not the actions
       partialize: (state) => ({
         seekForwardSeconds: state.seekForwardSeconds,

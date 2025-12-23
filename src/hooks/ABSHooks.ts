@@ -174,7 +174,6 @@ export const useGetBookShelves = () => {
     return absAPI?.getActiveLibraryId() ?? null;
   }, []);
   const bookStoreActions = useBooksActions();
-  // const { authInfo } = useAuth();
 
   const query = useQuery({
     queryKey: ["bookShelves", activeLibraryId],
@@ -201,6 +200,7 @@ export const useGetBookShelves = () => {
     if (!books || books.length === 0) return;
     bookStoreActions.addBooksToBookshelf(books, shelfId);
   };
+
   useEffect(() => {
     // Return if no data
     if (!query.isSuccess || !query.data) {

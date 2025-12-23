@@ -102,7 +102,6 @@ export class SyncManager {
         };
 
         try {
-          console.log("SyncManager syncProgress:", { sessionId, libraryItemId });
           let syncResult;
 
           if (sessionId) {

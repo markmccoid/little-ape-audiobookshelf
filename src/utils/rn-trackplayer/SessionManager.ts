@@ -118,19 +118,9 @@ export class SessionManager {
   public async getActiveSessionId(): Promise<string | null> {
     try {
       const activeTrack = await TrackPlayer.getActiveTrack();
-      if (activeTrack) {
-        console.log(
-          "getActiveSessionId track:",
-          "sessId" in activeTrack,
-          activeTrack.sessionId,
-          "libId",
-          activeTrack.libraryItemId
-        );
-      }
       if (activeTrack && "sessionId" in activeTrack) {
         return (activeTrack.sessionId as string) || null;
       }
-      console.log("getActiveSessionId using this.session.id:", this.session?.id);
       return this.session?.id || null;
     } catch (error) {
       return this.session?.id || null;

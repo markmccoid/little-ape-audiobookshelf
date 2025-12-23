@@ -24,14 +24,6 @@ const HomeContainer = () => {
 
   const bookShelves = useBookShelves();
 
-  // Add a delay to ensure authentication state is properly initialized
-  // React.useEffect(() => {
-  //   const timer = setTimeout(() => {
-  //     setIsInitialized(true);
-  //   }, 100);
-  //   return () => clearTimeout(timer);
-  // }, []);
-
   // Refetch books in progress when home tab gains focus
   useFocusEffect(() => {
     refetch();

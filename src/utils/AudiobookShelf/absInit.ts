@@ -24,6 +24,20 @@ let absAPIProxy: AudiobookshelfAPI | undefined;
 export const absInitalize = async (queryClient?: QueryClient) => {
   // Create the ABS Auth instance
   // If tokens and URL stored in secure storage we are good to go
+  //!! TEMP CODE TO GET DL Bookshelf in for testing
+  // const allBookshelves = useSettingsStore.getState().allBookshelves;
+  // useSettingsStore.setState({
+  //   allBookshelves: [
+  //     ...allBookshelves,
+  //     {
+  //       id: "downloaded",
+  //       label: "Downloaded",
+  //       type: "custom",
+  //       position: allBookshelves.length,
+  //       displayed: false,
+  //     },
+  //   ],
+  // });
   const hasStoredCredentials = await AudiobookshelfAuth.hasStoredCredentials();
   if (!hasStoredCredentials) {
     console.log("No stored credentials found, skipping ABS initialization");
