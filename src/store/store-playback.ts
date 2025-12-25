@@ -251,6 +251,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
         sessionData = {
           libraryItemId: itemId,
           startTime: bookInfo.positionInfo.currentPosition,
+          displayTitle: book.title || "",
           chapters: regularChapters,
           coverURL: book.coverURI || "",
           duration: book.duration || 0,

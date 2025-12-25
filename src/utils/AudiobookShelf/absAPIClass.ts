@@ -570,7 +570,7 @@ export class AudiobookshelfAPI {
     const url = `${serverUrl}/api/items/${itemId}/file/${fileIno}/download`;
     const urlWithToken = `${url}?token=${token}`;
 
-    return { url, urlWithToken, authHeader };
+    return { url, urlWithToken, authHeader, libraryItemId: itemId };
   }
 
   //## -------------------------------------

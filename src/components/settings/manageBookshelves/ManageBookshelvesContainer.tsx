@@ -37,8 +37,6 @@ const ManageBookshelvesContainer = () => {
       position: params.keyToIndex[shelf.id],
     }));
     actions.updateBookshelves(newShelfOrder);
-
-    console.log("SORTABLE", params);
   };
   return (
     <View className="flex-1" style={{ paddingTop: headerHeight }}>

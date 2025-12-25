@@ -10,7 +10,7 @@ import {
   BookShelfItemType,
   BookshelvesState,
 } from "../utils/AudiobookShelf/bookshelfTypes";
-import { downloadFileBlob } from "../utils/fileSystemAccess";
+import { deleteFromFileSystem, downloadFileBlob } from "../utils/fileSystemAccess";
 import { formatSeconds } from "../utils/formatUtils";
 import { syncQueue } from "../utils/syncQueue";
 import { mmkvStorage } from "./mmkv-storage";
@@ -619,6 +619,8 @@ export const useBooksStore = create<BooksStore>()(
           // create the variable that will feed into the downloadInfo Object for this book
           let audioTracks = [];
 
+          // Cleanup file holder
+          let filesToCleanUp = [];
           // Download each audio file
           for (let i = 0; i < data.audioFiles.length; i++) {
             const audioFile = data.audioFiles[i];
@@ -651,12 +653,29 @@ export const useBooksStore = create<BooksStore>()(
             );
 
             // Store the cancel function for the current file
-            set({ activeCancelFn: cancelDownload });
+            // The cancelDownload will cancel the current file download, but we also
+            // need to clean up the file it was downloading as it won't exist in the downloadInfo object yet.
+            // !!I'm thinking the function should be augmented to clean up the file it was downloading as it won't exist in the downloadInfo object yet.
+            // () => {
+            //   deleteFile(cleanFileName)
+            //   cancelDownload();
+            //
+            // }
+            set({
+              activeCancelFn: async () => {
+                await cancelDownload();
+                for (const file of filesToCleanUp) {
+                  deleteFromFileSystem(file);
+                }
+              },
+            });
             //! TODO
             //! Update the books array for this book noting that this book is a downloaded book
             //! Update the downloadInfo Object for this book with the new track/file that was just downloaded
             // Start the download task and await its completion
             try {
+              // Add the file to the cleanup list
+              filesToCleanUp.push(cleanFileName);
               await task;
               audioTracks.push({
                 ino: audioFile.ino,
@@ -665,6 +684,11 @@ export const useBooksStore = create<BooksStore>()(
                 duration: audioFile.duration,
                 startOffset: audioFile.startOffset,
               });
+              // Update the downloadInfo Object for each track as it is downloaded.
+              // we need this update so that if cancelled we can clean up the files that were downloaded
+              // set((state) => {
+              //   state.downloadedBookData[libraryItemId] = { audioTracks };
+              // });
             } catch (e) {
               // If cancelled, exit silently; otherwise rethrow
               if (get().downloadToken !== myToken) return;
@@ -695,14 +719,10 @@ export const useBooksStore = create<BooksStore>()(
           // Increment token to invalidate the current download session
           set((state) => ({ downloadToken: state.downloadToken + 1 }));
           const cancelledLibraryItemId = get().downloadProgress?.libraryItemId;
-          console.log(
-            "cancelDownload: About to call activeCancelFn, exists:",
-            !!get().activeCancelFn
-          );
+
           // Cancel the active file download
           try {
             await get().activeCancelFn?.();
-            console.log("cancelDownload: activeCancelFn completed successfully");
           } catch (e) {
             console.log("cancelDownload: activeCancelFn threw error:", e);
           }
@@ -751,6 +771,13 @@ export const useBooksStore = create<BooksStore>()(
           return "ready";
         },
         deleteDownloadedBookData: (libraryItemId) => {
+          // Delete from filesystem
+          const audioTracks = get().downloadedBookData?.[libraryItemId]?.audioTracks;
+          if (!audioTracks) return;
+          audioTracks.forEach((track) => {
+            deleteFromFileSystem(track.cleanFileName);
+          });
+          // Reset state (remove from downloadedBookData)
           set((state) => {
             delete state.downloadedBookData[libraryItemId];
             // update book
@@ -760,6 +787,7 @@ export const useBooksStore = create<BooksStore>()(
               book.type = "temporary";
             }
           });
+          // Remove from bookshelf
           get().actions.removeBookFromBookshelf(libraryItemId, "downloaded");
         },
       },

@@ -24,29 +24,33 @@ export const readFileSystemDir = async (dirName = ""): Promise<string[]> => {
 // ------------------------------------------------------------
 // Delete file or directory
 // ------------------------------------------------------------
-export const deleteFromFileSystem = async (path?: string, includesDocDirectory = true) => {
-  if (!path) return;
 
-  const finalPath = includesDocDirectory ? path : `${Paths.document}${path}`;
-
-  try {
-    // Try file delete
-    const file = new File(finalPath);
-    if (file.delete) {
-      await file.delete();
-      return;
-    }
-  } catch {}
+export const deleteFromFileSystem = (filename?: string) => {
+  if (!filename) return;
 
   try {
-    // Try directory delete
-    const dir = new Directory(finalPath);
-    if (dir.delete) {
-      await dir.delete();
+    // Construct file path using document directory as base
+    const file = new File(Paths.document, filename);
+
+    // If it's a file → delete it
+    if (file.exists) {
+      file.delete();
+      console.log(`File deleted: ${file.uri}`);
       return;
     }
-  } catch (e) {
-    console.log("Delete failed:", e);
+
+    // If not a file, try as directory (recursive delete)
+    // const dir = new Directory(Paths.document, filename);
+
+    // if (dir.exists) {
+    //   dir.delete(); // deletes directory + all contents recursively
+    //   console.log(`Directory deleted: ${dir.uri}`);
+    //   return;
+    // }
+
+    console.log(`Nothing found to delete at: ${filename}`);
+  } catch (error) {
+    console.error("Delete operation failed:", error);
   }
 };
 
@@ -87,13 +91,14 @@ export const downloadToFileSystem = async (
  * @returns { task, cancelDownload, cleanFileName, fileUri }
  */
 export const downloadFileBlob = (
-  downloadLink: { url: string; authHeader?: Record<string, string> },
+  downloadLink: { url: string; authHeader?: Record<string, string>; libraryItemId: string },
   filename: string,
   progress: (received: number, total: number) => void
 ) => {
   // Clean filename
   // const getCleanFileName = (fn: string) => fn.replace(/[^\w.]+/g, "_").replace(/_$/, "");
-  const cleanFileName = getCleanFileName(filename);
+  const cleanFileNameOnly = getCleanFileName(filename);
+  const cleanFileName = `${downloadLink.libraryItemId}_${cleanFileNameOnly}`;
 
   // react-native-blob-util dirs (native paths, NO file:// prefix)
   const dirs = ReactNativeBlobUtil.fs.dirs;

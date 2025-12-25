@@ -123,8 +123,6 @@ export const MenuContent: React.FC<MenuContentProps> = ({ items, className }) =>
       // Clamp x to valid range
       x = Math.max(0, Math.min(x, windowWidth - 200));
 
-      console.log("Adjusted coordinates:", { original: triggerLayout, adjusted: { x, y } });
-
       // Update shared values with adjusted coordinates
       triggerX.value = x;
       triggerY.value = y;

@@ -7,7 +7,7 @@ import { SyncManager } from "./SyncManager";
 
 export type SessionData = Pick<
   AudiobookSession,
-  "startTime" | "duration" | "chapters" | "libraryItemId"
+  "startTime" | "duration" | "chapters" | "libraryItemId" | "displayTitle"
 > & {
   absServerURL: string;
   coverURL: string;
