@@ -1,4 +1,5 @@
 import TrackPlayer, { Event, State } from "react-native-track-player";
+import { addSyncLogEntry, formatPositionForLog } from "../../store/store-debuglogs";
 import { ABSQueuedTrack } from "../../store/store-playback";
 import { AudiobookshelfAPI } from "../AudiobookShelf/absAPIClass";
 import { AudiobookSession } from "../AudiobookShelf/abstypes";
@@ -245,6 +246,11 @@ export default class AudiobookStreamer {
     // Wait for any pending syncs to complete before calculating final stats
     await this.syncManager.waitForAllSyncs();
 
+    // Get session info before we clear it (for logging)
+    const session = this.sessionManager.getSession();
+    const libraryItemId = session?.libraryItemId || "";
+    const title = session?.displayTitle || "Unknown";
+
     try {
       const activeSessionId = await this.sessionManager.getActiveSessionId();
       const sessionId = activeSessionId || this.pendingSessionClose?.sessionId || null;
@@ -275,18 +281,41 @@ export default class AudiobookStreamer {
       });
 
       // Update books store one last time
-      const session = this.sessionManager.getSession();
       if (session) {
         const { useBooksStore } = require("../../store/store-books");
         const bookActions = useBooksStore.getState().actions;
         bookActions.updateCurrentPosition(session.libraryItemId, finalPosition);
       }
 
+      // Log successful session close
+      addSyncLogEntry({
+        libraryItemId,
+        title,
+        position: formatPositionForLog(finalPosition),
+        syncType: "session-close",
+        apiRoute: `/api/session/${sessionId}/close`,
+        functionName: "closeSession",
+        fileName: "AudiobookStreamer.ts",
+        success: true,
+      });
+
       this.sessionClosed = true;
       this.sessionManager.clearSession();
       this.syncManager.setLastSyncTime(null);
       this.syncManager.setForceBooksStoreUpdate(false);
     } catch (error) {
+      // Log failed session close
+      addSyncLogEntry({
+        libraryItemId,
+        title,
+        position: "00:00:00",
+        syncType: "session-close",
+        apiRoute: "/api/session/close",
+        functionName: "closeSession",
+        fileName: "AudiobookStreamer.ts",
+        success: false,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
       console.error("Failed to close session:", error);
       this.sessionClosed = true;
       this.sessionManager.clearSession();

@@ -256,21 +256,30 @@ export default function SettingsView() {
               <Image systemName="chevron.right" size={14} color="secondary" />
             </HStack>
           </Button>
-          <HStack spacing={4}>
-            <Image
-              systemName="airplane"
-              color="white"
-              size={14}
-              modifiers={[
-                frame({ width: 28, height: 28 }),
-                background("#ffa500"),
-                clipShape("roundedRectangle"),
-              ]}
-            />
-            <Text size={14}>Airplane Mode</Text>
-            <Spacer />
-            <Switch value={isAirplaneMode} onValueChange={setIsAirplaneMode} />
-          </HStack>
+          {/* Manage Bookshelves */}
+          <Link href="/settings/debug" asChild>
+            <Button>
+              <HStack spacing={4} alignment="center">
+                <Image
+                  systemName="ladybug.fill"
+                  color="white"
+                  size={14}
+                  modifiers={[
+                    frame({ width: 28, height: 28 }),
+                    background("#007aff"),
+                    clipShape("roundedRectangle"),
+                  ]}
+                />
+                <VStack alignment="leading">
+                  <Text color="primary" size={14}>
+                    Debug
+                  </Text>
+                </VStack>
+                <Spacer />
+                <Image systemName="chevron.right" size={14} color="secondary" />
+              </HStack>
+            </Button>
+          </Link>
           <HStack spacing={4}>
             <Image
               systemName="airplane"

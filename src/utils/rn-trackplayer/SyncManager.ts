@@ -1,7 +1,19 @@
 import NetInfo from "@react-native-community/netinfo";
 import PQueue from "p-queue";
+import { addSyncLogEntry, formatPositionForLog } from "../../store/store-debuglogs";
 import { AudiobookshelfAPI } from "../AudiobookShelf/absAPIClass";
 import { SyncOperation, syncQueue } from "../syncQueue";
+
+// Helper to get book title from store
+function getBookTitle(libraryItemId: string): string {
+  try {
+    const { useBooksStore } = require("../../store/store-books");
+    const book = useBooksStore.getState().books.find((b: any) => b.libraryItemId === libraryItemId);
+    return book?.title || "Unknown";
+  } catch {
+    return "Unknown";
+  }
+}
 
 type SyncData = { timeListened: number; currentTime: number };
 
@@ -92,6 +104,10 @@ export class SyncManager {
     if (isSessionClosed) return;
 
     await this.requestQueue.add(async () => {
+      const apiRoute = sessionId
+        ? `/api/session/${sessionId}/sync`
+        : `/api/me/progress/${libraryItemId}`;
+
       try {
         const now = Date.now();
         const timeListened = this.lastSyncTime ? Math.floor((now - this.lastSyncTime) / 1000) : 0;
@@ -115,6 +131,17 @@ export class SyncManager {
           // When offline, API returns null - queue the sync for later
           if (!syncResult) {
             console.log("Sync returned null (likely offline) - queuing for later");
+            addSyncLogEntry({
+              libraryItemId,
+              title: getBookTitle(libraryItemId),
+              position: formatPositionForLog(globalPosition),
+              syncType: "sync-progress",
+              apiRoute,
+              functionName: "syncProgress",
+              fileName: "SyncManager.ts",
+              success: false,
+              errorMessage: "Offline - queued for later",
+            });
             await this.queueSyncForLater(sessionId, libraryItemId, syncData);
             return;
           }
@@ -125,8 +152,31 @@ export class SyncManager {
             this.updateBooksStore(libraryItemId, syncResult.currentTime);
           }
 
+          // Log successful sync
+          addSyncLogEntry({
+            libraryItemId,
+            title: getBookTitle(libraryItemId),
+            position: formatPositionForLog(globalPosition),
+            syncType: "sync-progress",
+            apiRoute,
+            functionName: "syncProgress",
+            fileName: "SyncManager.ts",
+            success: true,
+          });
+
           await this.processQueuedSyncs();
         } catch (serverError) {
+          addSyncLogEntry({
+            libraryItemId,
+            title: getBookTitle(libraryItemId),
+            position: formatPositionForLog(globalPosition),
+            syncType: "sync-progress",
+            apiRoute,
+            functionName: "syncProgress",
+            fileName: "SyncManager.ts",
+            success: false,
+            errorMessage: serverError instanceof Error ? serverError.message : String(serverError),
+          });
           this.handleSyncError(serverError, sessionId, libraryItemId, syncData);
         }
       } catch (error) {
@@ -150,6 +200,10 @@ export class SyncManager {
     this.lastSyncAttempt = now;
 
     await this.requestQueue.add(async () => {
+      const apiRoute = sessionId
+        ? `/api/session/${sessionId}/sync`
+        : `/api/me/progress/${libraryItemId}`;
+
       try {
         const syncData: SyncData = {
           timeListened: 0,
@@ -169,8 +223,30 @@ export class SyncManager {
           const bookActions = useBooksStore.getState().actions;
 
           bookActions.updateCurrentPosition(libraryItemId, syncResult.currentTime);
+
+          addSyncLogEntry({
+            libraryItemId,
+            title: getBookTitle(libraryItemId),
+            position: formatPositionForLog(globalPosition),
+            syncType: "sync-position",
+            apiRoute,
+            functionName: "syncPosition",
+            fileName: "SyncManager.ts",
+            success: true,
+          });
         }
       } catch (error) {
+        addSyncLogEntry({
+          libraryItemId,
+          title: getBookTitle(libraryItemId),
+          position: formatPositionForLog(globalPosition),
+          syncType: "sync-position",
+          apiRoute,
+          functionName: "syncPosition",
+          fileName: "SyncManager.ts",
+          success: false,
+          errorMessage: error instanceof Error ? error.message : String(error),
+        });
         console.error("Failed to sync position:", error);
       }
     });
@@ -280,6 +356,10 @@ export class SyncManager {
 
         if (!libraryItemId || currentTime === undefined) return false;
 
+        const apiRoute = sessionId
+          ? `/api/session/${sessionId}/sync`
+          : `/api/me/progress/${libraryItemId}`;
+
         // Path A: Session Sync (if we have a session ID)
         if (sessionId) {
           try {
@@ -288,6 +368,16 @@ export class SyncManager {
               currentTime: currentTime,
             });
             this.updateBooksStore(libraryItemId, currentTime);
+            addSyncLogEntry({
+              libraryItemId,
+              title: getBookTitle(libraryItemId),
+              position: formatPositionForLog(currentTime),
+              syncType: "queued-sync",
+              apiRoute,
+              functionName: "processQueuedSyncs",
+              fileName: "SyncManager.ts",
+              success: true,
+            });
             return true;
           } catch (error: any) {
             // If session expired (404), fall back to direct progress update
@@ -302,8 +392,30 @@ export class SyncManager {
           // ensure we have a valid time listened if possible, or 0
           await this.apiClient.updateBookProgress(libraryItemId, currentTime);
           this.updateBooksStore(libraryItemId, currentTime);
+          addSyncLogEntry({
+            libraryItemId,
+            title: getBookTitle(libraryItemId),
+            position: formatPositionForLog(currentTime),
+            syncType: "queued-sync",
+            apiRoute: `/api/me/progress/${libraryItemId}`,
+            functionName: "processQueuedSyncs",
+            fileName: "SyncManager.ts",
+            success: true,
+          });
           return true;
         } catch (fallbackError) {
+          addSyncLogEntry({
+            libraryItemId,
+            title: getBookTitle(libraryItemId),
+            position: formatPositionForLog(currentTime),
+            syncType: "queued-sync",
+            apiRoute: `/api/me/progress/${libraryItemId}`,
+            functionName: "processQueuedSyncs",
+            fileName: "SyncManager.ts",
+            success: false,
+            errorMessage:
+              fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
+          });
           console.error("Progress sync failed:", fallbackError);
           return false;
         }

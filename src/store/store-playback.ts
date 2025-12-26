@@ -374,8 +374,13 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       const savedPlaybackRate = savedBook?.playbackRate || 1;
       //!!
 
-      // If no previous start time default to zero
-      const startTime = bookInfo?.positionInfo.currentPosition || sessionData.startTime || 0;
+      // Re-read bookInfo AFTER getOrFetchBook() to get the updated position
+      // (fixes stale closure bug where bookInfo captured at line 216 misses updates)
+      const updatedBookInfo = useBooksStore.getState().bookInfo[sessionData.libraryItemId];
+
+      // Priority: local position > session position > fallback to 0
+      const startTime =
+        updatedBookInfo?.positionInfo?.currentPosition || sessionData.startTime || 0;
       //!! ---------------------------------------
       const chapterInfo = getCurrentChapter({
         chapters: sessionData.chapters,
