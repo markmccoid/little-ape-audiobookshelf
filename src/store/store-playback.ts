@@ -150,12 +150,12 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
         const trackIndex = e.track;
         // const duration = typeof e.duration === "number" ? e.duration : get().duration;
 
-        set({ position, duration: e.duration });
         const libraryItemId = get()?.session?.libraryItemId;
         if (libraryItemId) {
           const currentTrack = get().queue[trackIndex];
           const globalPosition = position + (currentTrack?.trackOffset || 0);
           useBooksStore.getState().actions.updateCurrentPosition(libraryItemId, globalPosition);
+          set({ position: globalPosition, duration: e.duration });
         }
         // ❌ REMOVED: Redundant sync to books store
         // AudiobookStreamer now handles syncing to server (every 5s)
