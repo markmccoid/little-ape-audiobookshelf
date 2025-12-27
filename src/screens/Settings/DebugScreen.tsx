@@ -21,6 +21,9 @@ const LogEntry = ({ item }: { item: SyncLogEntry }) => {
       </Text>
       <View style={styles.detailsRow}>
         <Text style={styles.position}>{item.position}</Text>
+        {item.timeListened !== undefined && (
+          <Text style={styles.timeListened}>+{item.timeListened}s</Text>
+        )}
         <Text style={styles.route} numberOfLines={1}>
           {item.apiRoute}
         </Text>
@@ -166,6 +169,12 @@ const styles = StyleSheet.create({
   position: {
     fontSize: 13,
     color: "#4FC3F7",
+    fontFamily: "monospace",
+    marginRight: 8,
+  },
+  timeListened: {
+    fontSize: 12,
+    color: "#FFA726",
     fontFamily: "monospace",
     marginRight: 8,
   },

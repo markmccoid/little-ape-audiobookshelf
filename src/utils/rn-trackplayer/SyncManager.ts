@@ -95,13 +95,30 @@ export class SyncManager {
     this.forceBooksStoreUpdate = force;
   }
 
+  /**
+   * Unified sync function for both periodic syncs and position updates (seeks).
+   * Always calculates timeListened from lastSyncTime.
+   * For no-session (downloaded books), timeListened is ignored by the server.
+   *
+   * @param options.debounce - If true, debounce rapid calls (for seeks). Default: false
+   */
   public async syncProgress(
     sessionId: string | null,
     libraryItemId: string,
     globalPosition: number,
-    isSessionClosed: boolean
+    isSessionClosed: boolean,
+    options?: { debounce?: boolean }
   ): Promise<void> {
     if (isSessionClosed) return;
+
+    // Debounce logic for rapid seeks
+    if (options?.debounce) {
+      const now = Date.now();
+      if (now - this.lastSyncAttempt < this.syncDebounceMs) {
+        return;
+      }
+      this.lastSyncAttempt = now;
+    }
 
     await this.requestQueue.add(async () => {
       const apiRoute = sessionId
@@ -110,10 +127,13 @@ export class SyncManager {
 
       try {
         const now = Date.now();
+        // Always calculate timeListened from lastSyncTime
         const timeListened = this.lastSyncTime ? Math.floor((now - this.lastSyncTime) / 1000) : 0;
 
         const syncData: SyncData = {
-          timeListened: timeListened,
+          // For sessions: send actual timeListened
+          // For no-session (downloaded): server ignores timeListened anyway
+          timeListened: sessionId ? timeListened : 0,
           currentTime: globalPosition,
         };
 
@@ -135,6 +155,7 @@ export class SyncManager {
               libraryItemId,
               title: getBookTitle(libraryItemId),
               position: formatPositionForLog(globalPosition),
+              timeListened: syncData.timeListened,
               syncType: "sync-progress",
               apiRoute,
               functionName: "syncProgress",
@@ -146,6 +167,7 @@ export class SyncManager {
             return;
           }
 
+          // Reset lastSyncTime after successful sync
           this.lastSyncTime = now;
 
           if (syncResult.success) {
@@ -157,6 +179,7 @@ export class SyncManager {
             libraryItemId,
             title: getBookTitle(libraryItemId),
             position: formatPositionForLog(globalPosition),
+            timeListened: syncData.timeListened,
             syncType: "sync-progress",
             apiRoute,
             functionName: "syncProgress",
@@ -170,6 +193,7 @@ export class SyncManager {
             libraryItemId,
             title: getBookTitle(libraryItemId),
             position: formatPositionForLog(globalPosition),
+            timeListened: syncData.timeListened,
             syncType: "sync-progress",
             apiRoute,
             functionName: "syncProgress",
@@ -185,70 +209,19 @@ export class SyncManager {
     });
   }
 
+  /**
+   * @deprecated Use syncProgress with { debounce: true } instead
+   * Kept for backward compatibility during transition
+   */
   public async syncPosition(
     sessionId: string | null,
     libraryItemId: string,
     globalPosition: number,
     isSessionClosed: boolean
   ): Promise<void> {
-    if (isSessionClosed) return;
-
-    const now = Date.now();
-    if (now - this.lastSyncAttempt < this.syncDebounceMs) {
-      return;
-    }
-    this.lastSyncAttempt = now;
-
-    await this.requestQueue.add(async () => {
-      const apiRoute = sessionId
-        ? `/api/session/${sessionId}/sync`
-        : `/api/me/progress/${libraryItemId}`;
-
-      try {
-        const syncData: SyncData = {
-          timeListened: 0,
-          currentTime: globalPosition,
-        };
-
-        let syncResult;
-        if (sessionId) {
-          syncResult = await this.apiClient.syncProgressToServer(sessionId, syncData);
-        } else {
-          await this.apiClient.updateBookProgress(libraryItemId, syncData.currentTime);
-          syncResult = { success: true, currentTime: syncData.currentTime };
-        }
-
-        if (syncResult && syncResult.success) {
-          const { useBooksStore } = require("../../store/store-books");
-          const bookActions = useBooksStore.getState().actions;
-
-          bookActions.updateCurrentPosition(libraryItemId, syncResult.currentTime);
-
-          addSyncLogEntry({
-            libraryItemId,
-            title: getBookTitle(libraryItemId),
-            position: formatPositionForLog(globalPosition),
-            syncType: "sync-position",
-            apiRoute,
-            functionName: "syncPosition",
-            fileName: "SyncManager.ts",
-            success: true,
-          });
-        }
-      } catch (error) {
-        addSyncLogEntry({
-          libraryItemId,
-          title: getBookTitle(libraryItemId),
-          position: formatPositionForLog(globalPosition),
-          syncType: "sync-position",
-          apiRoute,
-          functionName: "syncPosition",
-          fileName: "SyncManager.ts",
-          success: false,
-          errorMessage: error instanceof Error ? error.message : String(error),
-        });
-        console.error("Failed to sync position:", error);
-      }
+    // Delegate to unified syncProgress with debounce enabled
+    return this.syncProgress(sessionId, libraryItemId, globalPosition, isSessionClosed, {
+      debounce: true,
     });
   }
 

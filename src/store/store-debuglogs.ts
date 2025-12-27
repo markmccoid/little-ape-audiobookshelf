@@ -17,6 +17,7 @@ export type SyncLogEntry = {
   libraryItemId: string;
   title: string;
   position: string; // hh:mm:ss format
+  timeListened?: number; // seconds of listening time sent
   syncType: SyncType;
   apiRoute: string; // e.g., "/api/session/{id}/sync" or "/api/me/progress/{itemId}"
   functionName: string;

@@ -407,7 +407,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       // wait for book to be fully loaded
       await waitForReadyState();
       // Initial sync  so that we can invalidate queries and update continue listening queue.
-      await streamer.syncPosition(startTime);
+      // await streamer.syncPosition(startTime);
       set({ isLoaded: true });
     },
 
