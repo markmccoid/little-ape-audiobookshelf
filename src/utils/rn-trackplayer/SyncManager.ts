@@ -120,6 +120,18 @@ export class SyncManager {
       this.lastSyncAttempt = now;
     }
 
+    // Guard: Skip syncing position 0 if we have a stored non-zero position
+    // This prevents bad syncs during TrackPlayer state transitions (esp. on physical devices)
+    if (globalPosition === 0 && libraryItemId) {
+      const { useBooksStore } = require("../../store/store-books");
+      const storedPosition =
+        useBooksStore.getState().bookInfo[libraryItemId]?.positionInfo?.currentPosition;
+      if (storedPosition && storedPosition > 0) {
+        console.log(`Skipping sync - position 0 but stored position is ${storedPosition}`);
+        return;
+      }
+    }
+
     await this.requestQueue.add(async () => {
       const apiRoute = sessionId
         ? `/api/session/${sessionId}/sync`

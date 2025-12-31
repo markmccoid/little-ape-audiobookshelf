@@ -77,10 +77,22 @@ const BookShelfItem = ({ item, shelfId, onInitBook, togglePlayPause }: BookShelf
         className="mx-2"
         style={{
           borderColor: isCurrentlyLoaded ? themeColors.accent : "transparent",
-          borderRadius: 10,
-          borderWidth: isCurrentlyLoaded ? 2 : 0,
+          borderRadius: isCurrentlyLoaded ? 15 : 10,
+          borderWidth: isCurrentlyLoaded ? 0 : 0,
         }}
       >
+        {/* {item?.currentTime > 0 && (
+          <View className="z-40 justify-center relative ">
+            <View
+              className="absolute bottom-[-3] left-[-3] h-[6] bg-orange-400 z-40 mx-2 rounded-md border-hairline border-r-0"
+              style={{ width: percentBookWidth }}
+            />
+            <View
+              className="absolute bottom-[-3] left-[-3] h-[6] bg-orange-100 border-hairline border-l-0 border-b border-orange-600 z-30 mx-2 rounded-md "
+              style={{ width: 165 }}
+            />
+          </View>
+        )} */}
         <Link
           href={{
             pathname: `/(tabs)/(home)/[libraryItemId]`,
@@ -94,20 +106,6 @@ const BookShelfItem = ({ item, shelfId, onInitBook, togglePlayPause }: BookShelf
           <Link.Trigger>
             {/* <SwiftImage systemName="line.3.horizontal.decrease.circle" size={24} /> */}
 
-            <View className="z-40 justify-start">
-              {item?.currentTime > 0 && (
-                <>
-                  <View
-                    className="absolute bottom-[-3] left-[-6] h-[6] bg-orange-400 z-40 mx-2 rounded-md "
-                    style={{ width: percentBookWidth }}
-                  />
-                  <View
-                    className="absolute bottom-[-3] left-[-6] h-[6]  border-b z-50 mx-2 rounded-md "
-                    style={{ width: 175 }}
-                  />
-                </>
-              )}
-            </View>
             <Image
               source={item.coverURI}
               style={{
@@ -147,6 +145,18 @@ const BookShelfItem = ({ item, shelfId, onInitBook, togglePlayPause }: BookShelf
             />
           </Link.Menu>
         </Link>
+        {item?.currentTime > 0 && (
+          <View className="z-40 justify-center relative ">
+            <View
+              className="absolute bottom-[-1] left-[-3] h-[6] bg-orange-400 z-40 mx-2 rounded-md border-hairline border-r-0"
+              style={{ width: percentBookWidth }}
+            />
+            <View
+              className="absolute bottom-[-1] left-[-3] h-[6] bg-orange-100 border-hairline border-l-0 border-b border-orange-600 z-30 mx-2 rounded-md "
+              style={{ width: 165 }}
+            />
+          </View>
+        )}
       </View>
       <View className="flex-col mt-2 items-center w-full px-2">
         <Text
