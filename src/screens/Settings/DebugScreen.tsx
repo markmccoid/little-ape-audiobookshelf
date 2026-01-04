@@ -8,11 +8,24 @@ import {
 } from "../../store/store-debuglogs";
 
 const LogEntry = ({ item }: { item: SyncLogEntry }) => {
+  const isQueuedPositionApplied = item.syncType === "queued-position-applied";
   return (
-    <View style={[styles.logEntry, !item.success && styles.logEntryError]}>
+    <View
+      style={[
+        styles.logEntry,
+        !item.success && styles.logEntryError,
+        isQueuedPositionApplied && styles.logEntryQueuedPosition,
+      ]}
+    >
       <View style={styles.logHeader}>
         <Text style={styles.timestamp}>{item.timestamp}</Text>
-        <Text style={[styles.syncType, !item.success && styles.syncTypeError]}>
+        <Text
+          style={[
+            styles.syncType,
+            !item.success && styles.syncTypeError,
+            isQueuedPositionApplied && styles.syncTypeQueuedPosition,
+          ]}
+        >
           {item.syncType}
         </Text>
       </View>
@@ -154,6 +167,13 @@ const styles = StyleSheet.create({
   },
   syncTypeError: {
     color: "#ff4444",
+  },
+  logEntryQueuedPosition: {
+    borderLeftColor: "#00BCD4",
+    backgroundColor: "#1a3a3a",
+  },
+  syncTypeQueuedPosition: {
+    color: "#00BCD4",
   },
   title: {
     fontSize: 14,

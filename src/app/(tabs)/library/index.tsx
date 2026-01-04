@@ -1,31 +1,41 @@
-import HeaderButton from "@/src/components/common/LAABSHeaderButton";
-import LibraryMain from "@/src/screens/Library/LibraryContainer";
-import { useHeaderHeight } from "@react-navigation/elements";
-import { Link, useNavigation } from "expo-router";
-import { SymbolView } from "expo-symbols";
-import React, { useLayoutEffect, useState } from "react";
+import LibraryContainer from "@/src/screens/Library/LibraryContainer";
+import { useFiltersStore } from "@/src/store/store-filters";
+import { useNavigation } from "expo-router";
+import React from "react";
 import { View } from "react-native";
 
 const Books = () => {
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const headerHeight = useHeaderHeight();
+  const filterSheetShown = useFiltersStore((state) => state.filterSheetShown);
+  const detentIndex = useFiltersStore((state) => state.detentIndex);
+
   const navigation = useNavigation();
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerLeft: () => {
-        return (
-          <Link href={{ pathname: "/(tabs)/library/filterroute" }} asChild>
-            <HeaderButton>
-              <SymbolView name="brain.fill" size={20} />
-            </HeaderButton>
-          </Link>
-        );
-      },
-    });
-  }, []);
+  console.log("filterSheetShown", filterSheetShown, detentIndex);
+  // useLayoutEffect(() => {
+  //   navigation.setOptions({
+  //     headerRight: () => {
+  //       if (filterSheetShown) return null;
+  //       return (
+  //         <PressableScale onPress={() => TrueSheet.present("filter-sheet")}>
+  //           <HeaderButton>
+  //             <SymbolView name="brain.fill" size={20} />
+  //           </HeaderButton>
+  //         </PressableScale>
+  //       );
+  //     },
+  //     headerLeft: () => {
+  //       return (
+  //         <Link href={{ pathname: "/(tabs)/(home)" }} asChild>
+  //           <HeaderButton>
+  //             <SymbolView name="house.fill" size={25} />
+  //           </HeaderButton>
+  //         </Link>
+  //       );
+  //     },
+  //   });
+  // }, [filterSheetShown]);
   return (
     <View className="flex-1">
-      <LibraryMain />
+      <LibraryContainer />
     </View>
   );
 };

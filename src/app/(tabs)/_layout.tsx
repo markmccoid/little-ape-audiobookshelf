@@ -10,6 +10,8 @@ export default function SettingsLayout() {
     <NativeTabs
       // tintColor={"red"}
       tintColor={colors.accent}
+      minimizeBehavior="onScrollDown"
+
       // labelStyle={{ color: DynamicColorIOS({ light: "purple", dark: "" }) }}
     >
       <NativeTabs.Trigger name="(home)">
@@ -24,6 +26,9 @@ export default function SettingsLayout() {
         <Icon sf={{ default: "rectangle.3.group", selected: "rectangle.3.group.fill" }} />
         <Label>Collections</Label>
       </NativeTabs.Trigger>
+      {/* <NativeTabs.Trigger name="search" role="search">
+        <Label>Search</Label>
+      </NativeTabs.Trigger> */}
 
       {/* <Tabs.Screen
         name="(home)"

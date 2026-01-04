@@ -1,3 +1,5 @@
+import { debounce } from "es-toolkit";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { mmkvStorage } from "./mmkv-storage";
@@ -14,6 +16,8 @@ interface FiltersState {
   author: string;
   sortedBy: SortBy;
   sortDirection: SortDirection;
+  detentIndex: number | undefined;
+  filterSheetShown: boolean;
 }
 
 // Define the actions interface
@@ -32,6 +36,7 @@ interface FiltersActions {
   setSortDirection: (sortDir: SortDirection) => void;
   clearAllFilters: () => void;
   clearSearchAndAuthor: () => void;
+  updateFilterSheetState: (detentIndex: number | undefined, filterSheetShown: boolean) => void;
 }
 
 // Combined store interface
@@ -47,7 +52,7 @@ const DEFAULT_AUTHOR = "";
 const DEFAULT_SORTED_BY: SortBy = "addedAt";
 
 // Create the store (not exported directly - following best practices)
-const useFiltersStore = create<FiltersStore>()(
+export const useFiltersStore = create<FiltersStore>()(
   persist(
     (set, get) => ({
       // State
@@ -57,6 +62,8 @@ const useFiltersStore = create<FiltersStore>()(
       author: DEFAULT_AUTHOR,
       sortedBy: DEFAULT_SORTED_BY,
       sortDirection: "desc",
+      detentIndex: undefined,
+      filterSheetShown: false,
 
       // Actions grouped in a separate namespace
       actions: {
@@ -107,6 +114,11 @@ const useFiltersStore = create<FiltersStore>()(
           set({
             searchValue: DEFAULT_SEARCH_VALUE,
             author: DEFAULT_AUTHOR,
+          }),
+        updateFilterSheetState: (detentIndex: number | undefined, filterSheetShown: boolean) =>
+          set({
+            detentIndex,
+            filterSheetShown,
           }),
       },
     }),
@@ -204,3 +216,59 @@ export const useFilterCounts = () =>
       (state.author !== DEFAULT_AUTHOR ? 1 : 0) +
       (state.sortedBy !== DEFAULT_SORTED_BY ? 1 : 0),
   }));
+
+/**
+ * Hook for debounced search input
+ * Provides local state for immediate feedback and debounced store updates
+ * @param debounceMs - Debounce delay in milliseconds (default: 300)
+ * @returns { localSearchValue, handleSearchChange, storeSearchValue }
+ */
+export const useDebouncedSearch = (debounceMs: number = 300) => {
+  // Get store values and actions
+  const storeSearchValue = useSearchValue();
+  const { setSearchValue: setStoreSearchValue } = useFiltersActions();
+
+  // Local state for immediate input feedback
+  const [localSearchValue, setLocalSearchValue] = useState(storeSearchValue);
+
+  // Create stable reference to the setStoreSearchValue function
+  const setStoreSearchValueRef = useRef(setStoreSearchValue);
+  setStoreSearchValueRef.current = setStoreSearchValue;
+
+  // Create debounced function to update store
+  const debouncedSetStoreSearch = useMemo(
+    () =>
+      debounce((value: string) => {
+        setStoreSearchValueRef.current(value);
+      }, debounceMs),
+    [debounceMs]
+  );
+
+  // Sync local state with store on initial load and external changes
+  useEffect(() => {
+    setLocalSearchValue(storeSearchValue);
+  }, [storeSearchValue]);
+
+  // Handle text input changes
+  const handleSearchChange = (value: string) => {
+    setLocalSearchValue(value); // Update input immediately
+    debouncedSetStoreSearch(value); // Update store after debounce delay
+  };
+
+  // Clear local search
+  const clearSearch = () => {
+    setLocalSearchValue("");
+    setStoreSearchValue("");
+  };
+
+  return {
+    /** Current local search value for input display */
+    localSearchValue,
+    /** Handler for text input changes (debounced store update) */
+    handleSearchChange,
+    /** Current store search value (updated after debounce) */
+    storeSearchValue,
+    /** Clear both local and store search values */
+    clearSearch,
+  };
+};

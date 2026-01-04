@@ -425,6 +425,38 @@ export const useGetItemDetails = (itemId?: string) => {
   return { data, isPending, isError, isLoading, error, ...rest };
 };
 
+//# ----------------------------------------------
+//# useGetFilterData - Get Tags, Genres, Authros and Series data
+//# ----------------------------------------------
+export const useGetFilterData = () => {
+  const absAPI = useSafeAbsAPI();
+
+  // Always call useQuery unconditionally (React Rules of Hooks)
+  const { data, ...rest } = useQuery({
+    queryKey: ["absfilterdata"],
+    queryFn: async () => {
+      if (!absAPI) throw new Error("Not Logged into AudiobookShelf");
+      return absAPI.getLibraryFilterData();
+    },
+    enabled: !!absAPI,
+    staleTime: 1000 * 60 * 5, // Stale Minutes
+  });
+
+  // Return unauthenticated state after hooks are called
+  if (!absAPI) {
+    return {
+      filterData: undefined,
+      isLoading: false,
+      isError: false,
+      error: null,
+    };
+  }
+
+  return { filterData: data, ...rest };
+};
+//# ----------------------------------------------
+//# useInvalidateQueries
+//# ----------------------------------------------
 export const useInvalidateQueries = () => {
   const absAPI = useSafeAbsAPI();
   // Always get the library ID, even if null

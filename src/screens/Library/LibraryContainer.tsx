@@ -1,31 +1,33 @@
 import { useAuth } from "@/src/contexts/AuthContext";
-import { useFiltersActions, useSearchValue, useSortedBy } from "@/src/store/store-filters";
+import { useSearchValue } from "@/src/store/store-filters";
 import { ABSGetLibraryItem } from "@/src/utils/AudiobookShelf/absAPIClass";
 import { useHeaderHeight } from "@react-navigation/elements";
-import { debounce } from "es-toolkit";
 import { useNavigation, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { NativeSyntheticEvent, Pressable, Text, View } from "react-native";
 import LibraryRenderItem from "./LibraryRenderItem";
 // import { LegendList } from "@legendapp/list";
+import HeaderButton from "@/src/components/common/LAABSHeaderButton";
 import { useInvalidateQueries, useSafeGetBooks } from "@/src/hooks/ABSHooks";
+import { useDebouncedSearch } from "@/src/store/store-filters";
+import { TrueSheet } from "@lodev09/react-native-true-sheet";
 import { FlashList, FlashListRef } from "@shopify/flash-list";
+import { SymbolView } from "expo-symbols";
 import LoadingAnimation from "../../components/common/LoadingAnimation";
-// import { FlashList, FlashListRef } from "@shopify/flash-list";
+import FilterBottomSheet from "./FilterBottomSheet";
 
 const LibraryMain = () => {
   const { isAuthenticated, hasStoredCredentials } = useAuth();
   const router = useRouter();
   const navigation = useNavigation();
-  // I
+  const { localSearchValue, handleSearchChange } = useDebouncedSearch();
+
   const invalidateQuery = useInvalidateQueries();
   // Get store values and actions
   const storeSearchValue = useSearchValue();
-  const sortedBy = useSortedBy();
-  const { setSearchValue: setStoreSearchValue, setSortedBy } = useFiltersActions();
-  const sortOptions = ["addedAt", "author", "title", "duration", "publishedYear"];
-  // Local state for immediate input feedback
-  const [localSearchValue, setLocalSearchValue] = useState(storeSearchValue);
+  console.log("Store Search Value", storeSearchValue);
+  // const sortedBy = useSortedBy();
+  // const sortOptions = ["addedAt", "author", "title", "duration", "publishedYear"];
   // Use safe version of useGetBooks that handles unauthenticated state
   const { data, isLoading, isError } = useSafeGetBooks(storeSearchValue);
 
@@ -33,66 +35,42 @@ const LibraryMain = () => {
   const flatListRef = useRef<FlashListRef<ABSGetLibraryItem>>(null);
   // const flatListRef = useRef<FlashListRef<ABSGetLibraryItem>>(null);
 
+  const scrollTo = useCallback(() => {
+    if (flatListRef.current) {
+      // console.log(flatListRef.current);
+      // flatListRef.current?.scrollToTop();
+      flatListRef.current?.scrollToOffset({ offset: -headerHeight });
+    }
+    console.log("ScrollToTop");
+  }, []);
+
+  // search input in header
   useLayoutEffect(() => {
     navigation.setOptions({
+      headerRight: () => {
+        return (
+          <HeaderButton onPress={() => TrueSheet.present("filter-sheet")}>
+            <SymbolView name="brain.fill" size={25} />
+          </HeaderButton>
+        );
+      },
       headerSearchBarOptions: {
-        autoCapitalize: "none",
         placement: "integratedButton",
-        placeholder: "Search Title/Author",
+        placeholder: "Search",
         onChangeText: (event: NativeSyntheticEvent<{ text: string }>) => {
-          debouncedSetStoreSearchRef.current(event.nativeEvent.text);
-        },
-        onFocus: () => console.log("Focused"),
-        onCancelButtonPress: () => {
-          console.log("Cancel button pressed");
-          if (flatListRef.current) {
-            console.log("Scrolling");
-            scrollToRef.current();
-            // setTimeout(
-            //   () => flatListRef.current?.scrollToIndex({ index: 0, animated: true }),
-            //   1000
-            // );
-          }
+          // Use the debounced search hook
+          handleSearchChange(event.nativeEvent.text);
         },
       },
     });
   }, []);
-  // Create stable reference to the setStoreSearchValue function
-  const setStoreSearchValueRef = useRef(setStoreSearchValue);
-  setStoreSearchValueRef.current = setStoreSearchValue;
 
-  // Create debounced function to update store
-  const debouncedSetStoreSearch = useMemo(
-    () =>
-      debounce((value: string) => {
-        setStoreSearchValueRef.current(value);
-      }, 300),
-    []
-  );
-  const scrollTo = useCallback(() => {
-    if (flatListRef.current) {
-      // console.log(flatListRef.current);
-      flatListRef.current?.scrollToTop();
-    }
-    console.log("Scroll in ScrollTo");
-  }, []);
-
-  // Create stable refs for functions used in useLayoutEffect
-  const debouncedSetStoreSearchRef = useRef(debouncedSetStoreSearch);
-  const scrollToRef = useRef(scrollTo);
-  debouncedSetStoreSearchRef.current = debouncedSetStoreSearch;
-  scrollToRef.current = scrollTo;
-
-  // Sync local state with store on initial load
   useEffect(() => {
-    setLocalSearchValue(storeSearchValue);
-  }, [storeSearchValue]);
-
-  // Handle text input changes
-  const handleSearchChange = (value: string) => {
-    setLocalSearchValue(value); // Update input immediately
-    debouncedSetStoreSearch(value); // Update store after 300ms
-  };
+    scrollTo();
+  }, [storeSearchValue, flatListRef.current]);
+  // Create stable refs for functions used in useLayoutEffect
+  const scrollToRef = useRef(scrollTo);
+  scrollToRef.current = scrollTo;
 
   // Show login prompt if not authenticated
   if (!isAuthenticated && !hasStoredCredentials) {
@@ -146,13 +124,14 @@ const LibraryMain = () => {
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
       /> */}
+      <FilterBottomSheet />
       <FlashList
         className="flex-1"
         ref={flatListRef}
-        // style={{ paddingTop: 42 }}
+        // style={{ paddingTop: headerHeight }}
         scrollEnabled
-        // contentInset={{ top: headerHeight }}
-        // contentOffset={{ x: 0, y: -headerHeight }}
+        contentInset={{ top: headerHeight }}
+        contentOffset={{ x: 0, y: headerHeight }}
         data={data}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}

@@ -8,7 +8,8 @@ export type SyncType =
   | "sync-progress" // Periodic timer-based syncs
   | "sync-position" // Seek/jump syncs
   | "session-close" // Session close syncs
-  | "queued-sync"; // Queued offline syncs
+  | "queued-sync" // Queued offline syncs
+  | "queued-position-applied"; // When a queued position is used on reconnection
 
 // Log entry type
 export type SyncLogEntry = {

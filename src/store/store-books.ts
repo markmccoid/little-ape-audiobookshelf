@@ -14,6 +14,7 @@ import { deleteFromFileSystem, downloadFileBlob } from "../utils/fileSystemAcces
 import { formatSeconds } from "../utils/formatUtils";
 import { syncQueue } from "../utils/syncQueue";
 import { mmkvStorage } from "./mmkv-storage";
+import { addSyncLogEntry, formatPositionForLog } from "./store-debuglogs";
 import { useSettingsStore } from "./store-settings";
 
 export type EnhancedChapter = {
@@ -510,6 +511,20 @@ export const useBooksStore = create<BooksStore>()(
                 queuedPosition !== undefined &&
                 queuedPosition > existingPosition &&
                 (serverPosition === undefined || queuedPosition > serverPosition);
+
+              // Log when a queued position is applied
+              if (useQueuedPosition && queuedPosition !== undefined) {
+                addSyncLogEntry({
+                  libraryItemId,
+                  title: updated.title || "Unknown",
+                  position: formatPositionForLog(queuedPosition),
+                  syncType: "queued-position-applied",
+                  apiRoute: "N/A - Local queue applied",
+                  functionName: "getOrFetchBook",
+                  fileName: "store-books.ts",
+                  success: true,
+                });
+              }
 
               // console.log("getOrFetchBook Position", state.bookInfo[libraryItemId]?.positionInfo);
               state.bookInfo[libraryItemId] = {
