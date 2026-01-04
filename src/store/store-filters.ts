@@ -173,6 +173,40 @@ export const useSortDirection = () => useFiltersStore((state) => state.sortDirec
 export const useFiltersActions = () => useFiltersStore((state) => state.actions);
 
 /**
+ * Hook to toggle a genre - adds if not selected, removes if selected
+ * @returns toggleGenre function that takes a genre name
+ */
+export const useToggleGenre = () => {
+  const genres = useFiltersStore((state) => state.genres);
+  const { addGenre, removeGenre } = useFiltersStore((state) => state.actions);
+
+  return (genreName: string) => {
+    if (genres.includes(genreName)) {
+      removeGenre(genreName);
+    } else {
+      addGenre(genreName);
+    }
+  };
+};
+
+/**
+ * Hook to toggle a tag - adds if not selected, removes if selected
+ * @returns toggleTag function that takes a tag name
+ */
+export const useToggleTag = () => {
+  const tags = useFiltersStore((state) => state.tags);
+  const { addTag, removeTag } = useFiltersStore((state) => state.actions);
+
+  return (tagName: string) => {
+    if (tags.includes(tagName)) {
+      removeTag(tagName);
+    } else {
+      addTag(tagName);
+    }
+  };
+};
+
+/**
  * Hook to get all filter values at once
  * Use this when you need multiple values in the same component
  */

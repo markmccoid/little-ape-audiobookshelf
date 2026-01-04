@@ -8,7 +8,7 @@ import { NativeSyntheticEvent, Pressable, Text, View } from "react-native";
 import LibraryRenderItem from "./LibraryRenderItem";
 // import { LegendList } from "@legendapp/list";
 import HeaderButton from "@/src/components/common/LAABSHeaderButton";
-import { useInvalidateQueries, useSafeGetBooks } from "@/src/hooks/ABSHooks";
+import { useGetBooks, useInvalidateQueries } from "@/src/hooks/ABSHooks";
 import { useDebouncedSearch } from "@/src/store/store-filters";
 import { TrueSheet } from "@lodev09/react-native-true-sheet";
 import { FlashList, FlashListRef } from "@shopify/flash-list";
@@ -23,13 +23,14 @@ const LibraryMain = () => {
   const { localSearchValue, handleSearchChange } = useDebouncedSearch();
 
   const invalidateQuery = useInvalidateQueries();
-  // Get store values and actions
+  //!! Get store values and actions
+  //!! Actually only using this to determine if we scroll to top.
+  //!! need to create a hook that just emits if ANY Critiera or sort changes happen
   const storeSearchValue = useSearchValue();
-  console.log("Store Search Value", storeSearchValue);
   // const sortedBy = useSortedBy();
   // const sortOptions = ["addedAt", "author", "title", "duration", "publishedYear"];
   // Use safe version of useGetBooks that handles unauthenticated state
-  const { data, isLoading, isError } = useSafeGetBooks(storeSearchValue);
+  const { data, isLoading, isError } = useGetBooks();
 
   const headerHeight = useHeaderHeight();
   const flatListRef = useRef<FlashListRef<ABSGetLibraryItem>>(null);
@@ -41,7 +42,6 @@ const LibraryMain = () => {
       // flatListRef.current?.scrollToTop();
       flatListRef.current?.scrollToOffset({ offset: -headerHeight });
     }
-    console.log("ScrollToTop");
   }, []);
 
   // search input in header

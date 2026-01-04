@@ -4,14 +4,20 @@ import { sortBy } from "es-toolkit";
 import { useEffect, useMemo, useState } from "react";
 import { useSafeAbsAPI } from "../contexts/AuthContext";
 import { Book, useBooksActions } from "../store/store-books";
-import { useSortDirection, useSortedBy } from "../store/store-filters";
+import {
+  useGenres,
+  useSearchValue,
+  useSortDirection,
+  useSortedBy,
+  useTags,
+} from "../store/store-filters";
 import {
   ABSGetItemsInProgress,
   ABSGetLibraries,
   ABSGetLibraryItem,
   ABSGetLibraryItems,
 } from "../utils/AudiobookShelf/absAPIClass";
-import { getAbsAPI, useAbsAPI } from "../utils/AudiobookShelf/absInit";
+import { getAbsAPI } from "../utils/AudiobookShelf/absInit";
 import { defaultBookshelves } from "../utils/AudiobookShelf/bookshelfTypes";
 import { queryClient } from "../utils/queryClient";
 
@@ -65,11 +71,21 @@ const createFilterConfig = (filters: Filters) => ({
     condition: (book: ABSGetLibraryItem) => (book.numAudioFiles || 0) > 0,
   },
   // Example additional filters you might add:
-  // genre: {
-  //   enabled: additionalFilters.genre?.length > 0,
-  //   values: additionalFilters.genre,
-  //   condition: (book) => additionalFilters.genre.includes(book.genre),
-  // },
+  genre: {
+    enabled: (filters?.genres?.length ?? 0) > 0,
+    values: filters?.genres,
+    condition: (book: ABSGetLibraryItem) =>
+      filters.genres?.every((genre) => book.genres?.includes(genre)) ?? true,
+  },
+  //Tags
+  tags: {
+    enabled: (filters?.tags?.length ?? 0) > 0,
+    values: filters?.tags,
+    condition: (book: ABSGetLibraryItem) =>
+      filters.tags?.every((tag) => book.tags?.includes(tag)) ?? true,
+    // OR
+    // filters.tags.some((tag) => book.tags?.includes(tag)),
+  },
   // rating: {
   //   enabled: additionalFilters.minRating != null,
   //   minValue: additionalFilters.minRating,
@@ -100,6 +116,14 @@ const applyFilters = (
       if (!filterConfig.hasAudio.condition(book)) return false;
     }
 
+    if (filterConfig.genre.enabled) {
+      if (!filterConfig.genre.condition(book)) return false;
+      console.log("Genre Filtered", book.title, filterConfig.genre.values);
+    }
+    if (filterConfig.tags.enabled) {
+      if (!filterConfig.tags.condition(book)) return false;
+      console.log("Tags Filtered", book.title, filterConfig.tags.values);
+    }
     // Add other filters here as needed
     // Each filter should return false if the book doesn't match
     // console.log("Returning", book.title);
@@ -109,11 +133,17 @@ const applyFilters = (
 //# ----------------------------------------------
 //# useGetBooks Filter Setup
 //# ----------------------------------------------
-export const useGetBooks = (searchValue?: string) => {
-  const absAPI = useAbsAPI();
-  const activeLibraryId = absAPI.getActiveLibraryId();
-  const sortedBy = "addedAt";
+export const useGetBooks = () => {
+  const absAPI = useSafeAbsAPI();
+  const sortedBy = useSortedBy();
+  const sortDirection = useSortDirection();
+  const searchValue = useSearchValue();
+  const genres = useGenres();
+  const tags = useTags();
+  // Always get the library ID, even if null
+  const activeLibraryId = absAPI?.getActiveLibraryId() || null;
 
+  // Always call useQuery, but disable it when not authenticated
   const {
     data: rawData,
     isPending,
@@ -122,41 +152,48 @@ export const useGetBooks = (searchValue?: string) => {
     ...rest
   } = useQuery({
     queryKey: ["books", activeLibraryId],
-    queryFn: async () => await absAPI.getLibraryItems(),
+    queryFn: async () => {
+      if (!absAPI) throw new Error("Not authenticated");
+      return await absAPI.getLibraryItems();
+    },
+    enabled: !!absAPI && !!activeLibraryId, // Only run when authenticated and have library ID
     staleTime: 1000 * 60 * 5, // Stale Minutes
   });
 
+  // Always call useMemo hooks
   const filteredData = useMemo(() => {
     if (!rawData?.length) return rawData;
 
-    const filterConfig = createFilterConfig({ searchValue });
+    const filterConfig = createFilterConfig({ searchValue, genres, tags });
 
     // Early return if no filters are active
     const hasActiveFilters = Object.values(filterConfig).some((filter) => filter.enabled);
     if (!hasActiveFilters) return rawData;
 
     return applyFilters(rawData, filterConfig);
-  }, [rawData, searchValue]);
+  }, [rawData, searchValue, genres, tags]);
 
   const sortedData = useMemo(() => {
     if (!filteredData?.length) return filteredData;
-    return sortBy(filteredData, [sortedBy]);
-  }, [filteredData, sortedBy]);
-  // Filter data based on searchValue (case insensitive)
-  // const filteredData = useMemo(() => {
-  //   if (!rawData || !searchValue || searchValue.trim() === "") {
-  //     return rawData;
-  //   }
+    const sorted = sortBy(filteredData, [sortedBy]);
+    // reverse if desc
+    if (sortDirection === "desc") return sorted.reverse();
+    // if (sortDirection === "desc") return reverse(sorted);
 
-  //   const searchTerm = searchValue.toLowerCase().trim();
-  //   return rawData.filter(
-  //     (book) =>
-  //       (book.title?.toLowerCase().includes(searchTerm) ||
-  //         book.author?.toLowerCase().includes(searchTerm)) &&
-  //       (book.numAudioFiles || 0) > 0
-  //   );
-  // }, [rawData, searchValue]);
-  // const sortedData = sortBy(filteredData, [sortedBy]);
+    return sorted;
+  }, [filteredData, sortedBy]);
+
+  // Return appropriate data based on authentication state
+  if (!absAPI) {
+    return {
+      data: undefined,
+      isPending: false,
+      isError: false,
+      isLoading: false,
+      error: null,
+    };
+  }
+
   return { data: sortedData, isPending, isError, isLoading, ...rest };
 };
 
@@ -327,71 +364,6 @@ export const moveBookToTopOfInProgress = (bookId: string, activeLibraryId?: stri
   queryClient.setQueryData<ABSGetItemsInProgress>(queryKey, updatedData);
 
   // console.log(`moveBookToTopOfInProgress: Moved "${currentData[bookIndex].title}" to top`);
-};
-
-//# ----------------------------------------------
-//# useSafeGetBooks - Safe version that handles unauthenticated state
-//# ----------------------------------------------
-export const useSafeGetBooks = (searchValue?: string) => {
-  const absAPI = useSafeAbsAPI();
-  const sortedBy = useSortedBy();
-  const sortDirection = useSortDirection();
-
-  // Always get the library ID, even if null
-  const activeLibraryId = absAPI?.getActiveLibraryId() || null;
-
-  // Always call useQuery, but disable it when not authenticated
-  const {
-    data: rawData,
-    isPending,
-    isError,
-    isLoading,
-    ...rest
-  } = useQuery({
-    queryKey: ["books", activeLibraryId],
-    queryFn: async () => {
-      if (!absAPI) throw new Error("Not authenticated");
-      return await absAPI.getLibraryItems();
-    },
-    enabled: !!absAPI && !!activeLibraryId, // Only run when authenticated and have library ID
-    staleTime: 1000 * 60 * 5, // Stale Minutes
-  });
-
-  // Always call useMemo hooks
-  const filteredData = useMemo(() => {
-    if (!rawData?.length) return rawData;
-
-    const filterConfig = createFilterConfig({ searchValue });
-
-    // Early return if no filters are active
-    const hasActiveFilters = Object.values(filterConfig).some((filter) => filter.enabled);
-    if (!hasActiveFilters) return rawData;
-
-    return applyFilters(rawData, filterConfig);
-  }, [rawData, searchValue]);
-
-  const sortedData = useMemo(() => {
-    if (!filteredData?.length) return filteredData;
-    const sorted = sortBy(filteredData, [sortedBy]);
-    // reverse if desc
-    if (sortDirection === "desc") return sorted.reverse();
-    // if (sortDirection === "desc") return reverse(sorted);
-
-    return sorted;
-  }, [filteredData, sortedBy]);
-
-  // Return appropriate data based on authentication state
-  if (!absAPI) {
-    return {
-      data: undefined,
-      isPending: false,
-      isError: false,
-      isLoading: false,
-      error: null,
-    };
-  }
-
-  return { data: sortedData, isPending, isError, isLoading, ...rest };
 };
 
 //# ----------------------------------------------

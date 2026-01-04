@@ -3,8 +3,10 @@ import { useDebouncedSearch, useFiltersActions } from "@/src/store/store-filters
 import { DetentChangeEvent, TrueSheet } from "@lodev09/react-native-true-sheet";
 import { SymbolView } from "expo-symbols";
 import React, { useRef } from "react";
-import { Pressable, Text, TextInput, View } from "react-native";
+import { Text, TextInput, View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import GenrePicker from "./GenrePicker";
+import TagPicker from "./TagPicker";
 
 const FilterBottomSheet = () => {
   const sheetRef = useRef<TrueSheet>(null);
@@ -57,16 +59,21 @@ const FilterBottomSheet = () => {
       name="filter-sheet"
       detents={[0.1, "auto", 1]}
       // detents={[0.1, 0.5, 0.9]}
-      // style={{ borderWidth: 1, borderRadius: 24 }}
+      // style={{
+      //   flex: 1,
+      //   borderWidth: StyleSheet.hairlineWidth,
+      //   borderColor: "black",
+      //   borderRadius: 24,
+      //   height: "100%",
+      // }}
       cornerRadius={24}
       dimmed={false}
       scrollable
-      dismissible={true}
       onDetentChange={handleDetentChange}
       onDidDismiss={() => handleSheetState(false)}
       onDidPresent={(e) => handleSheetState(true, e)}
     >
-      <View className="px-4 pt-4">
+      <View className="px-4 pt-4 flex-1 ">
         {/* Search Container */}
         <View className=" mb-10">
           <View
@@ -91,30 +98,13 @@ const FilterBottomSheet = () => {
 
         {/* Filter Section (Hidden in snap point 0) */}
 
-        <Animated.ScrollView className="mt-8" nestedScrollEnabled style={filterSheetStyle}>
-          <Text className="text-xl font-bold mb-4">Genres</Text>
-          <View className="w-[300] flex-row justify-between">
-            <View className="flex-row flex-wrap gap-1 ">
-              {filterData?.genres?.map((genre) => (
-                <Pressable
-                  key={genre.b64Encoded}
-                  className="bg-white/50 dark:bg-black/20 px-4 py-2 rounded-full border border-black/5"
-                >
-                  <Text>{genre.name}</Text>
-                </Pressable>
-              ))}
-            </View>
+        <Animated.ScrollView className="" nestedScrollEnabled style={filterSheetStyle}>
+          <View className="mt-4">
+            <Text className="text-xl font-bold mb-2 ml-2">Genres</Text>
+            <GenrePicker />
             {/* Tags */}
-            <View className="flex-row flex-wrap gap-1 ">
-              {filterData?.tags?.map((tag) => (
-                <Pressable
-                  key={tag.b64Encoded}
-                  className="bg-white/50 dark:bg-black/20 px-4 py-2 rounded-full border border-black/5"
-                >
-                  <Text>{tag.name}</Text>
-                </Pressable>
-              ))}
-            </View>
+            <Text className="text-xl font-bold mb-2 ml-2">Tags</Text>
+            <TagPicker />
           </View>
         </Animated.ScrollView>
       </View>
