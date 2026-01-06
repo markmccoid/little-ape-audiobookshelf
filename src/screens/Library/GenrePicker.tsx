@@ -17,6 +17,7 @@ const GenrePicker = () => {
         {filterData?.genres?.map((genre) => (
           <Pressable
             onPress={() => toggleGenre(genre.name)}
+            key={genre.b64Encoded}
             style={{
               padding: 8,
               margin: 2,
@@ -26,7 +27,7 @@ const GenrePicker = () => {
               borderColor: themeColors.accent,
             }}
           >
-            <Text key={genre.b64Encoded}>{genre.name}</Text>
+            <Text>{genre.name}</Text>
           </Pressable>
         ))}
       </View>

@@ -17,6 +17,7 @@ const TagPicker = () => {
         {filterData?.tags?.map((tag) => (
           <Pressable
             onPress={() => toggleTag(tag.name)}
+            key={tag.b64Encoded}
             style={{
               padding: 8,
               margin: 2,
@@ -26,7 +27,7 @@ const TagPicker = () => {
               borderColor: themeColors.accent,
             }}
           >
-            <Text key={tag.b64Encoded}>{tag.name}</Text>
+            <Text>{tag.name}</Text>
           </Pressable>
         ))}
       </View>

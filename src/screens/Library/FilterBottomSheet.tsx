@@ -1,9 +1,10 @@
+import HiddenContainerGlass from "@/src/components/hiddenContainer/HiddenContainerGlass";
 import { useGetFilterData } from "@/src/hooks/ABSHooks";
-import { useDebouncedSearch, useFiltersActions } from "@/src/store/store-filters";
+import { useFiltersActions, useFiltersStore } from "@/src/store/store-filters";
 import { DetentChangeEvent, TrueSheet } from "@lodev09/react-native-true-sheet";
-import { SymbolView } from "expo-symbols";
+import { useFocusEffect } from "expo-router";
 import React, { useRef } from "react";
-import { Text, TextInput, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import GenrePicker from "./GenrePicker";
 import TagPicker from "./TagPicker";
@@ -11,24 +12,28 @@ import TagPicker from "./TagPicker";
 const FilterBottomSheet = () => {
   const sheetRef = useRef<TrueSheet>(null);
   // Use the debounced search hook
-  const { localSearchValue, handleSearchChange } = useDebouncedSearch();
   const { filterData, isLoading } = useGetFilterData();
+  const selectedGenres = useFiltersStore((state) => state.genres);
+  const selectedTags = useFiltersStore((state) => state.tags);
+
   // console.log("Filter Data", filterData?.genres, isLoading);
   // Get filter sheet actions
-  const { updateFilterSheetState } = useFiltersActions();
-  // useFocusEffect(
-  //   React.useCallback(() => {
-  //     TrueSheet.present("filter-sheet");
-  //     return () => {
-  //       TrueSheet.dismiss("filter-sheet");
-  //     };
-  //   }, [])
-  // );
+  const { updateFilterSheetState, clearGenres, clearTags } = useFiltersActions();
+
+  useFocusEffect(
+    React.useCallback(() => {
+      TrueSheet.present("filter-sheet");
+      return () => {
+        TrueSheet.dismiss("filter-sheet");
+      };
+    }, [])
+  );
 
   const fadeExtra = useSharedValue(0);
   const filterSheetStyle = useAnimatedStyle(() => {
     return {
       opacity: fadeExtra.value,
+      marginTop: 8,
     };
   });
   // Stores to the store-filters store
@@ -68,14 +73,66 @@ const FilterBottomSheet = () => {
       // }}
       cornerRadius={24}
       dimmed={false}
-      scrollable
+      scrollable={false}
+      dismissible={false}
       onDetentChange={handleDetentChange}
       onDidDismiss={() => handleSheetState(false)}
       onDidPresent={(e) => handleSheetState(true, e)}
+      // header={() => (
+      //   <View className="flex-row items-center justify-center">
+      //     <Text className="text-lg font-semibold">Advanced Filtering</Text>
+      //   </View>
+      // )}
     >
-      <View className="px-4 pt-4 flex-1 ">
+      <View className="mt-[16] flex-1 ">
+        <View className="mx-2 ">
+          <View className="flex-row items-center justify-start">
+            <Text className="text-lg font-semibold">Genres: </Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerClassName="gap-1"
+            >
+              {(selectedGenres.length ?? 0) === 0 && (
+                <Text className="text-base">No genres selected</Text>
+              )}
+              {(selectedGenres.length ?? 0) > 0 &&
+                selectedGenres.map((genre) => {
+                  return (
+                    <Text
+                      key={genre}
+                      className="text-sm  py-1 px-2 bg-accent text-accent-foreground rounded-full"
+                    >
+                      {genre}
+                    </Text>
+                  );
+                })}
+            </ScrollView>
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerClassName="gap-1 mt-2"
+          >
+            <Text className="text-lg font-semibold">Tags: </Text>
+            {(selectedTags.length ?? 0) === 0 && (
+              <Text className="text-base">No tags selected</Text>
+            )}
+            {(selectedTags.length ?? 0) > 0 &&
+              selectedTags.map((tag) => {
+                return (
+                  <Text
+                    className="text-sm  py-1 px-2 bg-accent text-accent-foreground rounded-full"
+                    key={tag}
+                  >
+                    {tag}
+                  </Text>
+                );
+              })}
+          </ScrollView>
+        </View>
         {/* Search Container */}
-        <View className=" mb-10">
+        {/* <View className="mx-4" style={{ marginBottom: 16 }}>
           <View
             className="flex-row items-center bg-black/5 dark:bg-white/10 rounded-3xl px-4 h-14 border-hairline border-accent"
             style={{ borderCurve: "continuous" }} // Smooth iOS corners
@@ -94,17 +151,27 @@ const FilterBottomSheet = () => {
               clearButtonMode="while-editing"
             />
           </View>
-        </View>
+        </View> */}
 
         {/* Filter Section (Hidden in snap point 0) */}
 
-        <Animated.ScrollView className="" nestedScrollEnabled style={filterSheetStyle}>
-          <View className="mt-4">
-            <Text className="text-xl font-bold mb-2 ml-2">Genres</Text>
-            <GenrePicker />
+        <Animated.ScrollView
+          // nestedScrollEnabled
+          style={[filterSheetStyle]}
+          contentContainerStyle={{ paddingBottom: 40 }}
+        >
+          <View className="mt-1 ">
+            <View className="flex-1 mb-2">
+              <HiddenContainerGlass title="Genres" key={"genres"} leftIconFunction={clearGenres}>
+                <GenrePicker />
+              </HiddenContainerGlass>
+            </View>
             {/* Tags */}
-            <Text className="text-xl font-bold mb-2 ml-2">Tags</Text>
-            <TagPicker />
+            <View className="flex-1 mb-2">
+              <HiddenContainerGlass title="Tags" key={"tags"} leftIconFunction={clearTags}>
+                <TagPicker />
+              </HiddenContainerGlass>
+            </View>
           </View>
         </Animated.ScrollView>
       </View>
