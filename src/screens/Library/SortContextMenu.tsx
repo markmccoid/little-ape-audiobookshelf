@@ -45,11 +45,12 @@ const SortContextMenu = () => {
           </HStack>
         </ContextMenu.Items>
         <ContextMenu.Trigger>
-          <View className="flex-row items-center justify-center  w-[35] h-[30]">
+          <View className="flex-row items-center justify-center">
             <SymbolView
               name="line.3.horizontal.decrease"
-              size={25}
-              tintColor={themeColors.accentForeground}
+              size={30}
+              // tintColor="black"
+              tintColor={themeColors.foreground}
             />
           </View>
         </ContextMenu.Trigger>

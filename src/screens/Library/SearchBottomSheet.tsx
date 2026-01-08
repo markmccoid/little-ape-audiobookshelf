@@ -272,7 +272,9 @@ export const SearchBottomSheet = ({ onExpand }: Props) => {
             />
           </View>
           <View className="ml-2 mt-4 justify-center">
-            <SortContextMenu />
+            <LiquidGlassView className="p-1 rounded-full" style={{ padding: 6, borderRadius: 30 }}>
+              <SortContextMenu />
+            </LiquidGlassView>
           </View>
         </View>
       </GestureDetector>

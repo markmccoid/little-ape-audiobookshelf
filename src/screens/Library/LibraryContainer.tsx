@@ -149,10 +149,10 @@ const LibraryMain = () => {
       <FlashList
         className="flex-1 "
         ref={flatListRef}
-        style={{ paddingBottom: 100 }}
+        contentContainerStyle={{ paddingBottom: 100 }}
         scrollEnabled
         contentInset={{ top: headerHeight }}
-        contentOffset={{ x: 0, y: headerHeight }}
+        contentOffset={{ x: 0, y: -headerHeight }}
         data={data}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
