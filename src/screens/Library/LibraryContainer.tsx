@@ -1,26 +1,42 @@
 import { useAuth } from "@/src/contexts/AuthContext";
-import { useSearchValue } from "@/src/store/store-filters";
+import { useGetBooks, useInvalidateQueries } from "@/src/hooks/ABSHooks";
+import {
+  useDebouncedSearch,
+  useGenres,
+  useSearchValue,
+  useSortDirection,
+  useSortedBy,
+  useTags,
+} from "@/src/store/store-filters";
 import { ABSGetLibraryItem } from "@/src/utils/AudiobookShelf/absAPIClass";
-import { useHeaderHeight } from "@react-navigation/elements";
+import { TrueSheet } from "@lodev09/react-native-true-sheet";
+import { FlashList, FlashListRef } from "@shopify/flash-list";
 import { useNavigation, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { NativeSyntheticEvent, Pressable, Text, View } from "react-native";
-import LibraryRenderItem from "./LibraryRenderItem";
-// import { LegendList } from "@legendapp/list";
-import HeaderButton from "@/src/components/common/LAABSHeaderButton";
-import { useGetBooks, useInvalidateQueries } from "@/src/hooks/ABSHooks";
-import { useDebouncedSearch } from "@/src/store/store-filters";
-import { TrueSheet } from "@lodev09/react-native-true-sheet";
-import { FlashList, FlashListRef } from "@shopify/flash-list";
-import { SymbolView } from "expo-symbols";
 import LoadingAnimation from "../../components/common/LoadingAnimation";
-import FilterBottomSheet from "./FilterBottomSheet";
+import LibraryRenderItem from "./LibraryRenderItem";
+import { SearchBottomSheet } from "./SearchBottomSheet";
+import SortContextMenu from "./SortContextMenu";
 
 const LibraryMain = () => {
   const { isAuthenticated, hasStoredCredentials } = useAuth();
   const router = useRouter();
   const navigation = useNavigation();
   const { localSearchValue, handleSearchChange } = useDebouncedSearch();
+  const selectedGenres = useGenres();
+  const selectedTags = useTags();
+  const sortDirection = useSortDirection();
+  const sortedBy = useSortedBy();
+
+  // Function to toggle Tab Bar visibility
+  const handleSheetExpand = (isExpanded: boolean) => {
+    navigation.setOptions({
+      tabBarStyle: {
+        display: isExpanded ? "none" : "flex",
+      },
+    });
+  };
 
   const invalidateQuery = useInvalidateQueries();
   //!! Get store values and actions
@@ -32,7 +48,7 @@ const LibraryMain = () => {
   // Use safe version of useGetBooks that handles unauthenticated state
   const { data, isLoading, isError } = useGetBooks();
 
-  const headerHeight = useHeaderHeight();
+  const headerHeight = 80; //useHeaderHeight();
   const flatListRef = useRef<FlashListRef<ABSGetLibraryItem>>(null);
   // const flatListRef = useRef<FlashListRef<ABSGetLibraryItem>>(null);
 
@@ -40,6 +56,7 @@ const LibraryMain = () => {
     if (flatListRef.current) {
       // console.log(flatListRef.current);
       // flatListRef.current?.scrollToTop();
+      console.log("headerHeight", headerHeight);
       flatListRef.current?.scrollToOffset({ offset: -headerHeight });
     }
   }, []);
@@ -47,16 +64,25 @@ const LibraryMain = () => {
   // search input in header
   useLayoutEffect(() => {
     navigation.setOptions({
+      headerShown: false,
       headerRight: () => {
         return (
-          <HeaderButton onPress={() => TrueSheet.present("filter-sheet")}>
-            <SymbolView name="brain.fill" size={25} />
-          </HeaderButton>
+          <SortContextMenu />
+
+          // <HeaderButton onPress={() => TrueSheet.present("filter-sheet")}>
+          //   <SymbolView name="brain.fill" size={25} />
+          // </HeaderButton>
         );
       },
       headerSearchBarOptions: {
         placement: "integratedButton",
         placeholder: "Search",
+        onFocus: () => {
+          TrueSheet.present("filter-sheet");
+        },
+        onBlur: () => {
+          TrueSheet.resize("filter-sheet", 0);
+        },
         onChangeText: (event: NativeSyntheticEvent<{ text: string }>) => {
           // Use the debounced search hook
           handleSearchChange(event.nativeEvent.text);
@@ -67,7 +93,8 @@ const LibraryMain = () => {
 
   useEffect(() => {
     scrollTo();
-  }, [storeSearchValue, flatListRef.current]);
+  }, [storeSearchValue, selectedGenres, selectedTags, sortDirection, sortedBy]);
+
   // Create stable refs for functions used in useLayoutEffect
   const scrollToRef = useRef(scrollTo);
   scrollToRef.current = scrollTo;
@@ -115,20 +142,14 @@ const LibraryMain = () => {
   };
 
   return (
-    <View className="h-full">
-      {/* <LegendList
-        className="flex-1"
-        ref={flatListRef}
-        contentContainerClassName=""
-        data={data}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.id}
-      /> */}
-      <FilterBottomSheet />
+    <View className="h-full ">
+      {/* <View>
+        <FilterBottomSheet />
+      </View> */}
       <FlashList
-        className="flex-1"
+        className="flex-1 "
         ref={flatListRef}
-        // style={{ paddingTop: headerHeight }}
+        style={{ paddingBottom: 100 }}
         scrollEnabled
         contentInset={{ top: headerHeight }}
         contentOffset={{ x: 0, y: headerHeight }}
@@ -147,6 +168,7 @@ const LibraryMain = () => {
           // setTimeout(() => flatListRef.current?.scrollToEnd(), 3000);
         }}
       />
+      <SearchBottomSheet onExpand={handleSheetExpand} />
     </View>
   );
 };

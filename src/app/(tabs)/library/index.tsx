@@ -1,15 +1,13 @@
 import LibraryContainer from "@/src/screens/Library/LibraryContainer";
-import { useFiltersStore } from "@/src/store/store-filters";
-import { useNavigation } from "expo-router";
 import React from "react";
 import { View } from "react-native";
 
 const Books = () => {
-  const filterSheetShown = useFiltersStore((state) => state.filterSheetShown);
-  const detentIndex = useFiltersStore((state) => state.detentIndex);
+  // const filterSheetShown = useFiltersStore((state) => state.filterSheetShown);
+  // const detentIndex = useFiltersStore((state) => state.detentIndex);
 
-  const navigation = useNavigation();
-  console.log("filterSheetShown", filterSheetShown, detentIndex);
+  // const navigation = useNavigation();
+
   // useLayoutEffect(() => {
   //   navigation.setOptions({
   //     headerRight: () => {

@@ -132,6 +132,7 @@ export const useFiltersStore = create<FiltersStore>()(
         // tags: state.tags,
         // author: state.author,
         sortedBy: state.sortedBy,
+        sortDirection: state.sortDirection,
       }),
     }
   )

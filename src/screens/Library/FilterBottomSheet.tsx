@@ -1,20 +1,29 @@
 import HiddenContainerGlass from "@/src/components/hiddenContainer/HiddenContainerGlass";
-import { useGetFilterData } from "@/src/hooks/ABSHooks";
-import { useFiltersActions, useFiltersStore } from "@/src/store/store-filters";
+import {
+  useFiltersActions,
+  useFiltersStore,
+  useToggleGenre,
+  useToggleTag,
+} from "@/src/store/store-filters";
+import { useThemeColors } from "@/src/utils/theme";
 import { DetentChangeEvent, TrueSheet } from "@lodev09/react-native-true-sheet";
 import { useFocusEffect } from "expo-router";
 import React, { useRef } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import GenrePicker from "./GenrePicker";
 import TagPicker from "./TagPicker";
 
 const FilterBottomSheet = () => {
   const sheetRef = useRef<TrueSheet>(null);
+  const themeColors = useThemeColors();
   // Use the debounced search hook
-  const { filterData, isLoading } = useGetFilterData();
+  // const { filterData, isLoading } = useGetFilterData();
+  const detentIndex = useFiltersStore((state) => state.detentIndex);
   const selectedGenres = useFiltersStore((state) => state.genres);
   const selectedTags = useFiltersStore((state) => state.tags);
+  const toggleTag = useToggleTag();
+  const toggleGenre = useToggleGenre();
 
   // console.log("Filter Data", filterData?.genres, isLoading);
   // Get filter sheet actions
@@ -22,7 +31,7 @@ const FilterBottomSheet = () => {
 
   useFocusEffect(
     React.useCallback(() => {
-      TrueSheet.present("filter-sheet");
+      // TrueSheet.present("filter-sheet");
       return () => {
         TrueSheet.dismiss("filter-sheet");
       };
@@ -58,11 +67,20 @@ const FilterBottomSheet = () => {
     }
   };
 
+  const changeDetent = () => {
+    if ((detentIndex ?? 0) < 1) {
+      TrueSheet.resize("filter-sheet", 1);
+    } else {
+      TrueSheet.resize("filter-sheet", 0);
+    }
+  };
   return (
     <TrueSheet
       ref={sheetRef}
       name="filter-sheet"
       detents={[0.1, "auto", 1]}
+      backgroundColor={`${themeColors.accent}dd`}
+      // style={{ backgroundColor: "#123583aa", flex: 1 }}
       // detents={[0.1, 0.5, 0.9]}
       // style={{
       //   flex: 1,
@@ -74,7 +92,7 @@ const FilterBottomSheet = () => {
       cornerRadius={24}
       dimmed={false}
       scrollable={false}
-      dismissible={false}
+      dismissible={true}
       onDetentChange={handleDetentChange}
       onDidDismiss={() => handleSheetState(false)}
       onDidPresent={(e) => handleSheetState(true, e)}
@@ -94,17 +112,20 @@ const FilterBottomSheet = () => {
               contentContainerClassName="gap-1"
             >
               {(selectedGenres.length ?? 0) === 0 && (
-                <Text className="text-base">No genres selected</Text>
+                <Pressable onPress={changeDetent}>
+                  <Text className="text-base">No genres selected</Text>
+                </Pressable>
               )}
               {(selectedGenres.length ?? 0) > 0 &&
                 selectedGenres.map((genre) => {
                   return (
-                    <Text
+                    <Pressable
+                      onPress={() => toggleGenre(genre)}
                       key={genre}
-                      className="text-sm  py-1 px-2 bg-accent text-accent-foreground rounded-full"
+                      className="py-1 px-2 bg-accent rounded-full"
                     >
-                      {genre}
-                    </Text>
+                      <Text className="text-sm  text-accent-foreground">{genre}</Text>
+                    </Pressable>
                   );
                 })}
             </ScrollView>
@@ -116,17 +137,20 @@ const FilterBottomSheet = () => {
           >
             <Text className="text-lg font-semibold">Tags: </Text>
             {(selectedTags.length ?? 0) === 0 && (
-              <Text className="text-base">No tags selected</Text>
+              <Pressable onPress={changeDetent}>
+                <Text className="text-base">No tags selected</Text>
+              </Pressable>
             )}
             {(selectedTags.length ?? 0) > 0 &&
               selectedTags.map((tag) => {
                 return (
-                  <Text
-                    className="text-sm  py-1 px-2 bg-accent text-accent-foreground rounded-full"
+                  <Pressable
+                    onPress={() => toggleTag(tag)}
                     key={tag}
+                    className="py-1 px-2 bg-accent rounded-full"
                   >
-                    {tag}
-                  </Text>
+                    <Text className="text-sm  text-accent-foreground">{tag}</Text>
+                  </Pressable>
                 );
               })}
           </ScrollView>

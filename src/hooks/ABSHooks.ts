@@ -118,11 +118,9 @@ const applyFilters = (
 
     if (filterConfig.genre.enabled) {
       if (!filterConfig.genre.condition(book)) return false;
-      console.log("Genre Filtered", book.title, filterConfig.genre.values);
     }
     if (filterConfig.tags.enabled) {
       if (!filterConfig.tags.condition(book)) return false;
-      console.log("Tags Filtered", book.title, filterConfig.tags.values);
     }
     // Add other filters here as needed
     // Each filter should return false if the book doesn't match
@@ -172,7 +170,7 @@ export const useGetBooks = () => {
 
     return applyFilters(rawData, filterConfig);
   }, [rawData, searchValue, genres, tags]);
-
+  console.log("Sort Direction", sortDirection);
   const sortedData = useMemo(() => {
     if (!filteredData?.length) return filteredData;
     const sorted = sortBy(filteredData, [sortedBy]);
@@ -181,7 +179,7 @@ export const useGetBooks = () => {
     // if (sortDirection === "desc") return reverse(sorted);
 
     return sorted;
-  }, [filteredData, sortedBy]);
+  }, [filteredData, sortedBy, sortDirection]);
 
   // Return appropriate data based on authentication state
   if (!absAPI) {
