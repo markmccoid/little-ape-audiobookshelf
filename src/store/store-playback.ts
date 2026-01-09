@@ -172,7 +172,23 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
         }
       });
 
-      listeners.push(l1 as any, l2 as any);
+      // Handle Playback Errors (e.g. 404s, network issues during stream)
+      const l3 = TrackPlayer.addEventListener(Event.PlaybackError, async (e) => {
+        console.error("Playback Error received:", e);
+
+        // Reset player and session to prevent duplicate alerts or stuck state
+        await TrackPlayer.reset();
+        await get().actions.closeSession();
+
+        Alert.alert(
+          "Playback Error",
+          "There was an error playing this audio. Please check your internet connection or try again later.\n\n" +
+            (e.message || "Unknown error"),
+          [{ text: "OK" }]
+        );
+      });
+
+      listeners.push(l1 as any, l2 as any, l3 as any);
     },
 
     updateCurrentChapterIndex: (currentChapterIndex) => {

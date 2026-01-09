@@ -87,7 +87,26 @@ export class SyncQueueManager {
    * Add a sync operation to the queue
    */
   addToQueue(item: Omit<QueuedSyncItem, "id" | "timestamp" | "retryCount">): void {
-    const queue = this.getQueue();
+    let queue = this.getQueue();
+
+    // Deduplication logic for playback-progress
+    if (item.type === "playback-progress") {
+      const { libraryItemId } = item.data;
+      if (libraryItemId) {
+        // Remove existing progress syncs for this book
+        const initialLength = queue.length;
+        queue = queue.filter(
+          (qItem) =>
+            !(qItem.type === "playback-progress" && qItem.data.libraryItemId === libraryItemId)
+        );
+
+        if (queue.length < initialLength) {
+          console.log(
+            `Removed ${initialLength - queue.length} stale sync(s) for book ${libraryItemId}`
+          );
+        }
+      }
+    }
 
     const newItem: QueuedSyncItem = {
       ...item,

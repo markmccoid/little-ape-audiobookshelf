@@ -9,6 +9,7 @@ import {
 import { useThemeColors } from "@/src/utils/theme";
 import { LiquidGlassView } from "@callstack/liquid-glass";
 import { Ionicons } from "@expo/vector-icons"; // Or your preferred icon set
+import { useFocusEffect } from "expo-router";
 import { useColorScheme } from "nativewind";
 import React, { useCallback } from "react";
 import {
@@ -83,6 +84,12 @@ export const SearchBottomSheet = ({ onExpand }: Props) => {
   const isKeyboardVisible = useSharedValue(false);
   const context = useSharedValue({ y: 0 });
 
+  useFocusEffect(() => {
+    updateFilterSheetState(0, true);
+    return () => {
+      updateFilterSheetState(0, false);
+    };
+  });
   React.useEffect(() => {
     const showSubscription = Keyboard.addListener("keyboardDidShow", () => {
       isKeyboardVisible.value = true;

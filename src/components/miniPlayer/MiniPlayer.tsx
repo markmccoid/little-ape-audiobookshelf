@@ -1,4 +1,5 @@
 import { useMiniPlayerDrag } from "@/src/hooks/useMiniPlayerDrag";
+import { useFiltersStore } from "@/src/store/store-filters";
 import { useSmartPositions } from "@/src/store/store-smartposition";
 import { formatSeconds } from "@/src/utils/formatUtils";
 import { useThemeColors } from "@/src/utils/theme";
@@ -24,6 +25,8 @@ const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(ma
 
 export default function MiniPlayer() {
   const { width, height } = Dimensions.get("window");
+  const filterSheetShown = useFiltersStore((state) => state.filterSheetShown);
+  const regularMini = !filterSheetShown;
 
   const showMini = useShowMiniPlayer();
   const themeColors = useThemeColors();
@@ -71,7 +74,8 @@ export default function MiniPlayer() {
   return (
     <GestureDetector gesture={gesture}>
       <Animated.View
-        style={[animatedStyle, { width: width - 64 }]}
+        style={[animatedStyle, { width: regularMini ? width - 64 : "auto" }]}
+        // style={[animatedStyle, { width: width - 64 }]}
         entering={SlideInDown.springify()}
         // exiting={SlideOutUp.duration(700)}
         exiting={SlideOutDown.duration(700)}
@@ -115,30 +119,31 @@ export default function MiniPlayer() {
                 </Pressable>
 
                 {/* Book info - flexible container */}
-                <View className="shrink">
-                  {/* Title */}
-                  <Text
-                    numberOfLines={1}
-                    className="text-foreground font-semibold text-base mb-0.5"
-                  >
-                    {session?.displayTitle ?? "Playing"}
-                  </Text>
-
-                  {/* Author */}
-                  <Text numberOfLines={1} className="text-foreground text-xs mb-1">
-                    {/* {session?.displayAuthor ?? "Unknown Author"} */}
-                    {chapterNumber} - {chapterTitle}
-                  </Text>
-
-                  {/* Time info */}
-                  <View className="flex-row items-center justify-between">
-                    <Text className="text-foreground text-xs font-firacode">
-                      {formatSeconds(globalPosition || 0, "compact") ?? "0:00"} of{" "}
-                      {formatSeconds(session?.duration || 0, "compact") ?? "0:00"}
+                {regularMini && (
+                  <View className="shrink">
+                    {/* Title */}
+                    <Text
+                      numberOfLines={1}
+                      className="text-foreground font-semibold text-base mb-0.5"
+                    >
+                      {session?.displayTitle ?? "Playing"}
                     </Text>
-                  </View>
-                </View>
 
+                    {/* Author */}
+                    <Text numberOfLines={1} className="text-foreground text-xs mb-1">
+                      {/* {session?.displayAuthor ?? "Unknown Author"} */}
+                      {chapterNumber} - {chapterTitle}
+                    </Text>
+
+                    {/* Time info */}
+                    <View className="flex-row items-center justify-between">
+                      <Text className="text-foreground text-xs font-firacode">
+                        {formatSeconds(globalPosition || 0, "compact") ?? "0:00"} of{" "}
+                        {formatSeconds(session?.duration || 0, "compact") ?? "0:00"}
+                      </Text>
+                    </View>
+                  </View>
+                )}
                 {/* Cover image */}
                 <Image
                   source={session?.coverURL}

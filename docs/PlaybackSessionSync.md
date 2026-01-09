@@ -102,6 +102,7 @@ If the user is offline or the server is unreachable, the request fails. The `Syn
 2.  **Persist**: The item is saved to `mmkv` storage via `SyncQueueManager`.
 3.  **Type**: The item is marked as `playback-progress`.
     - _Note_: `sessionId` is stored as `undefined` for downloaded books.
+4.  **Deduplication**: For `playback-progress` type, we employ a **Last-Write-Wins** strategy. Any existing queued item for the same `libraryItemId` is removed before adding the new one. This prevents redundant intermediate updates and ensures only the final offline position is sent to the server.
 
 ### Reconnection Flow
 
@@ -129,4 +130,26 @@ sequenceDiagram
     Server-->>Queue: 200 OK
     Queue->>App: Remove Item
     App->>App: Update Local Store
+```
+
+## 5. Error Handling
+
+### Playback Errors (`Event.PlaybackError`)
+
+When streaming, network interruptions or invalid URLs (e.g., 404s, server down) can cause playback failures. These are handled via the `Event.PlaybackError` listener in `store-playback.ts`.
+
+#### Error Flow
+
+1.  **Detection**: TrackPlayer emits `PlaybackError`.
+2.  **Reset**:
+    - `TrackPlayer.reset()` is called to stop the player and clear the queue.
+    - `actions.closeSession()` is called to clear the active session in the store.
+3.  **Notification**: An `Alert` is displayed to the user explaining the error.
+
+```mermaid
+graph TD
+    A[Playback Event Error] --> B[Log Error]
+    B --> C[TrackPlayer.reset]
+    C --> D[actions.closeSession]
+    D --> E[User Alert]
 ```
