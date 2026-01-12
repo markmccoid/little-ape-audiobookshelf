@@ -9,20 +9,19 @@ import {
   useTags,
 } from "@/src/store/store-filters";
 import { ABSGetLibraryItem } from "@/src/utils/AudiobookShelf/absAPIClass";
-import { TrueSheet } from "@lodev09/react-native-true-sheet";
+import { useThemeColors } from "@/src/utils/theme";
 import { FlashList, FlashListRef } from "@shopify/flash-list";
 import { useNavigation, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useLayoutEffect, useRef } from "react";
-import { NativeSyntheticEvent, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import LoadingAnimation from "../../components/common/LoadingAnimation";
 import LibraryRenderItem from "./LibraryRenderItem";
 import { SearchBottomSheet } from "./SearchBottomSheet";
-import SortContextMenu from "./SortContextMenu";
-
 const LibraryMain = () => {
   const { isAuthenticated, hasStoredCredentials } = useAuth();
   const router = useRouter();
   const navigation = useNavigation();
+  const themeColors = useThemeColors();
   const { localSearchValue, handleSearchChange } = useDebouncedSearch();
   const selectedGenres = useGenres();
   const selectedTags = useTags();
@@ -56,8 +55,7 @@ const LibraryMain = () => {
     if (flatListRef.current) {
       // console.log(flatListRef.current);
       // flatListRef.current?.scrollToTop();
-      console.log("headerHeight", headerHeight);
-      flatListRef.current?.scrollToOffset({ offset: -headerHeight });
+      flatListRef.current?.scrollToOffset({ offset: -(headerHeight + 10) });
     }
   }, []);
 
@@ -65,29 +63,29 @@ const LibraryMain = () => {
   useLayoutEffect(() => {
     navigation.setOptions({
       headerShown: false,
-      headerRight: () => {
-        return (
-          <SortContextMenu />
+      // headerRight: () => {
+      //   return (
+      //     <SortContextMenu />
 
-          // <HeaderButton onPress={() => TrueSheet.present("filter-sheet")}>
-          //   <SymbolView name="brain.fill" size={25} />
-          // </HeaderButton>
-        );
-      },
-      headerSearchBarOptions: {
-        placement: "integratedButton",
-        placeholder: "Search",
-        onFocus: () => {
-          TrueSheet.present("filter-sheet");
-        },
-        onBlur: () => {
-          TrueSheet.resize("filter-sheet", 0);
-        },
-        onChangeText: (event: NativeSyntheticEvent<{ text: string }>) => {
-          // Use the debounced search hook
-          handleSearchChange(event.nativeEvent.text);
-        },
-      },
+      //     // <HeaderButton onPress={() => TrueSheet.present("filter-sheet")}>
+      //     //   <SymbolView name="brain.fill" size={25} />
+      //     // </HeaderButton>
+      //   );
+      // },
+      // headerSearchBarOptions: {
+      //   placement: "integratedButton",
+      //   placeholder: "Search",
+      //   onFocus: () => {
+      //     TrueSheet.present("filter-sheet");
+      //   },
+      //   onBlur: () => {
+      //     TrueSheet.resize("filter-sheet", 0);
+      //   },
+      //   onChangeText: (event: NativeSyntheticEvent<{ text: string }>) => {
+      //     // Use the debounced search hook
+      //     handleSearchChange(event.nativeEvent.text);
+      //   },
+      // },
     });
   }, []);
 
@@ -146,13 +144,35 @@ const LibraryMain = () => {
       {/* <View>
         <FilterBottomSheet />
       </View> */}
+      {/* <LiquidGlassView
+        effect="regular"
+        tintColor={`${themeColors.accent}66`}
+        style={{
+          height: headerHeight + 10,
+          position: "absolute",
+          top: 0,
+          width: "100%",
+          zIndex: 10,
+          borderBottomWidth: StyleSheet.hairlineWidth,
+          borderBottomColor: themeColors.accent,
+        }}
+      >
+        <View
+          className="flex-row justify-center items-center"
+          style={{ paddingTop: headerHeight - 20 }}
+        >
+          <Text className="text-lg font-bold px-2 text-foreground">Found {data?.length} books</Text>
+        </View>
+      </LiquidGlassView> */}
       <FlashList
         className="flex-1 "
         ref={flatListRef}
         contentContainerStyle={{ paddingBottom: 100 }}
         scrollEnabled
-        contentInset={{ top: headerHeight }}
-        contentOffset={{ x: 0, y: -headerHeight }}
+        contentInset={{ top: headerHeight + 10 }}
+        contentOffset={{ x: 0, y: -(headerHeight + 10) }}
+        contentInsetAdjustmentBehavior="never"
+        // automaticallyAdjustContentInsets={false}
         data={data}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
@@ -165,10 +185,10 @@ const LibraryMain = () => {
         onLayout={() => {
           console.log("FlashList laid out");
 
-          // setTimeout(() => flatListRef.current?.scrollToEnd(), 3000);
+          // setTimeout(() => flatListRef.current?.scrollToEnd(), 2000);
         }}
       />
-      <SearchBottomSheet onExpand={handleSheetExpand} />
+      <SearchBottomSheet onExpand={handleSheetExpand} booksFound={data?.length} />
     </View>
   );
 };

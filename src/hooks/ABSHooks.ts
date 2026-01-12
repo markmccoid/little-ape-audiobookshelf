@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSafeAbsAPI } from "../contexts/AuthContext";
 import { Book, useBooksActions } from "../store/store-books";
 import {
+  useFiltersStore,
   useGenres,
   useSearchValue,
   useSortDirection,
@@ -58,6 +59,8 @@ export const useLibraries = () => {
 //~ - ----------------------------------------------------
 type Filters = {
   searchValue?: string;
+  searchDescription?: boolean;
+  searchTitleAuthor?: boolean;
   genres?: string[];
   tags?: string[];
 };
@@ -65,6 +68,8 @@ const createFilterConfig = (filters: Filters) => ({
   search: {
     enabled: filters.searchValue && filters.searchValue.trim() !== "",
     term: filters.searchValue?.toLowerCase().trim(),
+    searchDescription: filters.searchDescription,
+    searchTitleAuthor: filters.searchTitleAuthor,
   },
   hasAudio: {
     enabled: true, // Always filter for books with audio
@@ -75,16 +80,17 @@ const createFilterConfig = (filters: Filters) => ({
     enabled: (filters?.genres?.length ?? 0) > 0,
     values: filters?.genres,
     condition: (book: ABSGetLibraryItem) =>
-      filters.genres?.every((genre) => book.genres?.includes(genre)) ?? true,
+      // filters.genres?.every((genre) => book.genres?.includes(genre)) ?? true,
+      filters.genres?.some((genre) => book.genres?.includes(genre)) ?? true,
   },
   //Tags
   tags: {
     enabled: (filters?.tags?.length ?? 0) > 0,
     values: filters?.tags,
     condition: (book: ABSGetLibraryItem) =>
-      filters.tags?.every((tag) => book.tags?.includes(tag)) ?? true,
-    // OR
-    // filters.tags.some((tag) => book.tags?.includes(tag)),
+      // filters.tags?.every((tag) => book.tags?.includes(tag)) ?? true,
+      // OR
+      filters.tags?.some((tag) => book.tags?.includes(tag)) ?? true,
   },
   // rating: {
   //   enabled: additionalFilters.minRating != null,
@@ -104,10 +110,23 @@ const applyFilters = (
     // Search filter
     if (filterConfig.search.enabled) {
       const searchTerm = filterConfig.search.term;
-      const matchesSearch =
-        (book.title && book.title.toLowerCase().includes(searchTerm || "")) ||
-        (book.author && book.author.toLowerCase().includes(searchTerm || ""));
+      let matchesSearch = false;
+      let titleAuthorSearch = false;
+      let descriptionSearch = false;
 
+      if (filterConfig.search.searchTitleAuthor) {
+        titleAuthorSearch = !!(
+          (book.title && book.title.toLowerCase().includes(searchTerm || "")) ||
+          (book.author && book.author.toLowerCase().includes(searchTerm || ""))
+        );
+      }
+      if (filterConfig.search.searchDescription) {
+        descriptionSearch = !!(
+          book.description && book.description.toLowerCase().includes(searchTerm || "")
+        );
+      }
+
+      matchesSearch = titleAuthorSearch || descriptionSearch;
       if (!matchesSearch) return false;
     }
 
@@ -136,6 +155,8 @@ export const useGetBooks = () => {
   const sortedBy = useSortedBy();
   const sortDirection = useSortDirection();
   const searchValue = useSearchValue();
+  const searchDescription = useFiltersStore((state) => state.searchDescription);
+  const searchTitleAuthor = useFiltersStore((state) => state.searchTitleAuthor);
   const genres = useGenres();
   const tags = useTags();
   // Always get the library ID, even if null
@@ -151,26 +172,41 @@ export const useGetBooks = () => {
   } = useQuery({
     queryKey: ["books", activeLibraryId],
     queryFn: async () => {
+      console.log("[useGetBooks] Query function called");
       if (!absAPI) throw new Error("Not authenticated");
       return await absAPI.getLibraryItems();
     },
     enabled: !!absAPI && !!activeLibraryId, // Only run when authenticated and have library ID
-    staleTime: 1000 * 60 * 5, // Stale Minutes
+    // staleTime: 1000 * 60 * 5, // Stale Minutes
+    staleTime: (query) => {
+      // If we have no data (or empty array), it's stale immediately
+      if (!query.state.data || query.state.data.length === 0) {
+        return 0;
+      }
+      // Otherwise, trust the cache for 5 minutes
+      return 5 * 60 * 1000;
+    },
   });
 
   // Always call useMemo hooks
   const filteredData = useMemo(() => {
     if (!rawData?.length) return rawData;
 
-    const filterConfig = createFilterConfig({ searchValue, genres, tags });
+    const filterConfig = createFilterConfig({
+      searchValue,
+      genres,
+      tags,
+      searchDescription,
+      searchTitleAuthor,
+    });
 
     // Early return if no filters are active
     const hasActiveFilters = Object.values(filterConfig).some((filter) => filter.enabled);
     if (!hasActiveFilters) return rawData;
 
     return applyFilters(rawData, filterConfig);
-  }, [rawData, searchValue, genres, tags]);
-  console.log("Sort Direction", sortDirection);
+  }, [rawData, searchValue, genres, tags, searchDescription, searchTitleAuthor]);
+
   const sortedData = useMemo(() => {
     if (!filteredData?.length) return filteredData;
     const sorted = sortBy(filteredData, [sortedBy]);

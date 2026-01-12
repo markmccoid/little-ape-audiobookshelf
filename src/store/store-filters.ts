@@ -11,6 +11,8 @@ export type SortDirection = "asc" | "desc";
 // Define the state interface
 interface FiltersState {
   searchValue: string;
+  searchTitleAuthor: boolean;
+  searchDescription: boolean;
   genres: string[];
   tags: string[];
   author: string;
@@ -23,6 +25,8 @@ interface FiltersState {
 // Define the actions interface
 interface FiltersActions {
   setSearchValue: (value: string) => void;
+  toggleSearchTitleAuthor: () => void;
+  toggleSearchDescription: () => void;
   setGenres: (genres: string[]) => void;
   addGenre: (genre: string) => void;
   removeGenre: (genre: string) => void;
@@ -57,6 +61,8 @@ export const useFiltersStore = create<FiltersStore>()(
     (set, get) => ({
       // State
       searchValue: DEFAULT_SEARCH_VALUE,
+      searchTitleAuthor: true,
+      searchDescription: false,
       genres: DEFAULT_GENRES,
       tags: DEFAULT_TAGS,
       author: DEFAULT_AUTHOR,
@@ -68,6 +74,24 @@ export const useFiltersStore = create<FiltersStore>()(
       // Actions grouped in a separate namespace
       actions: {
         setSearchValue: (value: string) => set({ searchValue: value }),
+        toggleSearchTitleAuthor: () =>
+          set((state) => {
+            // If searchDescription is true, toggle searchTitleAuthor
+            // We do not want to allow both checkboxes to be OFF
+            if (!get().searchDescription && get().searchTitleAuthor) {
+              return { searchTitleAuthor: state.searchTitleAuthor };
+            }
+            return { searchTitleAuthor: !state.searchTitleAuthor };
+          }),
+        toggleSearchDescription: () =>
+          set((state) => {
+            // If searchDescription is true, and searchTitleAuthor is not checked do nothing (don't toggle)
+            // We do not want to allow both checkboxes to be OFF
+            if (!get().searchTitleAuthor && get().searchDescription) {
+              return { searchDescription: state.searchDescription };
+            }
+            return { searchDescription: !state.searchDescription };
+          }),
         setGenres: (genres: string[]) => set({ genres }),
 
         addGenre: (genre: string) =>

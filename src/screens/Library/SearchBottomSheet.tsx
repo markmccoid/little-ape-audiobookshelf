@@ -11,12 +11,10 @@ import { LiquidGlassView } from "@callstack/liquid-glass";
 import { Ionicons } from "@expo/vector-icons"; // Or your preferred icon set
 import { useFocusEffect } from "expo-router";
 import { useColorScheme } from "nativewind";
-import React, { useCallback } from "react";
+import React, { useCallback, useRef } from "react";
 import {
   Dimensions,
   Keyboard,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -32,7 +30,6 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from "react-native-reanimated";
-import { scheduleOnRN } from "react-native-worklets";
 import GenrePicker from "./GenrePicker";
 import SortContextMenu from "./SortContextMenu";
 import TagPicker from "./TagPicker";
@@ -40,7 +37,7 @@ const SCREEN_HEIGHT = Dimensions.get("window").height;
 const SCREEN_WIDTH = Dimensions.get("window").width;
 // How tall is the search bar area?
 // How tall is the search bar area?
-const HEADER_HEIGHT = 80;
+const HEADER_HEIGHT = 140;
 // Tab bar height (approximate)
 const TAB_BAR_HEIGHT = 90;
 // Top margin when sheet is fully expanded
@@ -58,20 +55,29 @@ const MIN_TRANSLATE_Y = 0; // Fully Closed (sitting at bottom)
 
 type Props = {
   onExpand: (isExpanded: boolean) => void;
+  booksFound: number;
 };
 
-export const SearchBottomSheet = ({ onExpand }: Props) => {
-  const detentIndex = useFiltersStore((state) => state.detentIndex);
+export const SearchBottomSheet = ({ onExpand, booksFound }: Props) => {
+  const searchInputRef = useRef<TextInput>(null);
   const { colorScheme } = useColorScheme();
   const { handleSearchChange, clearSearch, storeSearchValue, localSearchValue } =
     useDebouncedSearch();
   const themeColors = useThemeColors();
   const selectedGenres = useFiltersStore((state) => state.genres);
   const selectedTags = useFiltersStore((state) => state.tags);
+  const selectedSearchTitleAuthor = useFiltersStore((state) => state.searchTitleAuthor);
+  const selectedSearchDescription = useFiltersStore((state) => state.searchDescription);
   const toggleTag = useToggleTag();
   const toggleGenre = useToggleGenre();
   // Get filter sheet actions
-  const { updateFilterSheetState, clearGenres, clearTags } = useFiltersActions();
+  const {
+    updateFilterSheetState,
+    clearGenres,
+    clearTags,
+    toggleSearchDescription,
+    toggleSearchTitleAuthor,
+  } = useFiltersActions();
   const fadeExtra = useSharedValue(1);
   const filterSheetStyle = useAnimatedStyle(() => {
     return {
@@ -148,21 +154,21 @@ export const SearchBottomSheet = ({ onExpand }: Props) => {
       if (distToTop < distToHalf && distToTop < distToBottom) {
         // Snap to TOP
         scrollTo(MAX_TRANSLATE_Y);
-        scheduleOnRN(onExpand, true);
+        // scheduleOnRN(onExpand, true);
       } else if (distToHalf < distToTop && distToHalf < distToBottom) {
         // Snap to HALF
         scrollTo(HALF_TRANSLATE_Y);
-        scheduleOnRN(onExpand, true);
+        // scheduleOnRN(onExpand, true);
       } else {
         // Snap to BOTTOM
         // If keyboard is visible, force HALF instead of BOTTOM?
         // Logic handled by clamp in onUpdate technically, but good to ensure snap target is valid.
         if (isKeyboardVisible.value) {
           scrollTo(HALF_TRANSLATE_Y);
-          scheduleOnRN(onExpand, true);
+          // scheduleOnRN(onExpand, true);
         } else {
           scrollTo(MIN_TRANSLATE_Y);
-          scheduleOnRN(onExpand, false);
+          // scheduleOnRN(onExpand, false);
         }
       }
     });
@@ -253,46 +259,73 @@ export const SearchBottomSheet = ({ onExpand }: Props) => {
          This is the "Handle". We wrap it in GestureDetector so dragging this pulls the sheet.
       */}
       <GestureDetector gesture={gesture}>
-        <View className="h-20 rounded-t-[32px] flex-row items-center px-4">
+        <View className="rounded-t-[32px] flex-col px-4 pt-2" style={{ height: HEADER_HEIGHT }}>
           <View className="w-12 h-1.5 bg-gray-300/80 rounded-full absolute top-2.5 left-1/2 -ml-6" />
 
-          <View
-            className="flex-1 flex-row items-center bg-white/80 dark:bg-neutral-900/80 h-10 rounded-xl px-3 mt-4"
-            // className="flex-1 flex-row items-center bg-gray-100/80 h-10 rounded-xl px-3 mt-4"
-          >
-            <Ionicons name="search" size={20} color="#8E8E93" />
-            <TextInput
-              placeholder="Search Library..."
-              // className="flex-1 ml-2 text-gray-800"
-              className="flex-1 ml-2 text-gray-900 dark:text-gray-100 bg-white/80 dark:bg-neutral-900/80"
-              style={{
-                fontSize: 16,
-              }}
-              placeholderTextColor="#8E8E93"
-              value={localSearchValue}
-              onChangeText={handleSearchChange}
-              clearButtonMode="while-editing"
-              onFocus={() => {
-                scrollTo(HALF_TRANSLATE_Y);
-                scheduleOnRN(onExpand, true);
-              }}
-            />
+          {/* Checkbox Row */}
+          <View className="flex-row gap-4 mt-6 ml-1 mb-2">
+            <Pressable onPress={toggleSearchTitleAuthor} className="flex-row items-center gap-2">
+              <Ionicons
+                name={selectedSearchTitleAuthor ? "checkbox" : "square-outline"}
+                size={20}
+                color={selectedSearchTitleAuthor ? themeColors.accent : "#8E8E93"}
+              />
+              <Text className="text-foreground font-medium">Title/Author</Text>
+            </Pressable>
+            <Pressable onPress={toggleSearchDescription} className="flex-row items-center gap-2">
+              <Ionicons
+                name={selectedSearchDescription ? "checkbox" : "square-outline"}
+                size={20}
+                color={selectedSearchDescription ? themeColors.accent : "#8E8E93"}
+              />
+              <Text className="text-foreground font-medium">Description</Text>
+            </Pressable>
+            <View className="flex-row items-center ml-3">
+              <Text className="text-foreground font-medium">Books: {booksFound}</Text>
+            </View>
           </View>
-          <View className="ml-2 mt-4 justify-center">
-            <LiquidGlassView className="p-1 rounded-full" style={{ padding: 6, borderRadius: 30 }}>
-              <SortContextMenu />
-            </LiquidGlassView>
+
+          {/* Search Row */}
+          <View className="flex-row items-center w-full mb-2">
+            <View className="flex-1 flex-row items-center bg-white/80 dark:bg-neutral-900/80 h-10 rounded-xl px-3">
+              <Ionicons name="search" size={20} color="#8E8E93" />
+              <TextInput
+                placeholder="Search Library..."
+                className="flex-1 ml-2 text-gray-900 dark:text-gray-100 bg-white/80 dark:bg-neutral-900/80"
+                style={{
+                  fontSize: 16,
+                }}
+                ref={searchInputRef}
+                placeholderTextColor="#8E8E93"
+                value={localSearchValue}
+                onChangeText={handleSearchChange}
+                clearButtonMode="while-editing"
+                onFocus={() => {
+                  scrollTo(HALF_TRANSLATE_Y);
+                  // scheduleOnRN(onExpand, true);
+                }}
+                onBlur={() => {
+                  scrollTo(MIN_TRANSLATE_Y);
+                  // scheduleOnRN(onExpand, false);
+                }}
+              />
+            </View>
+            <View className="ml-2 justify-center">
+              <LiquidGlassView
+                className="p-1 rounded-full"
+                style={{ padding: 6, borderRadius: 30 }}
+              >
+                <SortContextMenu />
+              </LiquidGlassView>
+            </View>
           </View>
         </View>
       </GestureDetector>
 
       {/* --- THE GENRE/TAG Info Section ---
        */}
-      <Animated.View className="flex-1 flex-col" style={rContentStyle}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          className="flex-1 mt-2"
-        >
+      <Animated.View className="flex-1 flex-col" style={{}}>
+        <View className="flex-1 mt-2">
           <View className="flex-row items-center justify-start mx-2">
             <Text className="text-foreground text-lg font-semibold">Genres: </Text>
             <ScrollView
@@ -372,7 +405,7 @@ export const SearchBottomSheet = ({ onExpand }: Props) => {
               </View>
             </Animated.ScrollView>
           </View>
-        </KeyboardAvoidingView>
+        </View>
       </Animated.View>
     </Animated.View>
   );
