@@ -1,3 +1,5 @@
+import { addSyncLogEntry, formatPositionForLog } from "@/src/store/store-debuglogs";
+import { usePlaybackStore } from "@/src/store/store-playback";
 import { useSeekSettings } from "@/src/store/store-settings";
 import TrackPlayer, { Event } from "react-native-track-player";
 // src/services/PlaybackService.ts
@@ -24,6 +26,18 @@ export const handleRemotePrev = async () => {
   const rate = await TrackPlayer.getRate();
 
   if (trackIndex === 0) {
+    const session = usePlaybackStore.getState().session;
+    const { position } = await TrackPlayer.getProgress();
+    addSyncLogEntry({
+      syncType: "zero-reset",
+      title: session?.displayTitle || "Remote Command",
+      libraryItemId: session?.libraryItemId || "",
+      position: formatPositionForLog(position),
+      apiRoute: "services.ts",
+      functionName: "handleRemotePrev",
+      fileName: "services.ts",
+      success: true,
+    });
     await TrackPlayer.seekTo(0);
   } else {
     await TrackPlayer.skipToPrevious();

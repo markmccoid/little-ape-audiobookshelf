@@ -63,11 +63,22 @@ function mergeBookmarks(bookInfo: BookInfo, absBMs: Bookmark[]) {
     // index by time (store values first, then ABS overwrites when same time)
     const byTime = new Map(storeList.map((b: any) => [b.time, b]));
 
-    for (const b of absList) byTime.set(b.time, b); // ABS takes precedence
+    // Cast to any[] to avoid TypeScript issues with the union type of absObj
+    const safeAbsList = absList as any[];
+    for (const b of safeAbsList) {
+      // Check if we have a local bookmark at this time with notes
+      // localBookmark comes from byTime which is Map<any, any> so it should be any, but explicit typing helps
+      const localBookmark: any = byTime.get(b.time);
+      if (localBookmark?.notes) {
+        // Preserve local notes
+        b.notes = localBookmark.notes;
+      }
+      byTime.set(b.time, b); // ABS takes precedence
+    }
 
     // produce array, sorted consistently by createdAt (fallback 0)
     existingObj.bookmarks = [...byTime.values()].sort(
-      (a: any, b: any) => (a.createdAt || 0) - (b.createdAt || 0)
+      (a: any, b: any) => (a.createdAt || 0) - (b.createdAt || 0),
     );
 
     storeBookinfoFinal[id] = existingObj;

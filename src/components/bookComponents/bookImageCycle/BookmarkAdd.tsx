@@ -1,4 +1,5 @@
 import { useBooksActions } from "@/src/store/store-books";
+import { useUIActions } from "@/src/store/store-ui";
 import { useThemeColors } from "@/src/utils/theme";
 import { useFocusEffect } from "expo-router";
 import { PressableScale } from "pressto";
@@ -17,15 +18,16 @@ const BookmarkAdd = ({ libraryItemId }: Props) => {
   const bookActions = useBooksActions();
   const inputRef = useRef<TextInput>(null);
   const [bookmarkName, setBookmarkName] = useState("");
+  const uiActions = useUIActions();
 
   const handleAddBookmark = async () => {
     const progress = await TrackPlayer.getProgress();
     const activeTrack = await TrackPlayer.getActiveTrack();
 
     const globalPosition = progress.position + (activeTrack?.trackOffset ?? 0);
-    if (!bookmarkName.trim()) return; // Optional: prevent empty names
 
-    bookActions.addBookmark(libraryItemId, { time: globalPosition, title: bookmarkName });
+    uiActions.openBookmarkModal({ libraryItemId, position: globalPosition });
+    // bookActions.addBookmark(libraryItemId, { time: globalPosition, title: bookmarkName });
 
     // Clear the input after saving
     setBookmarkName("");
@@ -41,7 +43,7 @@ const BookmarkAdd = ({ libraryItemId }: Props) => {
   });
   return (
     <View className="flex-row items-center">
-      <View className="mx-2 flex-1">
+      {/* <View className="mx-2 flex-1">
         <TextInput
           ref={inputRef}
           className="border-hairline p-2 bg-white rounded-lg "
@@ -50,7 +52,7 @@ const BookmarkAdd = ({ libraryItemId }: Props) => {
           value={bookmarkName}
           onChangeText={setBookmarkName}
         />
-      </View>
+      </View> */}
       <View className="flex-row justify-end ml-2 mr-4">
         <PressableScale
           onPress={handleAddBookmark}
@@ -62,7 +64,7 @@ const BookmarkAdd = ({ libraryItemId }: Props) => {
             backgroundColor: `${themeColors.accent}77`,
           }}
         >
-          <Text className="text-accent-foreground text-xl font-semibold">Add</Text>
+          <Text className="text-accent-foreground text-xl font-semibold">Add Bookmark</Text>
         </PressableScale>
       </View>
     </View>

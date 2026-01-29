@@ -9,7 +9,8 @@ export type SyncType =
   | "sync-position" // Seek/jump syncs
   | "session-close" // Session close syncs
   | "queued-sync" // Queued offline syncs
-  | "queued-position-applied"; // When a queued position is used on reconnection
+  | "queued-position-applied" // When a queued position is used on reconnection
+  | "zero-reset"; // When position is explicitly reset to zero
 
 // Log entry type
 export type SyncLogEntry = {
@@ -112,8 +113,8 @@ export const useDebugLogsStore = create<DebugLogsStore>()(
         logs: state.logs,
         loggingEnabled: state.loggingEnabled,
       }),
-    }
-  )
+    },
+  ),
 );
 
 // Exported hooks

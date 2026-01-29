@@ -1,3 +1,4 @@
+import AddEditBookmark from "@/src/components/bookComponents/AddEditBookmark";
 import BookControls from "@/src/components/bookComponents/BookControls";
 import BookImageCycleContainer from "@/src/components/bookComponents/bookImageCycle/BookImageCycleContainer";
 import BookQuickButtons from "@/src/components/bookComponents/bookImageCycle/BookQuickButtons";
@@ -31,7 +32,7 @@ const MainPlayerContainer = () => {
         setIsOnBookScreen(false);
         // console.log("MainPlayer: Modal dismissed!");
       };
-    }, [])
+    }, []),
   );
 
   if (!playbackSession) {
@@ -84,6 +85,7 @@ const MainPlayerContainer = () => {
         {/* BOOK QUICK BUTTONS */}
         <BookQuickButtons pagerRef={pagerRef} />
       </View>
+      <AddEditBookmark />
     </View>
   );
 };

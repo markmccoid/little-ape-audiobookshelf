@@ -12,6 +12,7 @@ import {
   waitForReadyState,
 } from "../utils/rn-trackplayer/trackPlayerUtils";
 import { useBooksStore } from "./store-books";
+import { addSyncLogEntry, formatPositionForLog } from "./store-debuglogs";
 import { useSettingsStore } from "./store-settings";
 
 // Extend Track to reflect extra fields we attach from ABS
@@ -184,7 +185,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
           "Playback Error",
           "There was an error playing this audio. Please check your internet connection or try again later.\n\n" +
             (e.message || "Unknown error"),
-          [{ text: "OK" }]
+          [{ text: "OK" }],
         );
       });
 
@@ -278,7 +279,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
           bookInfo.positionInfo.currentPosition,
           { title: book.title || "", author: book.author || "" },
           dlTracks,
-          regularChapters
+          regularChapters,
         );
 
         // return await loadDownloadedBook(itemId);
@@ -324,7 +325,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
           Alert.alert(
             "Offline",
             "You're offline. This book requires an internet connection.\n\nDownload feature coming soon!",
-            [{ text: "OK" }]
+            [{ text: "OK" }],
           );
           throw new Error("Cannot load book while offline - not downloaded");
         }
@@ -361,7 +362,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
             Alert.alert(
               "Error Loading Book",
               "An unexpected error occurred while loading the book. Please try again.",
-              [{ text: "OK" }]
+              [{ text: "OK" }],
             );
           }
           throw error;
@@ -520,6 +521,18 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
     },
 
     seekTo: async (pos: number) => {
+      if (pos === 0) {
+        addSyncLogEntry({
+          syncType: "zero-reset",
+          title: get().session?.displayTitle || "Unknown",
+          libraryItemId: get().session?.libraryItemId || "",
+          position: formatPositionForLog(get().position),
+          apiRoute: "store-playback.ts",
+          functionName: "seekTo",
+          fileName: "store-playback.ts",
+          success: true,
+        });
+      }
       set({ seeking: true });
       const activeTrack = (await TrackPlayer.getActiveTrack()) as ABSQueuedTrack;
       const queue = (await TrackPlayer.getQueue()) as ABSQueuedTrack[];
@@ -750,6 +763,16 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       }
 
       if (trackIndex === 0) {
+        addSyncLogEntry({
+          syncType: "zero-reset",
+          title: session?.displayTitle || "Unknown",
+          libraryItemId: session?.libraryItemId || "",
+          position: formatPositionForLog(get().position),
+          apiRoute: "store-playback.ts",
+          functionName: "prev",
+          fileName: "store-playback.ts",
+          success: true,
+        });
         await TrackPlayer.seekTo(0);
       } else {
         await TrackPlayer.skipToPrevious();

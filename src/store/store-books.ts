@@ -137,7 +137,7 @@ interface BooksActions {
   // -- START BOOKSHELF ACTIONS --
   addBooksToBookshelf: (
     books: Pick<BookShelfBook, "libraryItemId">[],
-    bookshelfId: string
+    bookshelfId: string,
   ) => Promise<void>;
   removeBookFromBookshelf: (libraryItemId: string, bookshelfId: string) => Promise<void>;
   addBookToBookshelf: (libraryItemId: string, bookshelfId: string) => Promise<void>;
@@ -151,7 +151,7 @@ interface BooksActions {
   getBook: (libraryItemId: string) => Book | undefined;
   addBookmark: (
     libraryItemId: string,
-    { time, title }: Pick<Bookmark, "time" | "title">
+    { time, title, notes }: Pick<Bookmark, "time" | "title" | "notes">,
   ) => Promise<void>;
   deleteBookmark: (LibraryItemId: string, time: number) => Promise<void>;
   updateBookPlaybackRate: (libraryItemId: string, speed: number) => void;
@@ -169,10 +169,10 @@ interface BooksActions {
     total: number,
     numberOfFiles: number,
     numberOfFilesDownloaded: number,
-    downloadCompleted: boolean
+    downloadCompleted: boolean,
   ) => void;
   getDownloadStatus: (
-    libraryItemId: string
+    libraryItemId: string,
   ) => "ready" | "downloading" | "processing" | "completed";
   // delete downloaded book data and update book.isDownloaded to false and book.type to temporary
   deleteDownloadedBookData: (libraryItemId: string) => void;
@@ -205,7 +205,7 @@ export const useBooksStore = create<BooksStore>()(
         updateBook: (libraryItemId: string, updates: Partial<Omit<Book, "libraryItemId">>) =>
           set((state) => ({
             books: state.books.map((book) =>
-              book.libraryItemId === libraryItemId ? { ...book, ...updates } : book
+              book.libraryItemId === libraryItemId ? { ...book, ...updates } : book,
             ),
           })),
 
@@ -221,7 +221,7 @@ export const useBooksStore = create<BooksStore>()(
           return state.books.find((book) => book.libraryItemId === libraryItemId);
         },
 
-        addBookmark: async (libraryItemId, { time, title }) => {
+        addBookmark: async (libraryItemId, { time, title, notes }) => {
           const absAPI = getAbsAPI();
           const currentBookInfo = get().bookInfo;
           // Ensure the libraryItemId entry exists
@@ -235,7 +235,7 @@ export const useBooksStore = create<BooksStore>()(
 
           let updatedBookmarks: typeof existingBookmarks;
 
-          const newBookmark = { time, title, createdAt: Date.now() };
+          const newBookmark = { time, title, createdAt: Date.now(), notes };
           if (bookmarkExists) {
             // Overwrite: replace the bookmark with the same time
             updatedBookmarks = existingBookmarks.map((b) => (b.time === time ? newBookmark : b));
@@ -269,7 +269,7 @@ export const useBooksStore = create<BooksStore>()(
             const bookmarks = state.bookInfo?.[libraryItemId]?.bookmarks;
             if (bookmarks) {
               state.bookInfo[libraryItemId].bookmarks = bookmarks.filter(
-                (bookmark: Omit<Bookmark, "libraryItemId">) => bookmark.time !== time
+                (bookmark: Omit<Bookmark, "libraryItemId">) => bookmark.time !== time,
               );
             }
           });
@@ -287,7 +287,7 @@ export const useBooksStore = create<BooksStore>()(
           console.log("BOOK updated", speed);
           set((state) => ({
             books: state.books.map((book) =>
-              book.libraryItemId === libraryItemId ? { ...book, playbackRate: speed } : book
+              book.libraryItemId === libraryItemId ? { ...book, playbackRate: speed } : book,
             ),
           }));
         },
@@ -295,7 +295,7 @@ export const useBooksStore = create<BooksStore>()(
         updateIsDownloaded: (libraryItemId: string, isDownloaded: boolean) =>
           set((state) => ({
             books: state.books.map((book) =>
-              book.libraryItemId === libraryItemId ? { ...book, isDownloaded } : book
+              book.libraryItemId === libraryItemId ? { ...book, isDownloaded } : book,
             ),
           })),
 
@@ -303,7 +303,7 @@ export const useBooksStore = create<BooksStore>()(
         removeBookFromBookshelf: async (libraryItemId, bookshelfId) => {
           set((state) => {
             state.bookshelves[bookshelfId] = state.bookshelves[bookshelfId].filter(
-              (bookId) => bookId !== libraryItemId
+              (bookId) => bookId !== libraryItemId,
             );
           });
         },
@@ -355,8 +355,8 @@ export const useBooksStore = create<BooksStore>()(
 
           await Promise.all(
             libItemIdsToFetch.map((libraryItemId) =>
-              get().actions.getOrFetchBook({ libraryItemId })
-            )
+              get().actions.getOrFetchBook({ libraryItemId }),
+            ),
           );
 
           //!! Update the bookshelves key
@@ -443,14 +443,14 @@ export const useBooksStore = create<BooksStore>()(
                 chapterDuration: Math.round(chapter.end - chapter.start),
                 formattedChapterDuration: formatSeconds(
                   Math.round(chapter.end - chapter.start),
-                  "compact"
+                  "compact",
                 ),
                 completedPercentage: Math.round(
-                  (chapter.start / itemDetails?.media.duration) * 100
+                  (chapter.start / itemDetails?.media.duration) * 100,
                 ),
                 remainingPercentage: Math.round(
                   ((itemDetails?.media.duration - chapter.start) / itemDetails?.media.duration) *
-                    100
+                    100,
                 ),
               } as EnhancedChapter;
             });
@@ -494,7 +494,7 @@ export const useBooksStore = create<BooksStore>()(
             const queuedProgressItems = syncQueue.getQueuedItemsByType("playback-progress");
             // Filter to only get queued items for THIS book
             const queuedItemsForThisBook = queuedProgressItems.filter(
-              (item) => item.data?.libraryItemId === libraryItemId
+              (item) => item.data?.libraryItemId === libraryItemId,
             );
             const queuedPosition =
               queuedItemsForThisBook.length > 0
@@ -532,7 +532,7 @@ export const useBooksStore = create<BooksStore>()(
                 positionInfo: {
                   currentPosition: useQueuedPosition
                     ? queuedPosition
-                    : existingPosition ?? serverPosition ?? 0,
+                    : (existingPosition ?? serverPosition ?? 0),
                   lastProgressUpdate:
                     itemDetails?.userMediaProgress?.lastUpdate ||
                     state.bookInfo[libraryItemId]?.positionInfo?.lastProgressUpdate,
@@ -571,7 +571,7 @@ export const useBooksStore = create<BooksStore>()(
               const localPosition = existing.positionInfo?.currentPosition ?? 0;
               if (localPosition > serverPosition) {
                 console.log(
-                  `[updateMappedProgressPositions] Skipping ${bookId} - local (${localPosition}) ahead of server (${serverPosition})`
+                  `[updateMappedProgressPositions] Skipping ${bookId} - local (${localPosition}) ahead of server (${serverPosition})`,
                 );
                 return;
               }
@@ -662,9 +662,9 @@ export const useBooksStore = create<BooksStore>()(
                   total,
                   data.audioFiles.length,
                   i + 1,
-                  false
+                  false,
                 );
-              }
+              },
             );
 
             // Store the cancel function for the current file
@@ -755,7 +755,7 @@ export const useBooksStore = create<BooksStore>()(
           total,
           numberOfFiles,
           numberOfFilesDownloaded,
-          downloadCompleted
+          downloadCompleted,
         ) => {
           set({
             downloadProgress: {
@@ -817,8 +817,8 @@ export const useBooksStore = create<BooksStore>()(
         bookshelves: state.bookshelves,
         downloadedBookData: state.downloadedBookData,
       }),
-    }
-  )
+    },
+  ),
 );
 
 // Exported custom hooks following best practices

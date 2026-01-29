@@ -7,7 +7,15 @@ import {
   useSyncLogs,
 } from "../../store/store-debuglogs";
 
-const LogEntry = ({ item }: { item: SyncLogEntry }) => {
+const LogEntry = ({
+  item,
+  onTitlePress,
+  onLabelPress,
+}: {
+  item: SyncLogEntry;
+  onTitlePress: (title: string) => void;
+  onLabelPress: (label: string) => void;
+}) => {
   const isQueuedPositionApplied = item.syncType === "queued-position-applied";
   return (
     <View
@@ -15,23 +23,29 @@ const LogEntry = ({ item }: { item: SyncLogEntry }) => {
         styles.logEntry,
         !item.success && styles.logEntryError,
         isQueuedPositionApplied && styles.logEntryQueuedPosition,
+        item.syncType === "zero-reset" && styles.logEntryZeroReset,
       ]}
     >
       <View style={styles.logHeader}>
         <Text style={styles.timestamp}>{item.timestamp}</Text>
-        <Text
-          style={[
-            styles.syncType,
-            !item.success && styles.syncTypeError,
-            isQueuedPositionApplied && styles.syncTypeQueuedPosition,
-          ]}
-        >
-          {item.syncType}
-        </Text>
+        <Pressable onPress={() => onLabelPress(item.syncType)}>
+          <Text
+            style={[
+              styles.syncType,
+              !item.success && styles.syncTypeError,
+              isQueuedPositionApplied && styles.syncTypeQueuedPosition,
+              item.syncType === "zero-reset" && styles.syncTypeZeroReset,
+            ]}
+          >
+            {item.syncType}
+          </Text>
+        </Pressable>
       </View>
-      <Text style={styles.title} numberOfLines={1}>
-        {item.title}
-      </Text>
+      <Pressable onPress={() => onTitlePress(item.title)}>
+        <Text style={styles.title} numberOfLines={1}>
+          {item.title}
+        </Text>
+      </Pressable>
       <View style={styles.detailsRow}>
         <Text style={styles.position}>{item.position}</Text>
         {item.timeListened !== undefined && (
@@ -53,6 +67,23 @@ const DebugScreen = () => {
   const logs = useSyncLogs();
   const loggingEnabled = useLoggingEnabled();
   const { clearLogs, setLoggingEnabled } = useDebugLogsActions();
+  const [filterTitle, setFilterTitle] = React.useState<string | null>(null);
+  const [filterLabel, setFilterLabel] = React.useState<string | null>(null);
+
+  const filteredLogs = React.useMemo(() => {
+    if (filterTitle) {
+      return logs.filter((log) => log.title === filterTitle);
+    }
+    if (filterLabel) {
+      return logs.filter((log) => log.syncType === filterLabel);
+    }
+    return logs;
+  }, [logs, filterTitle, filterLabel]);
+
+  const clearFilter = () => {
+    setFilterTitle(null);
+    setFilterLabel(null);
+  };
 
   return (
     <View style={styles.container}>
@@ -67,22 +98,54 @@ const DebugScreen = () => {
       </View>
 
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Sync Logs ({logs.length})</Text>
-        <Pressable style={styles.clearButton} onPress={clearLogs}>
-          <Text style={styles.clearButtonText}>Clear</Text>
-        </Pressable>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.headerTitle}>
+            Logs ({filteredLogs.length}/{logs.length})
+          </Text>
+          {(filterTitle || filterLabel) && (
+            <Text style={styles.filterText} numberOfLines={1}>
+              Filter: {filterTitle || filterLabel}
+            </Text>
+          )}
+        </View>
+        <View style={styles.headerButtons}>
+          {(filterTitle || filterLabel) && (
+            <Pressable style={[styles.clearButton, styles.filterButton]} onPress={clearFilter}>
+              <Text style={styles.clearButtonText}>Clear Filter</Text>
+            </Pressable>
+          )}
+          <Pressable style={styles.clearButton} onPress={clearLogs}>
+            <Text style={styles.clearButtonText}>Clear Logs</Text>
+          </Pressable>
+        </View>
       </View>
 
-      {logs.length === 0 ? (
+      {filteredLogs.length === 0 ? (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>No sync logs yet.</Text>
-          <Text style={styles.emptySubtext}>Play a book to see sync activity.</Text>
+          <Text style={styles.emptyText}>
+            {logs.length === 0 ? "No sync logs yet." : "No logs match filter."}
+          </Text>
+          {logs.length === 0 && (
+            <Text style={styles.emptySubtext}>Play a book to see sync activity.</Text>
+          )}
         </View>
       ) : (
         <FlatList
-          data={logs}
+          data={filteredLogs}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <LogEntry item={item} />}
+          renderItem={({ item }) => (
+            <LogEntry
+              item={item}
+              onTitlePress={(t) => {
+                setFilterLabel(null);
+                setFilterTitle(t);
+              }}
+              onLabelPress={(l) => {
+                setFilterTitle(null);
+                setFilterLabel(l);
+              }}
+            />
+          )}
           contentContainerStyle={styles.list}
         />
       )}
@@ -175,6 +238,13 @@ const styles = StyleSheet.create({
   syncTypeQueuedPosition: {
     color: "#00BCD4",
   },
+  logEntryZeroReset: {
+    borderLeftColor: "#2196F3", // Blue
+    backgroundColor: "#1a2a3a",
+  },
+  syncTypeZeroReset: {
+    color: "#2196F3", // Blue
+  },
   title: {
     fontSize: 14,
     fontWeight: "600",
@@ -226,6 +296,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#666",
     marginTop: 4,
+  },
+  headerButtons: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  filterButton: {
+    backgroundColor: "#444",
+    marginRight: 8,
+  },
+  filterText: {
+    fontSize: 12,
+    color: "#4CAF50",
+    marginTop: 2,
   },
 });
 

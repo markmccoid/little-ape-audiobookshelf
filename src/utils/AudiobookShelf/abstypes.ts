@@ -90,10 +90,8 @@ export interface Bookmark {
   libraryItemId: string;
   time: number;
   title: string;
+  notes?: string;
   createdAt: number;
-  // absBookId?: string;
-  // positionSeconds?: number;
-  // name?: string;
 }
 
 export interface User {
@@ -496,7 +494,11 @@ export interface AuthorsItemsResponse {
 //~~ Error Classes
 //~~ ========================================================
 export class AudiobookshelfError extends Error {
-  constructor(message: string, public code: string, public statusCode?: number) {
+  constructor(
+    message: string,
+    public code: string,
+    public statusCode?: number,
+  ) {
     super(message);
     this.name = "AudiobookshelfError";
   }
