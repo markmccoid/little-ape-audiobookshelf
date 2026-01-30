@@ -124,7 +124,8 @@ export const SearchBottomSheet = ({ onExpand, booksFound }: Props) => {
       let newY = event.translationY + context.value.y;
       // Prevent dragging lower than the minimized state
       // If keyboard is open, prevent dragging lower than HALF
-      const limitBottom = isKeyboardVisible.value ? HALF_TRANSLATE_Y : MIN_TRANSLATE_Y; // e.g. -400 vs 0
+      // const limitBottom = isKeyboardVisible.value ? HALF_TRANSLATE_Y : MIN_TRANSLATE_Y; // e.g. -400 vs 0
+      const limitBottom = MIN_TRANSLATE_Y; // e.g. -400 vs 0
 
       // Clamp: Standard Check (MAX is e.g. -700, limitBottom is 0 or -400)
       // We want newY to be <= limitBottom AND >= MAX_TRANSLATE_Y
@@ -183,21 +184,21 @@ export const SearchBottomSheet = ({ onExpand, booksFound }: Props) => {
       translateY.value,
       [MAX_TRANSLATE_Y, HALF_TRANSLATE_Y, MIN_TRANSLATE_Y],
       [100, 100, 92],
-      Extrapolation.CLAMP
+      Extrapolation.CLAMP,
     );
 
     const marginLeftPercent = interpolate(
       translateY.value,
       [MAX_TRANSLATE_Y, HALF_TRANSLATE_Y, MIN_TRANSLATE_Y],
       [0, 0, 4],
-      Extrapolation.CLAMP
+      Extrapolation.CLAMP,
     );
 
     const borderRadius = interpolate(
       translateY.value,
       [MAX_TRANSLATE_Y, HALF_TRANSLATE_Y, MIN_TRANSLATE_Y],
       [32, 32, 24], // Morph from tighter card radius to standard sheet radius
-      Extrapolation.CLAMP
+      Extrapolation.CLAMP,
     );
 
     // Animate Height: From just the header (Pill) to full screen
@@ -205,7 +206,7 @@ export const SearchBottomSheet = ({ onExpand, booksFound }: Props) => {
       translateY.value,
       [MAX_TRANSLATE_Y, HALF_TRANSLATE_Y, MIN_TRANSLATE_Y],
       [SCREEN_HEIGHT, SCREEN_HEIGHT * 0.6, HEADER_HEIGHT],
-      Extrapolation.CLAMP
+      Extrapolation.CLAMP,
     );
 
     return {
@@ -223,7 +224,7 @@ export const SearchBottomSheet = ({ onExpand, booksFound }: Props) => {
       translateY.value,
       [HALF_TRANSLATE_Y, MIN_TRANSLATE_Y], // Fade in by the time we hit half-way
       [1, 0],
-      Extrapolation.CLAMP
+      Extrapolation.CLAMP,
     );
     return {
       opacity,
@@ -305,7 +306,12 @@ export const SearchBottomSheet = ({ onExpand, booksFound }: Props) => {
                   // scheduleOnRN(onExpand, true);
                 }}
                 onBlur={() => {
-                  scrollTo(MIN_TRANSLATE_Y);
+                  // If keyboard is not visible, scroll to the bottom
+                  setTimeout(() => {
+                    if (!isKeyboardVisible.value) {
+                      scrollTo(MIN_TRANSLATE_Y);
+                    }
+                  }, 500);
                   // scheduleOnRN(onExpand, false);
                 }}
               />

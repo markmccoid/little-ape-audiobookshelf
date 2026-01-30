@@ -167,7 +167,7 @@ const LibraryMain = () => {
       <FlashList
         className="flex-1 "
         ref={flatListRef}
-        contentContainerStyle={{ paddingBottom: 100 }}
+        contentContainerStyle={{ paddingBottom: 275 }}
         scrollEnabled
         contentInset={{ top: headerHeight + 10 }}
         contentOffset={{ x: 0, y: -(headerHeight + 10) }}
