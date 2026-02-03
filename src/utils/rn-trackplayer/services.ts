@@ -30,6 +30,7 @@ export const handleRemotePrev = async () => {
     const { position } = await TrackPlayer.getProgress();
     addSyncLogEntry({
       syncType: "zero-reset",
+      syncSource: "user",
       title: session?.displayTitle || "Remote Command",
       libraryItemId: session?.libraryItemId || "",
       position: formatPositionForLog(position),

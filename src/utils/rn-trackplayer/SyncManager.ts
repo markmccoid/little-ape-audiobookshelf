@@ -16,6 +16,12 @@ function getBookTitle(libraryItemId: string): string {
 }
 
 type SyncData = { timeListened: number; currentTime: number };
+export type SyncProgressOptions = {
+  debounce?: boolean;
+  // Allow explicit zero syncs (e.g., user reset, mark unread, first-time play)
+  allowZero?: boolean;
+  source?: "user" | "system" | "auto";
+};
 
 // Request types that should be queued when offline vs fail immediately
 const QUEUEABLE_OPERATIONS: SyncOperation[] = [
@@ -107,7 +113,7 @@ export class SyncManager {
     libraryItemId: string,
     globalPosition: number,
     isSessionClosed: boolean,
-    options?: { debounce?: boolean }
+    options?: SyncProgressOptions
   ): Promise<void> {
     if (isSessionClosed) return;
 
@@ -120,9 +126,9 @@ export class SyncManager {
       this.lastSyncAttempt = now;
     }
 
-    // Guard: Skip syncing position 0 if we have a stored non-zero position
-    // This prevents bad syncs during TrackPlayer state transitions (esp. on physical devices)
-    if (globalPosition === 0 && libraryItemId) {
+    // Guard: Skip syncing position 0 if we have a stored non-zero position.
+    // This prevents bad syncs during TrackPlayer state transitions.
+    if (globalPosition === 0 && libraryItemId && !options?.allowZero) {
       const { useBooksStore } = require("../../store/store-books");
       const storedPosition =
         useBooksStore.getState().bookInfo[libraryItemId]?.positionInfo?.currentPosition;
@@ -169,12 +175,29 @@ export class SyncManager {
               position: formatPositionForLog(globalPosition),
               timeListened: syncData.timeListened,
               syncType: "sync-progress",
+              syncSource: options?.source ?? "auto",
               apiRoute,
               functionName: "syncProgress",
               fileName: "SyncManager.ts",
               success: false,
               errorMessage: "Offline - queued for later",
             });
+            // Marker: explicit zero sync attempt that was queued
+            if (options?.allowZero && globalPosition === 0) {
+              addSyncLogEntry({
+                libraryItemId,
+                title: getBookTitle(libraryItemId),
+                position: formatPositionForLog(globalPosition),
+                timeListened: syncData.timeListened,
+                syncType: "zero-allowed-sync",
+                syncSource: options?.source ?? "auto",
+                apiRoute,
+                functionName: "syncProgress",
+                fileName: "SyncManager.ts",
+                success: false,
+                errorMessage: "Explicit zero sync queued (offline)",
+              });
+            }
             await this.queueSyncForLater(sessionId, libraryItemId, syncData);
             return;
           }
@@ -185,6 +208,21 @@ export class SyncManager {
           if (syncResult.success) {
             this.updateBooksStore(libraryItemId, syncResult.currentTime);
           }
+          // Marker: explicit zero sync was allowed and sent
+          if (options?.allowZero && globalPosition === 0 && syncResult.success) {
+            addSyncLogEntry({
+              libraryItemId,
+              title: getBookTitle(libraryItemId),
+              position: formatPositionForLog(globalPosition),
+              timeListened: syncData.timeListened,
+              syncType: "zero-allowed-sync",
+              syncSource: options?.source ?? "auto",
+              apiRoute,
+              functionName: "syncProgress",
+              fileName: "SyncManager.ts",
+              success: true,
+            });
+          }
 
           // Log successful sync
           addSyncLogEntry({
@@ -193,6 +231,7 @@ export class SyncManager {
             position: formatPositionForLog(globalPosition),
             timeListened: syncData.timeListened,
             syncType: "sync-progress",
+            syncSource: options?.source ?? "auto",
             apiRoute,
             functionName: "syncProgress",
             fileName: "SyncManager.ts",
@@ -207,6 +246,7 @@ export class SyncManager {
             position: formatPositionForLog(globalPosition),
             timeListened: syncData.timeListened,
             syncType: "sync-progress",
+            syncSource: options?.source ?? "auto",
             apiRoute,
             functionName: "syncProgress",
             fileName: "SyncManager.ts",
@@ -218,22 +258,6 @@ export class SyncManager {
       } catch (error) {
         console.error("Error in syncProgress queue task:", error);
       }
-    });
-  }
-
-  /**
-   * @deprecated Use syncProgress with { debounce: true } instead
-   * Kept for backward compatibility during transition
-   */
-  public async syncPosition(
-    sessionId: string | null,
-    libraryItemId: string,
-    globalPosition: number,
-    isSessionClosed: boolean
-  ): Promise<void> {
-    // Delegate to unified syncProgress with debounce enabled
-    return this.syncProgress(sessionId, libraryItemId, globalPosition, isSessionClosed, {
-      debounce: true,
     });
   }
 
@@ -336,10 +360,10 @@ export class SyncManager {
   public async processQueuedSyncs(): Promise<void> {
     const stats = await syncQueue.processQueue(async (item) => {
       // Handle playback progress
-      if (item.type === "playback-progress") {
-        const { sessionId, libraryItemId, timeListened, currentTime } = item.data;
+          if (item.type === "playback-progress") {
+            const { sessionId, libraryItemId, timeListened, currentTime } = item.data;
 
-        if (!libraryItemId || currentTime === undefined) return false;
+            if (!libraryItemId || currentTime === undefined) return false;
 
         const apiRoute = sessionId
           ? `/api/session/${sessionId}/sync`
@@ -358,11 +382,25 @@ export class SyncManager {
               title: getBookTitle(libraryItemId),
               position: formatPositionForLog(currentTime),
               syncType: "queued-sync",
+              syncSource: "queued",
               apiRoute,
               functionName: "processQueuedSyncs",
               fileName: "SyncManager.ts",
               success: true,
             });
+            if (currentTime === 0) {
+              addSyncLogEntry({
+                libraryItemId,
+                title: getBookTitle(libraryItemId),
+                position: formatPositionForLog(currentTime),
+                syncType: "zero-allowed-sync",
+                syncSource: "queued",
+                apiRoute,
+                functionName: "processQueuedSyncs",
+                fileName: "SyncManager.ts",
+                success: true,
+              });
+            }
             return true;
           } catch (error: any) {
             // If session expired (404), fall back to direct progress update
@@ -382,11 +420,25 @@ export class SyncManager {
             title: getBookTitle(libraryItemId),
             position: formatPositionForLog(currentTime),
             syncType: "queued-sync",
+            syncSource: "queued",
             apiRoute: `/api/me/progress/${libraryItemId}`,
             functionName: "processQueuedSyncs",
             fileName: "SyncManager.ts",
             success: true,
           });
+          if (currentTime === 0) {
+            addSyncLogEntry({
+              libraryItemId,
+              title: getBookTitle(libraryItemId),
+              position: formatPositionForLog(currentTime),
+              syncType: "zero-allowed-sync",
+              syncSource: "queued",
+              apiRoute: `/api/me/progress/${libraryItemId}`,
+              functionName: "processQueuedSyncs",
+              fileName: "SyncManager.ts",
+              success: true,
+            });
+          }
           return true;
         } catch (fallbackError) {
           addSyncLogEntry({

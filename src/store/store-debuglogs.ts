@@ -10,7 +10,8 @@ export type SyncType =
   | "session-close" // Session close syncs
   | "queued-sync" // Queued offline syncs
   | "queued-position-applied" // When a queued position is used on reconnection
-  | "zero-reset"; // When position is explicitly reset to zero
+  | "zero-reset" // When position is explicitly reset to zero
+  | "zero-allowed-sync"; // When an explicit zero sync is allowed and sent
 
 // Log entry type
 export type SyncLogEntry = {
@@ -21,6 +22,8 @@ export type SyncLogEntry = {
   position: string; // hh:mm:ss format
   timeListened?: number; // seconds of listening time sent
   syncType: SyncType;
+  // Origin of the sync action (e.g., user seek, system timer, queued replay)
+  syncSource?: "user" | "system" | "auto" | "queued" | "unknown";
   apiRoute: string; // e.g., "/api/session/{id}/sync" or "/api/me/progress/{itemId}"
   functionName: string;
   fileName: string;

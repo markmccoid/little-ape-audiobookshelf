@@ -87,7 +87,7 @@ export class SessionManager {
   public async getGlobalPosition(cachedPosition?: number): Promise<number> {
     const activeTrackIndex = (await TrackPlayer.getActiveTrackIndex()) || 0;
     const currentProgress = await TrackPlayer.getProgress();
-    const finalPos = cachedPosition || currentProgress.position;
+    const finalPos = cachedPosition ?? currentProgress.position;
 
     // Ensure we have valid track offsets
     if (!this.trackOffsets || this.trackOffsets.length === 0) {

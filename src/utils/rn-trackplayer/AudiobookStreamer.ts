@@ -4,7 +4,7 @@ import { ABSQueuedTrack } from "../../store/store-playback";
 import { AudiobookshelfAPI } from "../AudiobookShelf/absAPIClass";
 import { AudiobookSession } from "../AudiobookShelf/abstypes";
 import { SessionManager } from "./SessionManager";
-import { SyncManager } from "./SyncManager";
+import { SyncManager, SyncProgressOptions } from "./SyncManager";
 
 export type SessionData = Pick<
   AudiobookSession,
@@ -170,7 +170,7 @@ export default class AudiobookStreamer {
     this.sessionClosed = false;
   }
 
-  async syncProgress(currentPosition?: number): Promise<void> {
+  async syncProgress(currentPosition?: number, options?: SyncProgressOptions): Promise<void> {
     if (this.sessionClosed) return;
 
     if (this.pendingSessionClose) {
@@ -202,7 +202,8 @@ export default class AudiobookStreamer {
         activeSessionId,
         activeLibraryItemId,
         globalPosition,
-        this.sessionClosed
+        this.sessionClosed,
+        options
       );
     } catch (error: any) {
       if (error?.status === 404 || error?.statusCode === 404) {
@@ -216,27 +217,11 @@ export default class AudiobookStreamer {
     await this.syncProgress();
   }
 
-  async syncPosition(globalPosIn?: number): Promise<void> {
-    // console.log("Audiobook STREAMER book stroe pos update", globalPosIn);
-    if (!this.sessionManager.hasSession() || this.sessionClosed) return;
-
-    const activeSessionId = await this.sessionManager.getActiveSessionId();
-    const activeLibraryItemId = await this.sessionManager.getActiveLibraryItemId();
-
-    if (!activeLibraryItemId) return;
-
-    const globalPosition =
-      globalPosIn !== undefined ? globalPosIn : await this.sessionManager.getGlobalPosition();
-
-    await this.syncManager.syncPosition(
-      activeSessionId,
-      activeLibraryItemId,
-      globalPosition,
-      this.sessionClosed
-    );
-  }
-
-  async closeSession(): Promise<void> {
+  async closeSession(options?: {
+    positionOverride?: number;
+    timeListenedOverride?: number;
+    source?: "playback-error" | "user" | "system";
+  }): Promise<void> {
     if (!this.sessionManager.hasSession() && !this.pendingSessionClose) return;
     console.log("Close Session");
 
@@ -253,7 +238,7 @@ export default class AudiobookStreamer {
 
     try {
       const activeSessionId = await this.sessionManager.getActiveSessionId();
-      const sessionId = activeSessionId || this.pendingSessionClose?.sessionId || null;
+      const sessionId = activeSessionId || session?.id || this.pendingSessionClose?.sessionId || null;
 
       if (!sessionId) {
         this.sessionManager.clearSession();
@@ -265,7 +250,13 @@ export default class AudiobookStreamer {
       let finalPosition: number;
       let finalTimeListened: number;
 
-      if (this.pendingSessionClose && this.pendingSessionClose.sessionId === sessionId) {
+      if (options?.positionOverride !== undefined) {
+        finalPosition = options.positionOverride;
+        const lastSyncTime = this.syncManager.getLastSyncTime();
+        finalTimeListened =
+          options.timeListenedOverride ??
+          (lastSyncTime ? Math.floor((Date.now() - lastSyncTime) / 1000) : 0);
+      } else if (this.pendingSessionClose && this.pendingSessionClose.sessionId === sessionId) {
         finalPosition = this.pendingSessionClose.position;
         finalTimeListened = this.pendingSessionClose.timeListened;
         this.pendingSessionClose = null;
@@ -293,6 +284,7 @@ export default class AudiobookStreamer {
         title,
         position: formatPositionForLog(finalPosition),
         syncType: "session-close",
+        syncSource: options?.source ?? "system",
         apiRoute: `/api/session/${sessionId}/close`,
         functionName: "closeSession",
         fileName: "AudiobookStreamer.ts",
@@ -310,6 +302,7 @@ export default class AudiobookStreamer {
         title,
         position: "00:00:00",
         syncType: "session-close",
+        syncSource: options?.source ?? "system",
         apiRoute: "/api/session/close",
         functionName: "closeSession",
         fileName: "AudiobookStreamer.ts",

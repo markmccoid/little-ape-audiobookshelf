@@ -519,6 +519,7 @@ export const useBooksStore = create<BooksStore>()(
                   title: updated.title || "Unknown",
                   position: formatPositionForLog(queuedPosition),
                   syncType: "queued-position-applied",
+                  syncSource: "queued",
                   apiRoute: "N/A - Local queue applied",
                   functionName: "getOrFetchBook",
                   fileName: "store-books.ts",

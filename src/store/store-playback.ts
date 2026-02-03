@@ -50,6 +50,7 @@ interface PlaybackState {
   duration: number;
   isOnBookScreen: boolean;
   playbackRate: number;
+  recentSeekPositions: number[];
 }
 
 interface PlaybackActions {
@@ -69,12 +70,12 @@ interface PlaybackActions {
   getPrevTrackDuration: () => Promise<number>;
   updateActivePlaybackRate: (newRate: number) => Promise<void>;
   togglePlayPause: () => Promise<"playing" | "paused">;
-  seekTo: (pos: number) => Promise<void>;
+  seekTo: (pos: number, options?: { source?: "user" | "system" }) => Promise<void>;
   jumpForwardSeconds: (forwardSeconds: number) => Promise<void>;
   jumpBackwardSeconds: (backwardSeconds: number) => Promise<void>;
   next: () => Promise<void>;
   prev: () => Promise<void>;
-  closeSession: () => Promise<void>;
+  closeSession: (options?: { positionOverride?: number; source?: "playback-error" | "user" | "system" }) => Promise<void>;
   destroy: () => Promise<void>;
 
   // UI helpers
@@ -108,6 +109,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
   duration: 0,
   isOnBookScreen: false,
   playbackRate: 1.0,
+  recentSeekPositions: [],
 
   // ---- Actions
   actions: {
@@ -155,6 +157,11 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
         if (libraryItemId) {
           const currentTrack = get().queue[trackIndex];
           const globalPosition = position + (currentTrack?.trackOffset || 0);
+          const storedPosition =
+            useBooksStore.getState().bookInfo[libraryItemId]?.positionInfo?.currentPosition;
+          if (globalPosition === 0 && storedPosition && storedPosition > 0) {
+            return;
+          }
           useBooksStore.getState().actions.updateCurrentPosition(libraryItemId, globalPosition);
           set({ position: globalPosition, duration: e.duration });
         }
@@ -177,9 +184,9 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       const l3 = TrackPlayer.addEventListener(Event.PlaybackError, async (e) => {
         console.error("Playback Error received:", e);
 
-        // Reset player and session to prevent duplicate alerts or stuck state
-        await TrackPlayer.reset();
-        await get().actions.closeSession();
+        // Close session before resetting player so we preserve last known position
+        const lastPosition = get().position;
+        await get().actions.closeSession({ positionOverride: lastPosition, source: "playback-error" });
 
         Alert.alert(
           "Playback Error",
@@ -406,7 +413,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       // console.log("Chapter Info", chapterInfo);
       //!! When seeking to the initial startTime in
       //!! a book with chapters, we need to do our seetTo function
-      await get().actions.seekTo(startTime);
+      await get().actions.seekTo(startTime, { source: "system" });
       await TrackPlayer.setRate(savedPlaybackRate);
 
       set({ position: startTime });
@@ -423,8 +430,8 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       console.log("Book loaded");
       // wait for book to be fully loaded
       await waitForReadyState();
-      // Initial sync  so that we can invalidate queries and update continue listening queue.
-      // await streamer.syncPosition(startTime);
+      // Initial sync so that we can invalidate queries and update continue listening queue.
+      // await streamer.syncProgress(startTime, { source: "system" });
       set({ isLoaded: true });
     },
 
@@ -520,10 +527,12 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       }
     },
 
-    seekTo: async (pos: number) => {
+    seekTo: async (pos: number, options) => {
+      const source = options?.source ?? "user";
       if (pos === 0) {
         addSyncLogEntry({
           syncType: "zero-reset",
+          syncSource: "user",
           title: get().session?.displayTitle || "Unknown",
           libraryItemId: get().session?.libraryItemId || "",
           position: formatPositionForLog(get().position),
@@ -587,19 +596,24 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
         seekTimer = null;
       }, 1000) as unknown as NodeJS.Timeout;
 
-      // Immediately sync the new position to the server
+      // User-initiated seeks should update local store immediately and sync right away
+      if (source !== "system") {
+        const libraryItemId = get().session?.libraryItemId;
+        if (libraryItemId) {
+          useBooksStore.getState().actions.updateCurrentPosition(libraryItemId, pos);
+        }
+        // Keep a small history of explicit user seeks for future "jump back" UX or history UI.
+        const recent = get().recentSeekPositions;
+        const nextRecent = [pos, ...recent].slice(0, 10);
+        set({ recentSeekPositions: nextRecent });
+      }
+
       try {
         const streamer = AudiobookStreamer.getInstance();
-        // Only sync if we have an active session
         const currentSession = streamer.getSession();
-        if (currentSession) {
-          //!! This is the culprit.  it is supposed to save our position on sync,
-          //!! may need a syncGlobalPosition function in AudioBookStreamer that accepts a position
-          //!! That way this won't reset it.
+        if (currentSession && source !== "system") {
           console.log("Syncing position", pos);
-          await streamer.syncPosition(pos);
-        } else {
-          console.log("Skipping position sync - no active session");
+          await streamer.syncProgress(pos, { allowZero: pos === 0, source: "user" });
         }
       } catch (error) {
         // Log but don't throw on sync errors to avoid disrupting playback
@@ -765,6 +779,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       if (trackIndex === 0) {
         addSyncLogEntry({
           syncType: "zero-reset",
+          syncSource: "user",
           title: session?.displayTitle || "Unknown",
           libraryItemId: session?.libraryItemId || "",
           position: formatPositionForLog(get().position),
@@ -779,14 +794,14 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       }
     },
 
-    closeSession: async () => {
+    closeSession: async (options) => {
       try {
         // ❌ REMOVED: Redundant final position sync
         // AudiobookStreamer.closeSession() handles final sync to server
         // and books store will be updated from server response
 
         const streamer = AudiobookStreamer.getInstance();
-        await streamer.closeSession();
+        await streamer.closeSession(options);
       } catch {
         // Instance doesn't exist, nothing to close
       }

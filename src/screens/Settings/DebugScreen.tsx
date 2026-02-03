@@ -17,6 +17,7 @@ const LogEntry = ({
   onLabelPress: (label: string) => void;
 }) => {
   const isQueuedPositionApplied = item.syncType === "queued-position-applied";
+  const syncLabel = item.syncSource ? `${item.syncType} (${item.syncSource})` : item.syncType;
   return (
     <View
       style={[
@@ -37,7 +38,7 @@ const LogEntry = ({
               item.syncType === "zero-reset" && styles.syncTypeZeroReset,
             ]}
           >
-            {item.syncType}
+            {syncLabel}
           </Text>
         </Pressable>
       </View>
