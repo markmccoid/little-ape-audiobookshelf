@@ -24,6 +24,20 @@ export type ABSQueuedTrack = Track & {
   libraryItemId?: string;
 };
 
+const normalizeChapters = (chapters: Chapter[] | undefined) => {
+  if (!chapters || chapters.length === 0) return [];
+  return chapters.map((ch) => {
+    const start = Math.max(0, Math.round(ch.start));
+    let end = Math.round(ch.end);
+    if (end <= start) end = start + 1;
+    return {
+      ...ch,
+      start,
+      end,
+    };
+  });
+};
+
 // Module-scoped flags to avoid duplicate bindings during Fast Refresh
 let eventsBound = false;
 let playerInitialized = false;
@@ -75,7 +89,10 @@ interface PlaybackActions {
   jumpBackwardSeconds: (backwardSeconds: number) => Promise<void>;
   next: () => Promise<void>;
   prev: () => Promise<void>;
-  closeSession: (options?: { positionOverride?: number; source?: "playback-error" | "user" | "system" }) => Promise<void>;
+  closeSession: (options?: {
+    positionOverride?: number;
+    source?: "playback-error" | "user" | "system";
+  }) => Promise<void>;
   destroy: () => Promise<void>;
 
   // UI helpers
@@ -186,13 +203,16 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
 
         // Close session before resetting player so we preserve last known position
         const lastPosition = get().position;
-        await get().actions.closeSession({ positionOverride: lastPosition, source: "playback-error" });
+        await get().actions.closeSession({
+          positionOverride: lastPosition,
+          source: "playback-error",
+        });
 
         Alert.alert(
           "Playback Error",
           "There was an error playing this audio. Please check your internet connection or try again later.\n\n" +
             (e.message || "Unknown error"),
-          [{ text: "OK" }],
+          [{ text: "OK" }]
         );
       });
 
@@ -286,7 +306,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
           bookInfo.positionInfo.currentPosition,
           { title: book.title || "", author: book.author || "" },
           dlTracks,
-          regularChapters,
+          regularChapters
         );
 
         // return await loadDownloadedBook(itemId);
@@ -332,7 +352,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
           Alert.alert(
             "Offline",
             "You're offline. This book requires an internet connection.\n\nDownload feature coming soon!",
-            [{ text: "OK" }],
+            [{ text: "OK" }]
           );
           throw new Error("Cannot load book while offline - not downloaded");
         }
@@ -343,6 +363,12 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
           const result = await streamer.setupAudioPlayback(itemId);
           tracks = result.tracks;
           sessionData = result.sessionData;
+          if (sessionData?.chapters?.length) {
+            sessionData = {
+              ...sessionData,
+              chapters: normalizeChapters(sessionData.chapters),
+            };
+          }
         } catch (error) {
           console.error("Error loading book:", error);
 
@@ -369,7 +395,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
             Alert.alert(
               "Error Loading Book",
               "An unexpected error occurred while loading the book. Please try again.",
-              [{ text: "OK" }],
+              [{ text: "OK" }]
             );
           }
           throw error;
@@ -551,7 +577,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
 
       let newTrackOffset = { offset: 0, nextTrack: 0 };
       queue.forEach((el) => {
-        if (el.trackOffset < pos) {
+        if (el.trackOffset <= pos) {
           newTrackOffset = { offset: el.trackOffset, nextTrack: el.trackIndex };
         }
       });

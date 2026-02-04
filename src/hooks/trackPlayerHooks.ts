@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useActiveTrack, useProgress } from "react-native-track-player";
 import {
   EnhancedChapter,
@@ -17,19 +17,48 @@ import { useSmartPositionStore } from "@/src/store/store-smartposition";
 
 export const useSmartPosition = (libraryItemId: string) => {
   const isLoaded = usePlaybackStore((s) => s.isLoaded);
-  // const isSeeking = usePlaybackStore((s) => s.seeking);
+  const isSeeking = usePlaybackStore((s) => s.seeking);
   const optimisticPosition = usePlaybackStore((s) => s.optimisticPosition);
+  const storePosition = usePlaybackStore((s) => s.position);
   const sessionId = usePlaybackStore((s) => s.session?.libraryItemId);
+  const session = usePlaybackSession();
   const isBookActive = sessionId === libraryItemId;
   // const isPlaying = usePlaybackIsPlaying(libraryItemId);
   const { book, duration = 0 } = useBookData(libraryItemId);
   // Get the bookInfo for specific libraryItemId
   const bookInfo = useBooksStore((state) => state.bookInfo[libraryItemId]);
-  const chapters = book?.chapters || [];
+  const chapters = useMemo(() => {
+    if (isBookActive && session?.chapters?.length) {
+      return session.chapters.map((ch, idx) => {
+        const startSeconds = Math.max(0, Math.round(ch.start));
+        const endSeconds = Math.max(startSeconds, Math.round(ch.end));
+        return {
+          id: ch.id,
+          title: ch.title,
+          startSeconds,
+          endSeconds,
+          chapterDuration: Math.max(0, endSeconds - startSeconds),
+          formattedStart: "",
+          formattedEnd: "",
+          formattedChapterDuration: "",
+          completedPercentage: 0,
+          remainingPercentage: 0,
+          // Keep indices deterministic for UI labels if used elsewhere
+          chapterIndex: idx,
+          chapterNumber: idx + 1,
+        } as EnhancedChapter;
+      });
+    }
+    return book?.chapters || [];
+  }, [isBookActive, session?.chapters, book?.chapters]);
   const progress = useProgress();
   const activeTrack = useActiveTrack();
   const update = useSmartPositionStore((s) => s.updateForActiveBook);
   const { updateCurrentChapterIndex } = usePlaybackActions();
+  const seekGateTargetRef = useRef<number | null>(null);
+  const seekGateStartRef = useRef<number>(0);
+  const lastActivePosRef = useRef<number | null>(null);
+  const lastSeekAtRef = useRef<number>(0);
 
   useEffect(() => {
     // console.log("USESMPOS", progress.position, book?.currentPosition, book?.title);
@@ -37,6 +66,10 @@ export const useSmartPosition = (libraryItemId: string) => {
     // console.log("OPTIMISTIC UPDATE", optimisticPosition);
     if (optimisticPosition !== null) {
       // Use optimistic position
+      seekGateTargetRef.current = optimisticPosition;
+      seekGateStartRef.current = Date.now();
+      lastActivePosRef.current = optimisticPosition;
+      lastSeekAtRef.current = Date.now();
       const curr = getChapterFromProgress(chapters, optimisticPosition);
       // update playlist store
       updateCurrentChapterIndex(curr?.chapterIndex);
@@ -54,23 +87,83 @@ export const useSmartPosition = (libraryItemId: string) => {
       return;
     }
 
-    if (isBookActive && isLoaded && progress.position !== 0) {
+    if (isSeeking && seekGateTargetRef.current !== null) {
+      const elapsedMs = Date.now() - seekGateStartRef.current;
       const newPos = Math.round((activeTrack?.trackOffset ?? 0) + progress.position);
-      const curr = getChapterFromProgress(chapters, newPos);
-      // update playlist store
-      updateCurrentChapterIndex(curr?.chapterIndex);
-      // update smart positions store
-      update(libraryItemId, newPos, duration, {
-        chapterPosition: newPos - (curr?.startSeconds ?? 0),
-        chapterStart: curr?.startSeconds || 0,
-        chapterEnd: (curr?.startSeconds || 0) + (curr?.chapterDuration || 0),
-        chapterDuration: curr?.chapterDuration ?? 0,
-        chapterTitle: curr?.title ?? "",
-        numOfChapters: chapters.length,
-        chapterNumber: curr?.chapterNumber || 1,
-        chapterIndex: curr?.chapterIndex || 0,
-      });
-    } else if (!isBookActive || progress.position == 0) {
+      if (elapsedMs < 2000 && Math.abs(newPos - seekGateTargetRef.current) > 1) {
+        return;
+      }
+      // Clear the gate once we are close enough or have timed out.
+      seekGateTargetRef.current = null;
+      seekGateStartRef.current = 0;
+    }
+
+    if (isBookActive && isLoaded) {
+      const elapsedSinceSeek = Date.now() - lastSeekAtRef.current;
+      const progressPos = Math.round((activeTrack?.trackOffset ?? 0) + progress.position);
+      const storePos = Math.round(storePosition || 0);
+      const diverged = Math.abs(progressPos - storePos) > 1;
+      const withinSeekWindow = isSeeking || elapsedSinceSeek < 1500;
+
+      // During streaming seeks, progress can lag behind the store position.
+      // Prefer the store value briefly to avoid snapping back to the prior chapter.
+      if (withinSeekWindow && diverged && storePos > 0) {
+        const curr = getChapterFromProgress(chapters, storePos);
+        updateCurrentChapterIndex(curr?.chapterIndex);
+        update(libraryItemId, storePos, duration, {
+          chapterPosition: storePos - (curr?.startSeconds ?? 0),
+          chapterStart: curr?.startSeconds || 0,
+          chapterEnd: (curr?.startSeconds || 0) + (curr?.chapterDuration || 0),
+          chapterDuration: curr?.chapterDuration ?? 0,
+          chapterTitle: curr?.title ?? "",
+          numOfChapters: chapters.length,
+          chapterNumber: curr?.chapterNumber || 1,
+          chapterIndex: curr?.chapterIndex || 0,
+        });
+        return;
+      }
+
+      // During streaming seeks, progress.position can briefly report 0 while the player settles.
+      // Avoid falling back to stale bookInfo; keep the last active/optimistic position instead.
+      if (progress.position === 0 && lastActivePosRef.current !== null) {
+        const heldPos = lastActivePosRef.current;
+        const curr = getChapterFromProgress(chapters, heldPos);
+        updateCurrentChapterIndex(curr?.chapterIndex);
+        update(libraryItemId, heldPos, duration, {
+          chapterPosition: heldPos - (curr?.startSeconds ?? 0),
+          chapterStart: curr?.startSeconds || 0,
+          chapterEnd: (curr?.startSeconds || 0) + (curr?.chapterDuration || 0),
+          chapterDuration: curr?.chapterDuration ?? 0,
+          chapterTitle: curr?.title ?? "",
+          numOfChapters: chapters.length,
+          chapterNumber: curr?.chapterNumber || 1,
+          chapterIndex: curr?.chapterIndex || 0,
+        });
+        return;
+      }
+
+      if (progress.position !== 0) {
+        const newPos = progressPos;
+        lastActivePosRef.current = newPos;
+        const curr = getChapterFromProgress(chapters, newPos);
+        // update playlist store
+        updateCurrentChapterIndex(curr?.chapterIndex);
+        // update smart positions store
+        update(libraryItemId, newPos, duration, {
+          chapterPosition: newPos - (curr?.startSeconds ?? 0),
+          chapterStart: curr?.startSeconds || 0,
+          chapterEnd: (curr?.startSeconds || 0) + (curr?.chapterDuration || 0),
+          chapterDuration: curr?.chapterDuration ?? 0,
+          chapterTitle: curr?.title ?? "",
+          numOfChapters: chapters.length,
+          chapterNumber: curr?.chapterNumber || 1,
+          chapterIndex: curr?.chapterIndex || 0,
+        });
+        return;
+      }
+    }
+
+    if (!isBookActive || progress.position == 0) {
       // console.log("Pulling from stored book", book?.title, book?.currentPosition);
       const pos = bookInfo?.positionInfo?.currentPosition ?? 0;
       const curr = getChapterFromProgress(chapters, pos);
@@ -95,6 +188,9 @@ export const useSmartPosition = (libraryItemId: string) => {
     libraryItemId,
     bookInfo?.positionInfo?.currentPosition,
     optimisticPosition,
+    isSeeking,
+    chapters,
+    storePosition,
   ]);
 };
 
@@ -270,15 +366,21 @@ function getChapterFromProgress(chapters: EnhancedChapter[] | undefined, progres
   // Optional: handle values outside range
   if (!chapters || chapters.length === 0 || progressSeconds < chapters[0].startSeconds) return null;
 
-  // Find chapter where startSeconds ≤ progressSeconds < endSeconds
+  // Find the LAST matching chapter so overlaps prefer the later chapter.
+  let match: EnhancedChapter | null = null;
+  let matchIndex = -1;
   for (let i = 0; i < chapters.length; i++) {
     const ch = chapters[i];
     if (progressSeconds >= ch.startSeconds && progressSeconds < ch.endSeconds) {
-      return { ...ch, chapterNumber: i + 1, chapterIndex: i };
+      match = ch;
+      matchIndex = i;
     }
   }
+  if (match && matchIndex >= 0) {
+    return { ...match, chapterNumber: matchIndex + 1, chapterIndex: matchIndex };
+  }
 
-  // If beyond last chapter end, return last chapter (or null depending on logic)
+  // If beyond last chapter end or in a gap, return the last chapter.
   return {
     ...chapters[chapters.length - 1],
     chapterNumber: chapters.length,
