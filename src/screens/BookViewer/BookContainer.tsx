@@ -9,6 +9,7 @@ import { BlurView } from "expo-blur";
 import { Image, ImageBackground } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { Stack, useLocalSearchParams } from "expo-router";
+import { SymbolView } from "expo-symbols";
 import { useColorScheme } from "nativewind";
 import React, { useReducer } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
@@ -74,6 +75,9 @@ const BookContainer = () => {
         <View className="flex-row mx-2 justify-between items-center pt-10 ">
           <View className="absolute z-10 left-[-20]">
             <RateSetter />
+          </View>
+          <View className="absolute z-10 bottom-[-10] bg-white rounded-full">
+            <SymbolView name="heart.circle.fill" tintColor={"red"} size={30} />
           </View>
           <Image
             source={book?.coverURI || cover}

@@ -141,36 +141,13 @@ const LibraryMain = () => {
 
   return (
     <View className="h-full ">
-      {/* <View>
-        <FilterBottomSheet />
-      </View> */}
-      {/* <LiquidGlassView
-        effect="regular"
-        tintColor={`${themeColors.accent}66`}
-        style={{
-          height: headerHeight + 10,
-          position: "absolute",
-          top: 0,
-          width: "100%",
-          zIndex: 10,
-          borderBottomWidth: StyleSheet.hairlineWidth,
-          borderBottomColor: themeColors.accent,
-        }}
-      >
-        <View
-          className="flex-row justify-center items-center"
-          style={{ paddingTop: headerHeight - 20 }}
-        >
-          <Text className="text-lg font-bold px-2 text-foreground">Found {data?.length} books</Text>
-        </View>
-      </LiquidGlassView> */}
       <FlashList
         className="flex-1 "
         ref={flatListRef}
         contentContainerStyle={{ paddingBottom: 275 }}
         scrollEnabled
-        contentInset={{ top: headerHeight + 10 }}
-        contentOffset={{ x: 0, y: -(headerHeight + 10) }}
+        contentInset={{ top: headerHeight }}
+        // contentOffset={{ x: 0, y: -(headerHeight + 10) }}
         contentInsetAdjustmentBehavior="never"
         // automaticallyAdjustContentInsets={false}
         data={data}
