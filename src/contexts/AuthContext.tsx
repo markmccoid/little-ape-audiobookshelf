@@ -24,6 +24,8 @@ import {
   AuthState,
   requiresUserAction,
 } from "../utils/AudiobookShelf/authTypes";
+import { checkIsOnline } from "../utils/networkHelper";
+import { SyncManager } from "../utils/rn-trackplayer/SyncManager";
 
 interface AuthInfo {
   serverUrl: string | null;
@@ -82,6 +84,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Track if we've subscribed to events
   const eventSubscriptionRef = useRef<(() => void) | null>(null);
 
+  const processQueuedSyncsAfterAuth = useCallback(async () => {
+    try {
+      const isOnline = await checkIsOnline();
+      if (!isOnline) return;
+
+      const api = isAbsAPIInitialized() ? getAbsAPI() : await AudiobookshelfAPI.create();
+      const syncManager = new SyncManager(api);
+      await syncManager.processQueuedSyncs();
+    } catch (error) {
+      console.warn("AuthContext: Failed to process queued syncs after auth:", error);
+    }
+  }, []);
+
   // Subscribe to auth events
   useEffect(() => {
     const handleAuthEvent = (payload: AuthEventPayload) => {
@@ -108,6 +123,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       // Update isAuthenticated based on state
       setIsAuthenticated(payload.state === AuthState.AUTHENTICATED);
+
+      if (
+        payload.event === AuthEvent.LOGIN_SUCCESS ||
+        payload.event === AuthEvent.TOKEN_REFRESHED
+      ) {
+        processQueuedSyncsAfterAuth();
+      }
     };
 
     // Subscribe to all auth events
@@ -120,7 +142,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         eventSubscriptionRef.current = null;
       }
     };
-  }, []);
+  }, [processQueuedSyncsAfterAuth]);
 
   const checkAuthStatus = useCallback(async () => {
     try {

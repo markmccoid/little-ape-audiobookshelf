@@ -1,5 +1,6 @@
 import PQueue from "p-queue";
 import { addSyncLogEntry, formatPositionForLog } from "../../store/store-debuglogs";
+import { AudiobookshelfAuth } from "../AudiobookShelf/absAuthClass";
 import { AudiobookshelfAPI } from "../AudiobookShelf/absAPIClass";
 import { SyncOperation, syncQueue } from "../syncQueue";
 import { checkIsOnline } from "../networkHelper";
@@ -154,6 +155,30 @@ export class SyncManager {
           timeListened: sessionId ? timeListened : 0,
           currentTime: globalPosition,
         };
+
+        if (!sessionId) {
+          const isOnline = await checkIsOnline();
+          const isAuthed = AudiobookshelfAuth.isAssumedAuthedGlobal;
+          if (!isOnline || !isAuthed) {
+            const reason = !isOnline ? "Offline - queued for later" : "Not authenticated - queued";
+            addSyncLogEntry({
+              libraryItemId,
+              title: getBookTitle(libraryItemId),
+              position: formatPositionForLog(globalPosition),
+              timeListened: syncData.timeListened,
+              syncType: "sync-progress",
+              syncSource: options?.source ?? "auto",
+              apiRoute: `/api/me/progress/${libraryItemId}`,
+              functionName: "syncProgress",
+              fileName: "SyncManager.ts",
+              success: false,
+              errorMessage: reason,
+            });
+            await this.queueSyncForLater(sessionId, libraryItemId, syncData);
+            this.updateBooksStore(libraryItemId, globalPosition);
+            return;
+          }
+        }
 
         try {
           let syncResult;

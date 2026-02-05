@@ -540,10 +540,20 @@ If issues arise:
 **Behavior:**
 - Replaced direct `NetInfo.fetch()` checks with `checkIsOnline()` and `checkIsOnlineStrict()` to unify online detection across auth, API, and sync layers.
 
+#### 4.5 Queue Local Playback Progress When Unauthenticated
+**Files:**
+- `src/utils/rn-trackplayer/SyncManager.ts`
+- `src/contexts/AuthContext.tsx`
+
+**Behavior:**
+- When a local (downloaded) session is playing and the user is offline or unauthenticated, progress syncs are **queued** instead of being treated as successful.
+- On `LOGIN_SUCCESS` and `TOKEN_REFRESHED`, the queue is processed immediately using a fresh API client (if needed).
+- This ensures local playback progress syncs once the user is back online and authenticated.
+
 ### Behavioral Summary
 - Downloaded books can be played offline without authentication.
 - Streaming requires online + authenticated state.
 - App initialization no longer hangs when reachability is unknown.
 
 ### Known Caveat
-- If a user plays downloaded content while unauthenticated, progress is stored locally but not queued for server sync. The server only updates after a later online, authenticated playback and pause.
+- Progress recorded during local playback while offline or unauthenticated is now queued and synced after re-login or reconnection.
