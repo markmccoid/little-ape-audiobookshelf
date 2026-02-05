@@ -63,7 +63,7 @@ export const NetworkStatusBanner: React.FC = () => {
 
   const bannerConfig = isOffline
     ? {
-        backgroundColor: "#f59e0b", // amber-500
+        backgroundColor: "#f59e0b77", // amber-500
         text: "No internet connection - Using cached data",
         icon: "📡",
       }
@@ -96,7 +96,7 @@ export const NetworkStatusBanner: React.FC = () => {
       <Text style={{ fontSize: 18, marginRight: 8 }}>{bannerConfig.icon}</Text>
       <Text
         style={{
-          color: "white",
+          color: "#000000bb",
           fontSize: 14,
           fontWeight: "600",
         }}
