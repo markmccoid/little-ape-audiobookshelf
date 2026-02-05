@@ -34,6 +34,21 @@ export async function checkIsOnline(): Promise<boolean> {
 }
 
 /**
+ * Strict online check for startup flows.
+ * Treats unknown reachability (null) as offline to avoid hanging network requests.
+ */
+export async function checkIsOnlineStrict(): Promise<boolean> {
+  try {
+    const state = await NetInfo.fetch();
+    return state.isConnected === true && state.isInternetReachable === true;
+  } catch (error) {
+    console.error("Error checking network state (strict):", error);
+    // Fail closed for initialization paths
+    return false;
+  }
+}
+
+/**
  * Get detailed network state information
  * Useful for debugging and logging
  */

@@ -5,6 +5,7 @@ import { triggerNetworkRefresh } from "../../contexts/NetworkContext";
 import { AudiobookshelfAPI } from "./absAPIClass";
 import { AudiobookshelfAuth } from "./absAuthClass";
 import { NetworkError, OfflineError } from "./abstypes";
+import { checkIsOnlineStrict } from "../networkHelper";
 
 import "react-native-random-uuid";
 
@@ -170,6 +171,12 @@ export const isAbsAPIInitialized = (): boolean => {
 export async function prewarmBooksCache(queryClient: QueryClient) {
   const absAPI = useAbsAPI();
   const activeLibraryId = absAPI.getActiveLibraryId();
+
+  const isOnline = await checkIsOnlineStrict();
+  if (!isOnline) {
+    console.warn("prewarmBooksCache: Offline, skipping cache prewarming");
+    return;
+  }
 
   // Only prewarm cache if we have a valid library ID
   if (!activeLibraryId) {

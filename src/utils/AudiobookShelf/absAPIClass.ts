@@ -115,6 +115,14 @@ export class AudiobookshelfAPI {
       return api;
     }
 
+    // If we don't know reachability yet, avoid blocking initialization
+    // and let the app proceed with cached/local data.
+    const networkState = await NetInfo.fetch();
+    if (!(networkState.isConnected === true && networkState.isInternetReachable === true)) {
+      console.warn("ABS create: Offline or unknown reachability, skipping library fetch");
+      return api;
+    }
+
     // Fallback: fetch libraries and set the first as active
     const libs = await api.getLibraries(); // note: this calls setActiveLibraryId internally
     // If no libraries, then we are not logged in and just return the api.

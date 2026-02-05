@@ -52,7 +52,7 @@ const BookShelfItem = ({ item, shelfId, onInitBook, togglePlayPause }: BookShelf
     if (!isPlayable) {
       Alert.alert(
         "Offline",
-        "You're offline. This book requires an internet connection.\n\nDownload feature coming soon!",
+        "You're offline. This book isn't downloaded. Connect to the internet or download it to listen offline.",
         [{ text: "OK" }]
       );
       return;

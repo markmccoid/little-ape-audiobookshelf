@@ -1,4 +1,6 @@
-import { getAbsAPI, getAbsAuth } from "@/src/utils/AudiobookShelf/absInit";
+import { AudiobookshelfAPI } from "@/src/utils/AudiobookShelf/absAPIClass";
+import { AudiobookshelfAuth } from "@/src/utils/AudiobookShelf/absAuthClass";
+import { getAbsAPI, getAbsAuth, isAbsAPIInitialized } from "@/src/utils/AudiobookShelf/absInit";
 import { Chapter, NetworkError } from "@/src/utils/AudiobookShelf/abstypes";
 import { checkIsOnline } from "@/src/utils/networkHelper";
 import AudiobookStreamer, { SessionData } from "@/src/utils/rn-trackplayer/AudiobookStreamer";
@@ -38,6 +40,39 @@ const normalizeChapters = (chapters: Chapter[] | undefined) => {
   });
 };
 
+const ensureTrackPlayerInitialized = async () => {
+  if (!playerInitialized) {
+    await trackPlayerInit().catch(() => {});
+    playerInitialized = true;
+  }
+};
+
+const getServerUrlFallback = async (): Promise<string> => {
+  try {
+    return getAbsAuth().absURL;
+  } catch {
+    const storedUrl = await AudiobookshelfAuth.getStoredURL();
+    return storedUrl || "";
+  }
+};
+
+const createLocalOnlyAPI = (): AudiobookshelfAPI => {
+  const api = {} as AudiobookshelfAPI;
+  const noopAsync = async () => null;
+  (api as any).syncProgressToServer = noopAsync;
+  (api as any).updateBookProgress = noopAsync;
+  (api as any).saveBookmark = noopAsync;
+  (api as any).deleteBookmark = noopAsync;
+  return api;
+};
+
+const getApiForLocalPlayback = (): AudiobookshelfAPI => {
+  if (AudiobookshelfAuth.isAssumedAuthedGlobal && isAbsAPIInitialized()) {
+    return getAbsAPI();
+  }
+  return createLocalOnlyAPI();
+};
+
 // Module-scoped flags to avoid duplicate bindings during Fast Refresh
 let eventsBound = false;
 let playerInitialized = false;
@@ -71,6 +106,7 @@ interface PlaybackActions {
   // Initialization
   // init: (serverUrl: string, api: AudiobookshelfAPI) => Promise<void>;
   initFromABS: () => Promise<void>;
+  initForLocalPlayback: () => Promise<void>;
   bindEvents: () => void;
 
   // Info
@@ -141,22 +177,26 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
     // },
 
     initFromABS: async () => {
-      if (!playerInitialized) {
-        await trackPlayerInit().catch(() => {});
-        playerInitialized = true;
-      }
-
+      await ensureTrackPlayerInitialized();
       // Safe auth access for Zustand store
       try {
         // const { getAbsAuth, getAbsAPI } = require("@/src/ABS/absInit");
         const absAuth = getAbsAuth();
-        const absAPI = getAbsAPI();
+        const absAPI = isAbsAPIInitialized() ? getAbsAPI() : await AudiobookshelfAPI.create();
         const syncInterval = 60 * 5; // Default value, could use settings hook here
-        AudiobookStreamer.getInstance(absAuth.absURL, absAPI, syncInterval);
+        AudiobookStreamer.updateInstance(absAuth.absURL, absAPI, syncInterval);
       } catch (error) {
         console.error("Failed to initialize from ABS - auth not available:", error);
         throw new Error("Authentication required for playback initialization");
       }
+    },
+
+    initForLocalPlayback: async () => {
+      await ensureTrackPlayerInitialized();
+      const serverUrl = await getServerUrlFallback();
+      const apiClient = getApiForLocalPlayback();
+      const syncInterval = 60 * 5; // Default value, could use settings hook here
+      AudiobookStreamer.getInstance(serverUrl, apiClient, syncInterval);
     },
 
     bindEvents: () => {
@@ -242,7 +282,6 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       // const userId = getAbsAuth()?.userId;
       // //!! Potential ERROR catch
       // if (!userId) return;
-      const absAuth = getAbsAuth();
       // Ensure events are bound before loading (idempotent - safe to call multiple times)
       get().actions.bindEvents();
       // Store-level guard: if the same book is already loaded, do nothing
@@ -259,27 +298,45 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       const book = useBooksStore.getState().books.find((book) => book.libraryItemId === itemId);
       const bookInfo = useBooksStore.getState().bookInfo[itemId];
       const bookDownloadInfo = useBooksStore.getState().downloadedBookData[itemId];
+      const isDownloaded = book?.isDownloaded === true;
 
       set({ isLoaded: false });
       let tracks;
       let sessionData: SessionData | undefined = undefined;
-      let streamer: AudiobookStreamer;
+      let streamer: AudiobookStreamer | null = null;
 
       try {
         streamer = AudiobookStreamer.getInstance();
       } catch {
-        // Best-effort initialization using ABS singletons
+        // Will initialize below based on playback mode
+      }
+
+      if (isDownloaded) {
+        if (!streamer || !streamer.isReady()) {
+          await get().actions.initForLocalPlayback();
+          streamer = AudiobookStreamer.getInstance();
+        }
+      } else {
+        if (!AudiobookshelfAuth.isAssumedAuthedGlobal) {
+          Alert.alert(
+            "Not Logged In",
+            "Please log in to stream this book, or download it for offline listening.",
+            [{ text: "OK" }]
+          );
+          throw new Error("Not authenticated");
+        }
+        // Ensure we have an authenticated API instance for streaming
         await get().actions.initFromABS();
         streamer = AudiobookStreamer.getInstance();
       }
 
-      if (!streamer.isReady()) {
+      if (!streamer || !streamer.isReady()) {
         throw new Error("Playback not initialized. Call actions.init/initFromABS first.");
       }
 
       // TODO: Load from local path when download feature is implemented
-      console.log("BOOK IS DOWNLOADED", book?.isDownloaded);
-      if (book?.isDownloaded === true) {
+      console.log("BOOK IS DOWNLOADED", isDownloaded);
+      if (isDownloaded) {
         const dlTracks = bookDownloadInfo?.audioTracks;
 
         console.log("Loading downloaded book:", itemId);
@@ -292,18 +349,20 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
               end: chapter.endSeconds,
             };
           }) || [];
+        const startPosition = bookInfo?.positionInfo?.currentPosition ?? 0;
+        const absServerURL = await getServerUrlFallback();
         sessionData = {
           libraryItemId: itemId,
-          startTime: bookInfo.positionInfo.currentPosition,
+          startTime: startPosition,
           displayTitle: book.title || "",
           chapters: regularChapters,
           coverURL: book.coverURI || "",
           duration: book.duration || 0,
-          absServerURL: absAuth.absURL,
+          absServerURL,
         };
         tracks = getTrackPlayerTracksDL(
           itemId,
-          bookInfo.positionInfo.currentPosition,
+          startPosition,
           { title: book.title || "", author: book.author || "" },
           dlTracks,
           regularChapters
@@ -338,7 +397,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
           id: null, // Explicitly null to indicate local session
           libraryItemId: itemId,
           audioTracks: mappedAudioTracks,
-          startTime: bookInfo.positionInfo.currentPosition,
+          startTime: startPosition,
           chapters: regularChapters,
         };
 
@@ -351,7 +410,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
         if (!isOnline) {
           Alert.alert(
             "Offline",
-            "You're offline. This book requires an internet connection.\n\nDownload feature coming soon!",
+            "You're offline. This book isn't downloaded. Connect to the internet or download it to listen offline.",
             [{ text: "OK" }]
           );
           throw new Error("Cannot load book while offline - not downloaded");

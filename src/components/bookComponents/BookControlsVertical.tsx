@@ -1,4 +1,6 @@
 import { useAuth } from "@/src/contexts/AuthContext";
+import { useNetwork } from "@/src/contexts/NetworkContext";
+import { useBooksStore } from "@/src/store/store-books";
 import {
   useIsBookActive,
   usePlaybackActions,
@@ -6,6 +8,7 @@ import {
   usePlaybackStore,
 } from "@/src/store/store-playback";
 import { useSeekBackwardSeconds, useSeekForwardSeconds } from "@/src/store/store-settings";
+import { canPlayBookOffline } from "@/src/utils/bookAvailability";
 import { THEME, useThemeColors } from "@/src/utils/theme";
 import { BlurView } from "expo-blur";
 import { SymbolView } from "expo-symbols";
@@ -28,6 +31,7 @@ const BookControls = ({ libraryItemId }: Props) => {
     usePlaybackActions();
   const themeColors = useThemeColors();
   const { isAuthenticated } = useAuth();
+  const { isOffline } = useNetwork();
 
   const seekForward = useSeekForwardSeconds();
   const seekBackward = useSeekBackwardSeconds();
@@ -38,6 +42,17 @@ const BookControls = ({ libraryItemId }: Props) => {
 
   const isBookLoaded = usePlaybackStore((state) => state.isLoaded);
   const isPlaying = usePlaybackIsPlaying(libraryItemId);
+  const sessionLibraryItemId = usePlaybackStore((state) => state.session?.libraryItemId);
+  const book = useBooksStore((state) =>
+    state.books.find((candidate) => candidate.libraryItemId === libraryItemId)
+  );
+  const isDownloaded = book?.isDownloaded === true;
+  const canPlayOffline = canPlayBookOffline(
+    { libraryItemId, isDownloaded },
+    !isOffline,
+    sessionLibraryItemId
+  );
+  const isCurrentSession = sessionLibraryItemId === libraryItemId;
 
   const showPlayingState = isBookActive && isPlaying;
   const opacityVal = useSharedValue(0);
@@ -47,8 +62,20 @@ const BookControls = ({ libraryItemId }: Props) => {
   const growVal = useSharedValue(collapsedHeight);
 
   const localTogglePlayPause = async () => {
-    if (!isAuthenticated) {
-      Alert.alert("Not Logged In", "No user is logged in, cannot play");
+    if (!canPlayOffline) {
+      Alert.alert(
+        "Offline",
+        "You're offline. This book isn't downloaded. Connect to the internet or download it to listen offline.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+    if (!isDownloaded && !isCurrentSession && !isAuthenticated) {
+      Alert.alert(
+        "Not Logged In",
+        "Please log in to stream this book, or download it for offline listening.",
+        [{ text: "OK" }]
+      );
       return;
     }
     if (!isBookActive) {

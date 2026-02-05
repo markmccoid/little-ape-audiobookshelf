@@ -1,6 +1,7 @@
 import { AudiobookshelfAuth } from "../utils/AudiobookShelf/absAuthClass";
 import { getAbsAPI } from "../utils/AudiobookShelf/absInit";
 import { Bookmark } from "../utils/AudiobookShelf/abstypes";
+import { checkIsOnlineStrict } from "../utils/networkHelper";
 import { BookInfo, useBooksStore } from "./store-books";
 
 export const storeInit = async () => {
@@ -12,6 +13,12 @@ export const storeInit = async () => {
     if (!hasCredentials) {
       console.log("storeInit: No stored credentials, skipping server sync");
       return; // Exit gracefully without server sync
+    }
+
+    const isOnline = await checkIsOnlineStrict();
+    if (!isOnline) {
+      console.log("storeInit: Offline, skipping server sync");
+      return;
     }
 
     const absAPI = getAbsAPI();
