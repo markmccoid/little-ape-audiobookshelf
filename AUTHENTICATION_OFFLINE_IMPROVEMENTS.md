@@ -479,3 +479,71 @@ If issues arise:
 
 *Last Updated: $(date)*
 *Version: 1.0.0*
+
+---
+
+## Phase 4: Offline Downloaded Playback & Startup Resilience (2026-02-05)
+
+### Goals
+- Allow downloaded playback when offline or unauthenticated
+- Prevent initialization hangs when network reachability is unknown
+- Centralize online checks to reduce inconsistent offline detection
+
+### Changes Made
+
+#### 4.1 Playback Gating Uses Downloaded/Offline Status
+**Files:**
+- `src/components/bookComponents/BookControls.tsx`
+- `src/components/bookComponents/BookControlsVertical.tsx`
+- `src/screens/Home/BookShelves/BookShelfItem.tsx`
+- `src/screens/Home/InProgressItem.tsx`
+
+**Behavior:**
+- Playback gating now uses `canPlayBookOffline` and the book’s `isDownloaded` state instead of `isAuthenticated` alone.
+- When offline and the book is not downloaded, a clear offline alert is shown.
+- When not authenticated and the book is not downloaded or already loaded, the UI prompts the user to log in for streaming.
+- Offline messaging was updated to reflect that downloads are supported (removed “coming soon” text).
+
+#### 4.2 Local Playback Initialization Without Auth
+**File: `src/store/store-playback.ts`**
+
+**Added:**
+- `ensureTrackPlayerInitialized()` to avoid duplicate init logic.
+- `initForLocalPlayback()` to initialize `AudiobookStreamer` without auth.
+- `getServerUrlFallback()` to use stored server URL when auth is unavailable.
+- `createLocalOnlyAPI()` and `getApiForLocalPlayback()` for local-only playback paths.
+
+**Modified:**
+- `loadBook()` now branches on `isDownloaded` before requiring auth.
+- Downloaded playback no longer calls `getAbsAuth()` when auth is missing.
+- `initFromABS()` now uses `AudiobookStreamer.updateInstance()` and can create an API instance if none exists.
+
+#### 4.3 Startup Flow Avoids Offline Hangs
+**Files:**
+- `src/utils/networkHelper.ts`
+- `src/store/storeInit.ts`
+- `src/utils/AudiobookShelf/absInit.ts`
+- `src/utils/AudiobookShelf/absAPIClass.ts`
+
+**Behavior:**
+- Added `checkIsOnlineStrict()` which treats unknown reachability as offline.
+- `storeInit()` skips server sync when offline or reachability is unknown.
+- `prewarmBooksCache()` skips cache prewarming when offline or reachability is unknown.
+- `AudiobookshelfAPI.create()` skips `getLibraries()` when offline or reachability is unknown.
+
+#### 4.4 Centralized Online Checks
+**Files:**
+- `src/utils/AudiobookShelf/absAuthClass.ts`
+- `src/utils/AudiobookShelf/absAPIClass.ts`
+- `src/utils/rn-trackplayer/SyncManager.ts`
+
+**Behavior:**
+- Replaced direct `NetInfo.fetch()` checks with `checkIsOnline()` and `checkIsOnlineStrict()` to unify online detection across auth, API, and sync layers.
+
+### Behavioral Summary
+- Downloaded books can be played offline without authentication.
+- Streaming requires online + authenticated state.
+- App initialization no longer hangs when reachability is unknown.
+
+### Known Caveat
+- If a user plays downloaded content while unauthenticated, progress is stored locally but not queued for server sync. The server only updates after a later online, authenticated playback and pause.
