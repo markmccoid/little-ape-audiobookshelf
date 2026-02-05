@@ -1,5 +1,4 @@
 // services/AudiobookshelfAuth.ts
-import NetInfo from "@react-native-community/netinfo";
 import * as SecureStore from "expo-secure-store";
 import {
   AudiobookshelfError,
@@ -20,6 +19,7 @@ import {
   emitTokenRefreshFailed,
 } from "./authEventEmitter";
 import { AuthErrorType, AuthState, createAuthError } from "./authTypes";
+import { checkIsOnline } from "../networkHelper";
 
 export class AudiobookshelfAuth {
   private static readonly TOKEN_KEY = "audiobookshelf_tokens";
@@ -221,9 +221,7 @@ export class AudiobookshelfAuth {
 
   private async checkNetworkConnection(): Promise<boolean> {
     try {
-      const networkState = await NetInfo.fetch();
-      const isConnected =
-        networkState.isConnected === true && networkState.isInternetReachable !== false;
+      const isConnected = await checkIsOnline();
 
       if (!isConnected) {
         console.warn("No internet connection available");

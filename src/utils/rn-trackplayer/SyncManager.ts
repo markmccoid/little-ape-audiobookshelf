@@ -1,8 +1,8 @@
-import NetInfo from "@react-native-community/netinfo";
 import PQueue from "p-queue";
 import { addSyncLogEntry, formatPositionForLog } from "../../store/store-debuglogs";
 import { AudiobookshelfAPI } from "../AudiobookShelf/absAPIClass";
 import { SyncOperation, syncQueue } from "../syncQueue";
+import { checkIsOnline } from "../networkHelper";
 
 // Helper to get book title from store
 function getBookTitle(libraryItemId: string): string {
@@ -346,8 +346,7 @@ export class SyncManager {
    * Returns true if network is available, false otherwise
    */
   public async checkNetworkBeforeRequest(): Promise<boolean> {
-    const state = await NetInfo.fetch();
-    return state.isConnected === true && state.isInternetReachable !== false;
+    return await checkIsOnline();
   }
 
   /**
@@ -492,8 +491,8 @@ export class SyncManager {
   }
 
   public async processQueueOnReconnection(): Promise<void> {
-    const networkState = await NetInfo.fetch();
-    if (networkState.isConnected && networkState.isInternetReachable !== false) {
+    const isOnline = await checkIsOnline();
+    if (isOnline) {
       await this.processQueuedSyncs();
     }
   }

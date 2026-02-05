@@ -7,7 +7,6 @@ import {
   SeriesPersonalizedView,
 } from "./abstypes";
 // services/AudiobookshelfAPI.ts
-import NetInfo from "@react-native-community/netinfo";
 import axios, { AxiosRequestConfig } from "axios";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
@@ -20,6 +19,7 @@ import { Keys } from "@store/mmkv/storageKeys";
 import { Book } from "@/src/store/store-books";
 import { PitchAlgorithm } from "react-native-track-player";
 import { queryClient } from "../queryClient";
+import { checkIsOnline, checkIsOnlineStrict } from "../networkHelper";
 import { AudiobookshelfAuth } from "./absAuthClass";
 import {
   ABSLoginResponse,
@@ -117,8 +117,8 @@ export class AudiobookshelfAPI {
 
     // If we don't know reachability yet, avoid blocking initialization
     // and let the app proceed with cached/local data.
-    const networkState = await NetInfo.fetch();
-    if (!(networkState.isConnected === true && networkState.isInternetReachable === true)) {
+    const isOnline = await checkIsOnlineStrict();
+    if (!isOnline) {
       console.warn("ABS create: Offline or unknown reachability, skipping library fetch");
       return api;
     }
@@ -136,8 +136,8 @@ export class AudiobookshelfAPI {
     options: AxiosRequestConfig = {}
   ): Promise<T> {
     // Fail fast if offline
-    const networkState = await NetInfo.fetch();
-    if (!networkState.isConnected || networkState.isInternetReachable === false) {
+    const isOnline = await checkIsOnline();
+    if (!isOnline) {
       throw new OfflineError("Cannot make request while offline");
     }
 
